@@ -11,7 +11,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/2026heshao/dsh-skill-mcp-board/actions/workflows/ci.yml"><img src="https://github.com/2026heshao/dsh-skill-mcp-board/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
   <a href="https://github.com/2026heshao/dsh-skill-mcp-board/releases"><img src="https://img.shields.io/github/v/release/2026heshao/dsh-skill-mcp-board" alt="release"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
   <img src="https://img.shields.io/badge/DSH-%3E%3D0.1.5--rc.1-blue" alt="DSH">

@@ -4,11 +4,11 @@
   "description": "Unified Skill + MCP board for DeepSeek Harness Web — global panel page, JSON import, and profile-backed Host Remote management.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Imzl-zl/dsh-mcp-manager-ui.git"
+    "url": "git+https://github.com/2026heshao/dsh-skill-mcp-board.git"
   },
-  "homepage": "https://github.com/Imzl-zl/dsh-mcp-manager-ui#readme",
+  "homepage": "https://github.com/2026heshao/dsh-skill-mcp-board#readme",
   "bugs": {
-    "url": "https://github.com/Imzl-zl/dsh-mcp-manager-ui/issues"
+    "url": "https://github.com/2026heshao/dsh-skill-mcp-board/issues"
   },
   "type": "module",
   "main": "lib/index.js",

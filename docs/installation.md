@@ -12,28 +12,30 @@
 
 ## 安装
 
-推荐用 npm 安装：包里的 `^1.x` 范围让后续 `dsh plugin update` 能自动升级小版本。
+本 fork 通过 GitHub 发布。推荐直接从 GitHub 安装：
 
 ```sh
-dsh plugin --profile web add dsh-mcp-manager-ui@^1.5.0
+dsh plugin --profile web add github:2026heshao/dsh-skill-mcp-board
 ```
 
-也可以固定 GitHub release tag（适合需要锁定某个具体版本时）：
+也可以固定 release tag 或某个 commit（适合需要锁定具体版本时）：
 
 ```sh
 # 固定 release tag
-dsh plugin --profile web add github:Imzl-zl/dsh-mcp-manager-ui#v1.5.0
+dsh plugin --profile web add github:2026heshao/dsh-skill-mcp-board#v1.6.0
 
 # 或固定某个 commit
-dsh plugin --profile web add github:Imzl-zl/dsh-mcp-manager-ui#<commit>
+dsh plugin --profile web add github:2026heshao/dsh-skill-mcp-board#<commit>
 ```
 
-两种方式的**代码与运行行为完全相同**（包里带预构建的 `lib/`，不需要运行 `prepare`，也不需要配置 `allowBuilds`）；区别只在升级：`^1.x` 范围能被 `dsh plugin update` 自动推进，而 tag/commit 是不可变规格、`update` 只会重新解析同一个规格。
+> 上游原包（Imzl-zl 的 `dsh-mcp-manager-ui`）仍走 npm `^1.x` 自动升级；本 fork 的 tag/commit 规格是不可变的，`update` 只会重新解析同一规格。
 
-如果之前安装的是本地开发目录或另一种规格，先移除旧依赖：
+两种方式的**代码与运行行为完全相同**（包里带预构建的 `lib/`，不需要运行 `prepare`，也不需要配置 `allowBuilds`）。
+
+如果之前安装的是本地开发目录、上游 npm 包或另一种规格，先移除旧依赖：
 
 ```sh
-dsh plugin --profile web remove dsh-mcp-manager-ui
+dsh plugin --profile web remove dsh-skill-mcp-board
 ```
 
 安装完成后重启 Web Host：
@@ -53,8 +55,8 @@ dsh --profile web --dump-config
 输出中应出现：
 
 ```yaml
-id: mcp-manager-ui
-name: dsh-mcp-manager-ui
+id: skill-mcp-board
+name: dsh-skill-mcp-board
 ```
 
 打开 DSH Web 后，右下角应出现 MCP 管理按钮。面板能够读取当前 profile 中的 MCP，并对可管理条目执行启停、编辑、重连和删除。
@@ -64,7 +66,8 @@ name: dsh-mcp-manager-ui
 ## 升级
 
 ```sh
-dsh plugin --profile web update dsh-mcp-manager-ui
+# GitHub tag/commit 安装：换新 tag 重新 add；#main 安装可直接：
+dsh plugin --profile web update dsh-skill-mcp-board
 ```
 
 升级后重启 `dsh web`。
@@ -73,19 +76,23 @@ dsh plugin --profile web update dsh-mcp-manager-ui
 
 | 安装规格 | `update` 的效果 | 怎么跨版本 |
 |---|---|---|
-| `dsh-mcp-manager-ui@^1.5.0`（npm，推荐） | 在 `^1.x` 内自动升到最新小版本，不会跨到 2.0.0 | 已是自动；跨大版本显式安装 `@^2` |
-| `github:...#v1.4.0`（tag） | 重新解析同一个 tag，**不会动** | 换成新 tag 重新 `add`：`... #<新 tag>` |
+| `github:...#v1.6.0`（tag，本 fork 推荐方式） | 重新解析同一个 tag，**不会动** | 换成新 tag 重新 `add`：`... #<新 tag>` |
 | `github:...#<commit>` | 同上，固定在 commit | 用新 commit/tag 重新 `add` |
 | `github:...#main`（分支） | 拉取最新 main | 已是自动；但不推荐生产（无 release 门槛） |
+| `dsh-mcp-manager-ui@^1.5.0`（上游 npm 包） | 在 `^1.x` 内自动升到最新小版本，不会跨到 2.0.0 | 已是自动；跨大版本显式安装 `@^2` |
 | `link:<本地目录>`（开发） | 不适用 | 在 checkout 里 `git pull` 后重启 `dsh web` |
 
 为什么 tag 不会自动跨版本：`dsh plugin` 是 `pnpm` 的薄转发器，`update` 就是「按 package.json 里的 spec 再解析一次」，而 git tag 是不可变规格、没有范围语义（`pnpm update --help`："Updates packages to their latest version **based on the specified range**"）。
 
-面板自带更新提示与一键升级（查 GitHub Releases，每天最多一次、可关闭、不会自己动；点「升级」才装）。npm 安装的用户也可以用命令行 `update` 升级，两者等价。每个 release 都会同时发布到 npm 与 GitHub Releases，两者版本一致。
+面板自带更新提示与一键升级（查本仓库 GitHub Releases，每天最多一次、可关闭、不会自己动；点「升级」才装）。每个 release 都会在本仓库发 GitHub Releases（上游包的历史版本曾同步发 npm，本 fork 目前只走 GitHub Releases）。
 
 ## 发布流程（维护者）
 
-npm 与 GitHub Releases 必须**同一次发布里都更新**：用户从 npm 升级，面板的更新提示查 GitHub Releases。两者版本不一致就会出现「提示说有新版、`update` 却拿不到」。这两件事现在由 `.github/workflows/release.yml` 在推 tag 时自动完成，并且会先校验「tag 与 package.json 版本一致」再跑测试。
+> 本节为**上游原文**（npm + trusted publishing 流程，适用上游 Imzl-zl/dsh-mcp-manager-ui）。
+> 本 fork 目前只发布到 GitHub Releases：推送 main 后打 tag（如 `v1.6.0`）并在 GitHub 网页创建 Release，不需要 npm 发布。
+> 面板的更新提示查的就是本仓库的 GitHub Releases，tag 与 package.json 的 `version` 保持一致即可。
+
+npm 与 GitHub Releases 必须**同一次发布里都更新**：用户从 npm 升级，面板的更新提示查 GitHub Releases。两者版本不一致就会出现「提示说有新版、`update` 却拿不到」。这两件事在上游由 `.github/workflows/release.yml` 在推 tag 时自动完成，并且会先校验「tag 与 package.json 版本一致」再跑测试。
 
 ### 一次性准备（只需做一次）
 
@@ -96,7 +103,7 @@ npm 与 GitHub Releases 必须**同一次发布里都更新**：用户从 npm �
    npm publish
    ```
 
-2. 在 npmjs.com 该包的 Settings → **Trusted Publisher** → GitHub Actions，填：organization/user `Imzl-zl`、repository `dsh-mcp-manager-ui`、workflow filename `release.yml`（可另填 environment）。
+2. 在 npmjs.com 该包的 Settings → **Trusted Publisher** → GitHub Actions，填：organization/user `Imzl-zl`、repository `dsh-mcp-manager-ui`、workflow filename `release.yml`（可另填 environment）。（上游 npm 包的配置，本 fork 不适用）
 3. 之后可选但推荐：把包的 Publishing access 设为 **Require two-factor authentication and disallow tokens** —— trusted publishing 不受该限制影响（它用 OIDC，不是 token），而长期写凭据因此彻底用不上。
 
 ### 每次发布
@@ -127,11 +134,11 @@ git tag -a v1.5.0 -m "v1.4.2 ..." && git push origin v1.5.0
 
 ### 不用 CI 的手动路径（备选）
 
-`npm publish` 不会跑构建（包内已含 `lib/`，也没有 `prepare`/`prepublishOnly`），发布的就是提交里的文件；因此**先提交、再发布**，否则 npm 上的包会与 tag 内容不一致。发布前用 `npm pack --dry-run` 核对内容与体积。
+`npm publish` 不会跑构建（包内已含 `lib/`，也没有 `prepare`/`prepublishOnly`），发布的就是提交里的文件；因此**先提交、再发布**，否则 npm 上的包会与 tag 内容不一致。发布前用 `npm pack --dry-run` 核对内容与体积。（上游 npm 流程，本 fork 不适用）
 
 ```sh
 npm publish          # 会弹 2FA 挑战；若用 bypass-2FA 的 granular token 则非交互
-gh release create v1.5.0 --title "dsh-mcp-manager-ui v1.5.0" --notes-file <notes>
+gh release create v1.6.0 --title "dsh-skill-mcp-board v1.6.0" --notes-file <notes>
 ```
 
 `npm login` 的会话 token 只有 2 小时，超时需要重新登录；classic token 已被 npm 永久吊销，能非交互发布的只剩勾了 **Bypass 2FA** 的 granular access token——但它正在被 npm 收窄（已不能做账号/包管理类操作，且 2027-01 起将失去直接发布能力），所以长期方案是上面的 trusted publishing。
@@ -139,7 +146,7 @@ gh release create v1.5.0 --title "dsh-mcp-manager-ui v1.5.0" --notes-file <notes
 ## 卸载
 
 ```sh
-dsh plugin --profile web remove dsh-mcp-manager-ui
+dsh plugin --profile web remove dsh-skill-mcp-board
 ```
 
 卸载插件不会自动删除当前 profile 中已有的 `@deepseek-ai/dsh-mcp-client` 条目。
@@ -149,9 +156,9 @@ dsh plugin --profile web remove dsh-mcp-manager-ui
 本地开发才使用目录安装：
 
 ```sh
-cd C:\sudy\github\dsh-mcp-manager-ui
+cd D:\桌面\AI Port\DSH plugins\_publish-dsh-skill-mcp-board
 pnpm install
-dsh plugin --profile web add C:\sudy\github\dsh-mcp-manager-ui
+dsh plugin --profile web add D:\桌面\AI Port\DSH plugins\_publish-dsh-skill-mcp-board
 ```
 
 修改 Host 代码后需要重启 `dsh web`；浏览器 bundle 是否热更新取决于当前 DSH 的 client HMR 状态。
@@ -160,7 +167,7 @@ dsh plugin --profile web add C:\sudy\github\dsh-mcp-manager-ui
 
 ### `Remote package ... is already registered`
 
-插件被重复装配。确认 bundle、profile patch、Agent preset 和额外 `--patch` 中只有一个 `mcp-manager-ui` 条目。
+插件被重复装配。确认 bundle、profile patch、Agent preset 和额外 `--patch` 中只有一个 `skill-mcp-board` 条目。
 
 ### `file access denied under workspace-write mode`
 
