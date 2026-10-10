@@ -1,0 +1,79 @@
+{
+  "name": "dsh-skill-mcp-board",
+  "version": "1.6.0",
+  "description": "Unified Skill + MCP board for DeepSeek Harness Web — global panel page, JSON import, and profile-backed Host Remote management.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Imzl-zl/dsh-mcp-manager-ui.git"
+  },
+  "homepage": "https://github.com/Imzl-zl/dsh-mcp-manager-ui#readme",
+  "bugs": {
+    "url": "https://github.com/Imzl-zl/dsh-mcp-manager-ui/issues"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "exports": {
+    "./typert": "./lib/typert.js",
+    "./client": "./lib/client.js",
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "docs/*.md",
+    "cordis.patch.yml",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "smol-toml": "^1.8.0",
+    "yaml": "2.9.0",
+    "zod": "4.4.3"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "~4.0.2",
+    "@deepseek-ai/cordis-plugin-loader": "^1.0.3",
+    "@deepseek-ai/dsh-agent": ">=0.1.5-rc.1 <0.2.0",
+    "@deepseek-ai/dsh-agent-loop": ">=0.1.5-rc.1 <0.2.0",
+    "@deepseek-ai/dsh-atomic-write": ">=0.1.5-rc.1 <0.2.0",
+    "@deepseek-ai/dsh-mcp-client": ">=0.1.5-rc.1 <0.2.0",
+    "@deepseek-ai/dsh-scope": ">=0.1.5-rc.1 <0.2.0",
+    "@deepseek-ai/dsh-tools": ">=0.1.5-rc.1 <0.2.0",
+    "@deepseek-ai/dsh-typert-protocol": ">=0.1.5-rc.1 <0.2.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "~4.0.2",
+    "@deepseek-ai/cordis-plugin-loader": "^1.0.3",
+    "@deepseek-ai/dsh-agent": "^0.2.0-rc.2",
+    "@deepseek-ai/dsh-agent-loop": "^0.2.0-rc.2",
+    "@deepseek-ai/dsh-atomic-write": "^0.2.0-rc.2",
+    "@deepseek-ai/dsh-mcp-client": "^0.2.0-rc.2",
+    "@deepseek-ai/dsh-scope": "^0.2.0-rc.2",
+    "@deepseek-ai/dsh-tools": "^0.2.0-rc.2",
+    "@deepseek-ai/dsh-typert-loader": "^0.2.0-rc.2",
+    "@deepseek-ai/dsh-typert-protocol": "^0.2.0-rc.2"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-api-remotes"
+      ]
+    }
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "cordis",
+    "mcp"
+  ],
+  "license": "MIT"
+}
