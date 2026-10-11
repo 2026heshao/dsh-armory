@@ -1,34 +1,20 @@
-# dsh-skill-mcp-board — 军械库 / Armory
+# dsh-mcp-manager-ui
 
 中文 | [English](README.en.md)
-
-> **Skill + MCP 统一看板**：在 MCP 管理之外，新增 Skill（技能）管理面板，一处统管 agent 的「技能」与「工具」。
-> 本项目 fork 并改写自 [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui)（MIT），
-> 原项目是纯 MCP 管理面板；本版将其升级为 Skill + MCP 双看板，并重新命名为 `dsh-skill-mcp-board`。
 
 <p align="center">
   <a href="https://linux.do/" title="LINUX DO"><img src="docs/images/linux-do-logo.svg" alt="LINUX DO" width="40" height="40"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/2026heshao/dsh-skill-mcp-board/releases"><img src="https://img.shields.io/github/v/release/2026heshao/dsh-skill-mcp-board" alt="release"></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
+  <a href="https://github.com/Imzl-zl/dsh-mcp-manager-ui/actions/workflows/ci.yml"><img src="https://github.com/Imzl-zl/dsh-mcp-manager-ui/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
+  <a href="https://www.npmjs.com/package/dsh-mcp-manager-ui"><img src="https://img.shields.io/npm/v/dsh-mcp-manager-ui" alt="npm"></a>
+  <a href="https://www.npmjs.com/package/dsh-mcp-manager-ui"><img src="https://img.shields.io/npm/dm/dsh-mcp-manager-ui" alt="downloads"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/npm/l/dsh-mcp-manager-ui" alt="license"></a>
   <img src="https://img.shields.io/badge/DSH-%3E%3D0.1.5--rc.1-blue" alt="DSH">
 </p>
 
-DeepSeek Harness Web 的 **Skill + MCP 统一看板**：右下角悬浮按钮或侧栏入口，点开就能看连接状态、加服务器、改配置，并在同一处管理 Skill——面板浮在会话之上，**不打断正在进行的对话**。
-
-三个看板：
-
-| 看板 | 管什么 |
-|---|---|
-| **MCP** | MCP 服务器：连接状态、工具列表、启用/禁用、导入、市场安装 |
-| **Skill** | 技能：`SKILL.md` 的启用/禁用、来源目录、会话审计扫描 |
-| **WB 市场** | 直连 WorkBuddy 连接器市场（300+ 连接器）与 SkillHub 技能市场（19 万+ 技能），浏览、搜索、一键安装 |
-
-> Skill 面板读的是 DSH 的自定义技能目录（默认 `~/.agents/skills`）：每个技能是一个含 `SKILL.md` 的文件夹，
-> 用 frontmatter 声明调用策略（`disable-model-invocation` / `user-invocable`）。
-> 用户可调用的技能会自动出现在对话框的 `/` 命令菜单里。
+DeepSeek Harness Web 的 **MCP 管理面板**：右下角悬浮按钮或侧栏「MCP」入口，点开就能看连接状态、加服务器、改配置——面板浮在会话之上，**不打断正在进行的对话**。
 
 ## 界面预览
 
@@ -54,41 +40,41 @@ DeepSeek Harness Web 的 **Skill + MCP 统一看板**：右下角悬浮按钮或
 - **全局 + 项目双作用域**：全局写 Web profile，一次注册所有项目可用；项目写该项目 `.dsh/mcp.json`，只该项目会话可见；项目里还能「屏蔽」某个全局 MCP
 - **两个入口，同一个面板**：右下角悬浮按钮（可拖拽、记忆位置）与官方侧栏入口（展开态在「设置」上方显示「MCP」，收起成 56px 轨道时只剩图标）共享同一开关状态；面板右上角「入口」可以把两者只留一个（不能都关）
 - **MCP 市场**：47 个逐条一手核实过的服务，分 10 类（搜索、开发工具、安全与逆向、数据库与数据、AI 与知识、浏览器自动化、云与基础设施、效率协作、文件与本地、通讯）。搜索为主操作，配分类与「只要免密钥」筛选、排序、卡片直接安装；每条如实标注免费额度与需要准备什么（密钥 / 连接信息 / 装完还得改的参数）。已配置的只识别并跳过，不覆盖
-- **WB 市场（直连安装）**：看板第三个分类，两个市场一处浏览——
-  - **连接器（MCP）**：直读 WorkBuddy 官方分发 ZIP（`static.workbuddy.cn`，与 WorkBuddy 桌面端同一数据源），316 个连接器按需解析；可安装的 242 个（streamable-http 为主），CLI 型 / 需 WorkBuddy token 注入的 74 个如实标注「仅展示」并给出原因。安装 = 把该连接器的 `mcpServers` 合并写入 MCP 配置，与「导入 JSON」同一链路（准入、同名跳过、entry id 预留一致），全局与项目作用域都可选；ZIP 按 ETag 缓存在 `~/.dsh/wb-market/`，解压用 Node 内置 zlib，**零新增运行时依赖**
-  - **技能（SkillHub）**：直读 SkillHub 公开 API（`api.skillhub.cn`，19 万+ 技能），支持搜索（`keyword`）、排序（下载/安装/星标/评分）、分页；详情含发布方认证与安全扫描状态。安装 = 逐文件下载并按清单 sha256 校验后写入 `~/.agents/skills/`（与官方 skill 子系统同一发现范围），装完即刻生效；已装的显示「已安装」，可一键卸载、重装即更新
-  - 技能版权归原作者所有；两个均为第三方接口，字段可能随上游改版变化（面板顶部有常驻说明）
 - 导入本机其他客户端的 MCP 配置：自动检测 Claude Code、Codex（`config.toml`）、OpenCode（含 `.jsonc`）、pi、Claude Desktop、Cursor、Windsurf、VS Code、Gemini CLI、Roo Code 与跨工具的共享配置，逐个列出，点一条即导入；也能粘贴 Claude/Cursor/Cline/Roo 的 `mcpServers` 或 VS Code 的 `servers` JSON。写入前预览，支持「合并（同名更新）」与「替换」
 - 跟随 DSH 深色/浅色主题，适配窄屏与移动宽度
 - 更新提示与**一键升级**：有新版时在面板顶部显示可关闭的提示条（每天最多查一次，可用 `DSH_MCP_MANAGER_DISABLE_UPDATE_CHECK` 关闭）。点了「升级」才动，**不会自动升级**；升级由 DSH 官方的 pluginManager 执行，装完提示重启宿主生效。用 `link:` / `file:` / `github:` 装的本地开发副本不给按钮（那会把链接换成 npm 包）
 - **升级后主动说一次变了什么**：版本变了后第一次打开面板弹一张小卡片，列出本次更新内容，并指路新功能在哪（例如「入口」开关在面板右上角）；确认一次后不再提示，不联网、不发任何数据
+- **工具裁缝**（1.7.0 新增）：扫描本机会话日志（只解析 `tool/call` / `tool/result` 两类事件，不读消息正文），统计每个工具近 7/30/90 天的调用次数、错误率与最后使用时间；同时按当前注册表估算每个工具 Schema 每轮请求占用的上下文 token。窗口内零调用的 MCP 工具自动进「死工具清单」，行内可一键禁用/启用对应服务器（复用官方写链，随时可恢复）。全程只读，多帧 zstd 日志逐帧解析、个别帧损坏跳过不中断
+- **WB 市场（直连安装，1.8.0 新增）**：看板第四个分类，两个市场一处浏览——
+  - **连接器（MCP）**：直读 WorkBuddy 官方分发 ZIP（`static.workbuddy.cn`，与 WorkBuddy 桌面端同一数据源），316 个连接器按需解析；可安装的 242 个（streamable-http 为主），CLI 型 / 需 WorkBuddy token 注入的 74 个如实标注「仅展示」并给出原因。安装 = 把该连接器的 `mcpServers` 合并写入 MCP 配置，与「导入 JSON」同一链路（准入、同名跳过、entry id 预留一致），全局与项目作用域都可选；ZIP 按 ETag 缓存在 `~/.dsh/wb-market/`，解压用 Node 内置 zlib，**零新增运行时依赖**
+  - **技能（SkillHub）**：直读 SkillHub 公开 API（`api.skillhub.cn`，19 万+ 技能），支持搜索（`keyword`）、排序（下载/安装/星标/评分）、分页；详情含发布方认证与安全扫描状态。安装 = 逐文件下载并按清单 sha256 校验后写入 `~/.agents/skills/`（与官方 skill 子系统同一发现范围），装完即刻生效；已装的显示「已安装」，可一键卸载、重装即更新
+  - 技能版权归原作者所有；两个均为第三方接口，字段可能随上游改版变化（面板顶部有常驻说明）
 
 ## 安装
 
 ```sh
-# 从 GitHub 安装（本 fork 的发布方式）
-dsh plugin --profile web add github:2026heshao/dsh-skill-mcp-board
-
-# 原上游 npm 包（仅 MCP，无 Skill 面板）
+# 推荐：npm 安装 —— 之后 `dsh plugin update` 会在 ^1.x 内自动升到最新小版本
 dsh plugin --profile web add dsh-mcp-manager-ui@^1.5.0
+
+# 或固定 GitHub release tag（不会自动跨版本，升级要换 tag 重新 add）
+dsh plugin --profile web add github:Imzl-zl/dsh-mcp-manager-ui#v1.5.0
 ```
 
 装完**重启 `dsh web`**。升级：
 
 ```sh
-# GitHub 安装需换 tag 重新 add；npm 安装可直接：
 dsh plugin --profile web update dsh-mcp-manager-ui
 ```
 
 卸载（不会删除 profile 里已有的 MCP 条目）：
 
 ```sh
-dsh plugin --profile web remove dsh-skill-mcp-board
+dsh plugin --profile web remove dsh-mcp-manager-ui
 ```
 
 细节、本地开发安装与故障排查见 [安装与升级](docs/installation.md)。
 
-> 不要把 `skill-mcp-board` 手工插进 profile 的 `cordis.patch.yml`、Agent preset 或额外的 `--patch` 文件——插件命令已经完成这件事，重复装配会明确报错。
+> 不要把 `mcp-manager-ui` 手工插进 profile 的 `cordis.patch.yml`、Agent preset 或额外的 `--patch` 文件——插件命令已经完成这件事，重复装配会明确报错。
 
 ## 使用
 
