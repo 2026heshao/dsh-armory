@@ -18,12 +18,13 @@
 
 A **unified Skill + MCP board** for DeepSeek Harness Web: click the floating button (bottom-right) or the sidebar entry to inspect MCP connection status, add servers, edit configuration — and manage Skills in the same place. The panel floats above the session — **it never interrupts an ongoing conversation**.
 
-Two boards:
+Three boards:
 
 | Board | Manages |
 |---|---|
 | **MCP** | MCP servers: connection status, tool list, enable/disable, import, market install |
 | **Skill** | Skills: enable/disable of `SKILL.md` folders, source directories, session audit scan |
+| **WB Market** | Direct access to the WorkBuddy connector market (300+ connectors) and the SkillHub skill market (190k+ skills): browse, search, one-click install |
 
 > The Skill panel reads DSH's custom skill directory (default `~/.agents/skills`): each skill is a folder with a `SKILL.md`,
 > whose frontmatter declares the invocation policy (`disable-model-invocation` / `user-invocable`).
@@ -53,6 +54,10 @@ Two boards:
 - **Global + project scopes**: global servers live in the Web profile and are available to every project; project servers live in that project's `.dsh/mcp.json` and are visible only to its sessions. A project can also hide any global MCP
 - **Two entry points, one panel**: the draggable floating button (position remembered) and the official sidebar entry share the same state; the "Entry" control in the panel header can keep just one of them (never neither)
 - **MCP market**: 47 services across 10 categories, each verified against first-party sources. Search-first, with category and "keyless only" filters, sorting, and one-click install from the card. Already-configured entries are detected and skipped, never overwritten
+- **WB Market (direct installs)**: a third board tab with two markets in one place —
+  - **Connectors (MCP)**: reads the official WorkBuddy distribution ZIP (`static.workbuddy.cn`, the same source the WorkBuddy desktop app uses) on demand — 316 connectors, 242 installable (mostly streamable-http), while 74 CLI-based or WorkBuddy-token-dependent ones are honestly labeled "view only" with the reason. Installing = merging the connector's `mcpServers` into your MCP config through the same pipeline as "Import JSON" (admission, duplicate skip, entry-id reservation), in either global or project scope. The ZIP is ETag-cached under `~/.dsh/wb-market/` and decompressed with Node's built-in zlib — **zero new runtime dependencies**
+  - **Skills (SkillHub)**: reads the public SkillHub API (`api.skillhub.cn`, 190k+ skills) with keyword search, four sort orders, and pagination; details include publisher verification and security-scan status. Installing = downloading file-by-file, verifying each against the manifest's sha256, and writing into `~/.agents/skills/` (the same discovery scope as the official skill subsystem) — effective immediately. Installed skills show an "installed" badge, support one-click uninstall, and reinstalling updates them
+  - Skills belong to their respective authors. Both upstreams are third-party interfaces whose fields may change; the panel carries a persistent note saying so
 - Import MCP configuration from other clients installed on this machine: Claude Code, Codex (`config.toml`), OpenCode (including `.jsonc`), pi, Claude Desktop, Cursor, Windsurf, VS Code, Gemini CLI, Roo Code, and the cross-tool shared config. Everything is previewed before writing, with "merge" and "replace" modes
 - Follows the DSH dark/light theme and adapts to narrow/mobile widths
 - Update notice and **one-click upgrade**: a dismissible banner when a newer release exists (at most one check per day; disable with `DSH_MCP_MANAGER_DISABLE_UPDATE_CHECK`). Nothing happens until you press Upgrade — it **never auto-updates**

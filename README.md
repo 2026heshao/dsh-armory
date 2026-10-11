@@ -18,12 +18,13 @@
 
 DeepSeek Harness Web 的 **Skill + MCP 统一看板**：右下角悬浮按钮或侧栏入口，点开就能看连接状态、加服务器、改配置，并在同一处管理 Skill——面板浮在会话之上，**不打断正在进行的对话**。
 
-两个看板：
+三个看板：
 
 | 看板 | 管什么 |
 |---|---|
 | **MCP** | MCP 服务器：连接状态、工具列表、启用/禁用、导入、市场安装 |
 | **Skill** | 技能：`SKILL.md` 的启用/禁用、来源目录、会话审计扫描 |
+| **WB 市场** | 直连 WorkBuddy 连接器市场（300+ 连接器）与 SkillHub 技能市场（19 万+ 技能），浏览、搜索、一键安装 |
 
 > Skill 面板读的是 DSH 的自定义技能目录（默认 `~/.agents/skills`）：每个技能是一个含 `SKILL.md` 的文件夹，
 > 用 frontmatter 声明调用策略（`disable-model-invocation` / `user-invocable`）。
@@ -53,6 +54,10 @@ DeepSeek Harness Web 的 **Skill + MCP 统一看板**：右下角悬浮按钮或
 - **全局 + 项目双作用域**：全局写 Web profile，一次注册所有项目可用；项目写该项目 `.dsh/mcp.json`，只该项目会话可见；项目里还能「屏蔽」某个全局 MCP
 - **两个入口，同一个面板**：右下角悬浮按钮（可拖拽、记忆位置）与官方侧栏入口（展开态在「设置」上方显示「MCP」，收起成 56px 轨道时只剩图标）共享同一开关状态；面板右上角「入口」可以把两者只留一个（不能都关）
 - **MCP 市场**：47 个逐条一手核实过的服务，分 10 类（搜索、开发工具、安全与逆向、数据库与数据、AI 与知识、浏览器自动化、云与基础设施、效率协作、文件与本地、通讯）。搜索为主操作，配分类与「只要免密钥」筛选、排序、卡片直接安装；每条如实标注免费额度与需要准备什么（密钥 / 连接信息 / 装完还得改的参数）。已配置的只识别并跳过，不覆盖
+- **WB 市场（直连安装）**：看板第三个分类，两个市场一处浏览——
+  - **连接器（MCP）**：直读 WorkBuddy 官方分发 ZIP（`static.workbuddy.cn`，与 WorkBuddy 桌面端同一数据源），316 个连接器按需解析；可安装的 242 个（streamable-http 为主），CLI 型 / 需 WorkBuddy token 注入的 74 个如实标注「仅展示」并给出原因。安装 = 把该连接器的 `mcpServers` 合并写入 MCP 配置，与「导入 JSON」同一链路（准入、同名跳过、entry id 预留一致），全局与项目作用域都可选；ZIP 按 ETag 缓存在 `~/.dsh/wb-market/`，解压用 Node 内置 zlib，**零新增运行时依赖**
+  - **技能（SkillHub）**：直读 SkillHub 公开 API（`api.skillhub.cn`，19 万+ 技能），支持搜索（`keyword`）、排序（下载/安装/星标/评分）、分页；详情含发布方认证与安全扫描状态。安装 = 逐文件下载并按清单 sha256 校验后写入 `~/.agents/skills/`（与官方 skill 子系统同一发现范围），装完即刻生效；已装的显示「已安装」，可一键卸载、重装即更新
+  - 技能版权归原作者所有；两个均为第三方接口，字段可能随上游改版变化（面板顶部有常驻说明）
 - 导入本机其他客户端的 MCP 配置：自动检测 Claude Code、Codex（`config.toml`）、OpenCode（含 `.jsonc`）、pi、Claude Desktop、Cursor、Windsurf、VS Code、Gemini CLI、Roo Code 与跨工具的共享配置，逐个列出，点一条即导入；也能粘贴 Claude/Cursor/Cline/Roo 的 `mcpServers` 或 VS Code 的 `servers` JSON。写入前预览，支持「合并（同名更新）」与「替换」
 - 跟随 DSH 深色/浅色主题，适配窄屏与移动宽度
 - 更新提示与**一键升级**：有新版时在面板顶部显示可关闭的提示条（每天最多查一次，可用 `DSH_MCP_MANAGER_DISABLE_UPDATE_CHECK` 关闭）。点了「升级」才动，**不会自动升级**；升级由 DSH 官方的 pluginManager 执行，装完提示重启宿主生效。用 `link:` / `file:` / `github:` 装的本地开发副本不给按钮（那会把链接换成 npm 包）

@@ -1,7 +1,7 @@
 {
   "name": "dsh-skill-mcp-board",
-  "version": "1.6.0",
-  "description": "Unified Skill + MCP board for DeepSeek Harness Web — global panel page, JSON import, and profile-backed Host Remote management.",
+  "version": "1.7.0",
+  "description": "Unified Skill + MCP board for DeepSeek Harness Web — global panel page, JSON import, WorkBuddy connector & SkillHub market installs, and profile-backed Host Remote management.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/2026heshao/dsh-skill-mcp-board.git"
