@@ -2,29 +2,44 @@
 
 [中文](README.md) | English
 
-> **Unified Skill + MCP board**: on top of MCP management, adds a Skill management panel — one place to manage both the agent's "skills" and "tools".
+> **The all-in-one control board for DeepSeek Harness**: MCP servers · Skills · tool-usage ledger · three markets (WorkBuddy connectors ×316 / curated built-ins ×47 / SkillHub skills ×190k+), with browsing, search and one-click install.
 > This project is a fork of [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui) (MIT),
-> upgraded from a pure MCP panel into a dual Skill + MCP board and renamed to `dsh-skill-mcp-board`.
+> upgraded from a pure MCP panel into a **four-in-one board: MCP + Skills + Markets + Tool Tailor**.
 
 <p align="center">
-  <a href="https://linux.do/" title="LINUX DO"><img src="docs/images/linux-do-logo.svg" alt="LINUX DO" width="40" height="40"></a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/2026heshao/dsh-skill-mcp-board/releases"><img src="https://img.shields.io/github/v/release/2026heshao/dsh-skill-mcp-board" alt="release"></a>
+  <a href="https://github.com/2026heshao/dsh-skill-mcp-board/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-skill-mcp-board?style=social" alt="stars"></a>
+  <a href="https://github.com/2026heshao/dsh-skill-mcp-board/releases"><img src="https://img.shields.io/github/v/release/2026heshao/dsh-skill-mcp-board?label=release" alt="release"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
   <img src="https://img.shields.io/badge/DSH-%3E%3D0.1.5--rc.1-blue" alt="DSH">
+  <a href="https://github.com/topics/dsh-plugin"><img src="https://img.shields.io/badge/topic-dsh--plugin-8b5cf6" alt="topic: dsh-plugin"></a>
 </p>
 
-A **unified Skill + MCP board** for DeepSeek Harness Web: click the floating button (bottom-right) or the sidebar entry to inspect MCP connection status, add servers, edit configuration — and manage Skills in the same place. The panel floats above the session — **it never interrupts an ongoing conversation**.
+## Install in one line
 
-Three boards:
+```sh
+dsh plugin --profile web add github:2026heshao/dsh-skill-mcp-board
+```
 
-| Board | Manages |
+Restart DSH, then open **Skills · MCP** from the global panel list at the top of the sidebar (or the floating button bottom-right). Desktop users on the `desktop` profile: swap `--profile web` for `--profile desktop`.
+
+## What it solves
+
+| Pain point | How this plugin helps |
+|---|---|
+| MCP config means hand-editing YAML with no feedback on whether it connects | Visual panel: status, tool schemas, enable/disable, reconnect — global & per-project scopes, project changes apply to live sessions instantly |
+| Installing skills means hunting for `SKILL.md` repos everywhere | **Direct markets**: SkillHub (190k+ skills), WorkBuddy connectors (316), 47 first-party-verified built-ins — search, filter, one-click install with per-file sha256 verification |
+| Every MCP's tool descriptions eat context tokens; zero-use tools sit there for free | **Tool Tailor**: scans local session logs for call counts / errors / latency per tool; prune dead tools with one click |
+| Migrating from Claude/Cursor/VS Code means copying config by hand | Detects local configs from 11 clients and imports them with a preview |
+
+
+A **unified board** for DeepSeek Harness (Web and desktop): four top-level tabs — **MCP**, **Skill**, **Tool Tailor** and **Market** — reachable from the global panel list at the top of the sidebar or the floating button. The panel floats above the session — **it never interrupts an ongoing conversation**.
+
+| Tab | Manages |
 |---|---|
 | **MCP** | MCP servers: connection status, tool list, enable/disable, import, market install |
 | **Skill** | Skills: enable/disable of `SKILL.md` folders, source directories, session audit scan |
-| **WB Market** | Direct access to the WorkBuddy connector market (300+ connectors) and the SkillHub skill market (190k+ skills): browse, search, one-click install |
+| **Tool Tailor** | Per-tool call counts, error rates, latency and context-token cost from local session logs; prune dead tools |
+| **Market** | Three sub-tabs: WorkBuddy connectors (316), curated built-ins (47), SkillHub skills (190k+) — browse, search, one-click install |
 
 > The Skill panel reads DSH's custom skill directory (default `~/.agents/skills`): each skill is a folder with a `SKILL.md`,
 > whose frontmatter declares the invocation policy (`disable-model-invocation` / `user-invocable`).
@@ -63,14 +78,10 @@ Three boards:
 - Update notice and **one-click upgrade**: a dismissible banner when a newer release exists (at most one check per day; disable with `DSH_MCP_MANAGER_DISABLE_UPDATE_CHECK`). Nothing happens until you press Upgrade — it **never auto-updates**
 - **What changed, said once**: after the version changes, the first time you open the panel a small card lists what's new; confirming it never shows it again, and it uses no network and sends nothing
 
-## Install
+## Install (details)
 
 ```sh
-# Install from GitHub (this fork's release channel)
 dsh plugin --profile web add github:2026heshao/dsh-skill-mcp-board
-
-# The upstream npm package (MCP panel only, no Skill board)
-dsh plugin --profile web add dsh-mcp-manager-ui@^1.5.0
 ```
 
 Then **restart `dsh web`**. To upgrade (GitHub installs: re-add with a new tag):

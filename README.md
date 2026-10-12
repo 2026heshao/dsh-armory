@@ -1,20 +1,35 @@
-# dsh-mcp-manager-ui
+# dsh-skill-mcp-board — 军械库 / Armory
 
 中文 | [English](README.en.md)
 
-<p align="center">
-  <a href="https://linux.do/" title="LINUX DO"><img src="docs/images/linux-do-logo.svg" alt="LINUX DO" width="40" height="40"></a>
-</p>
+> **DeepSeek Harness 的一体化管理看板**：MCP 服务器 · 技能 · 工具使用账本 · 三大市场（WorkBuddy 连接器 316 个 / 内置精选 47 个 / SkillHub 技能 19 万+），浏览、搜索、一键安装。
+> 本项目 fork 并改写自 [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui)（MIT），
+> 从纯 MCP 管理面板升级为 **MCP + 技能 + 市场 + 工具账本** 四合一看板。
 
 <p align="center">
-  <a href="https://github.com/Imzl-zl/dsh-mcp-manager-ui/actions/workflows/ci.yml"><img src="https://github.com/Imzl-zl/dsh-mcp-manager-ui/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
-  <a href="https://www.npmjs.com/package/dsh-mcp-manager-ui"><img src="https://img.shields.io/npm/v/dsh-mcp-manager-ui" alt="npm"></a>
-  <a href="https://www.npmjs.com/package/dsh-mcp-manager-ui"><img src="https://img.shields.io/npm/dm/dsh-mcp-manager-ui" alt="downloads"></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/npm/l/dsh-mcp-manager-ui" alt="license"></a>
+  <a href="https://github.com/2026heshao/dsh-skill-mcp-board/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-skill-mcp-board?style=social" alt="stars"></a>
+  <a href="https://github.com/2026heshao/dsh-skill-mcp-board/releases"><img src="https://img.shields.io/github/v/release/2026heshao/dsh-skill-mcp-board?label=release" alt="release"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
   <img src="https://img.shields.io/badge/DSH-%3E%3D0.1.5--rc.1-blue" alt="DSH">
+  <a href="https://github.com/topics/dsh-plugin"><img src="https://img.shields.io/badge/topic-dsh--plugin-8b5cf6" alt="topic: dsh-plugin"></a>
 </p>
 
-DeepSeek Harness Web 的 **MCP 管理面板**：右下角悬浮按钮或侧栏「MCP」入口，点开就能看连接状态、加服务器、改配置——面板浮在会话之上，**不打断正在进行的对话**。
+## 一键安装
+
+```sh
+dsh plugin --profile web add github:2026heshao/dsh-skill-mcp-board
+```
+
+装完**重启 DSH**，侧栏顶部「全局面板」里点 **技能 · MCP**（或右下角悬浮按钮）。桌面端装在 `desktop` profile 时把 `--profile web` 换成 `--profile desktop`。
+
+## 它解决什么
+
+| 痛点 | 本插件的做法 |
+|---|---|
+| MCP 配置要手改 YAML，改完不知道连没连上 | 可视化面板：状态、工具 Schema、启停、重连，全局与项目双作用域，项目级改完即对存活会话生效 |
+| 装技能要去各处翻 `SKILL.md` 仓库 | **市场直连**：SkillHub 19 万+ 技能、WorkBuddy 316 个连接器、47 个一手核实的内置服务，搜索/筛选/一键安装，逐文件 sha256 校验 |
+| 每个 MCP 的工具描述都在吃上下文 token，零调用的工具白白占位 | **工具裁缝**：扫描本机会话日志统计每个工具的调用/错误/延迟，死工具清单一键禁用 |
+| 从 Claude/Cursor/VS Code 迁移要逐条抄配置 | 自动检出 11 种客户端的本机配置，预览后一键导入 |
 
 ## 界面预览
 
@@ -53,23 +68,13 @@ DeepSeek Harness Web 的 **MCP 管理面板**：右下角悬浮按钮或侧栏�
 ## 安装
 
 ```sh
-# 推荐：npm 安装 —— 之后 `dsh plugin update` 会在 ^1.x 内自动升到最新小版本
-dsh plugin --profile web add dsh-mcp-manager-ui@^1.5.0
-
-# 或固定 GitHub release tag（不会自动跨版本，升级要换 tag 重新 add）
-dsh plugin --profile web add github:Imzl-zl/dsh-mcp-manager-ui#v1.5.0
+dsh plugin --profile web add github:2026heshao/dsh-skill-mcp-board
 ```
 
-装完**重启 `dsh web`**。升级：
+装完**重启 `dsh web`**（桌面端把 `--profile web` 换成 `--profile desktop`）。升级：换新版 tag 重新 `add`，或在面板「一键升级」提示条上直接点。卸载（不会删除 profile 里已有的 MCP 条目）：
 
 ```sh
-dsh plugin --profile web update dsh-mcp-manager-ui
-```
-
-卸载（不会删除 profile 里已有的 MCP 条目）：
-
-```sh
-dsh plugin --profile web remove dsh-mcp-manager-ui
+dsh plugin --profile web remove dsh-skill-mcp-board
 ```
 
 细节、本地开发安装与故障排查见 [安装与升级](docs/installation.md)。
