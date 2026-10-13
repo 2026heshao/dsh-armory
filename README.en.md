@@ -1,14 +1,15 @@
-# dsh-skill-mcp-board — Armory
+# dsh-armory — Armory
 
 [中文](README.md) | English
 
-> **The all-in-one control board for DeepSeek Harness**: MCP servers · Skills · tool-usage ledger · three markets (WorkBuddy connectors ×316 / curated built-ins ×47 / SkillHub skills ×190k+), with browsing, search and one-click install.
+> **The all-in-one control board for DeepSeek Harness**: MCP servers · Skills · Experts · tool-usage ledger · three markets (WorkBuddy connectors ×316 / curated built-ins ×47 / SkillHub skills ×190k+ / WorkBuddy experts ×429), with browsing, search and one-click install.
 > This project is a fork of [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui) (MIT),
-> upgraded from a pure MCP panel into a **four-in-one board: MCP + Skills + Markets + Tool Tailor**.
+> upgraded from a pure MCP panel into a **five-in-one board: MCP + Skills + Experts + Markets + Tool Tailor**.
 
 <p align="center">
-  <a href="https://github.com/2026heshao/dsh-skill-mcp-board/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-skill-mcp-board?style=social" alt="stars"></a>
-  <a href="https://github.com/2026heshao/dsh-skill-mcp-board/releases"><img src="https://img.shields.io/github/v/release/2026heshao/dsh-skill-mcp-board?label=release" alt="release"></a>
+  <a href="https://github.com/2026heshao/dsh-armory/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-armory?style=social" alt="stars"></a>
+  <a href="https://github.com/2026heshao/dsh-armory/releases"><img src="https://img.shields.io/github/v/release/2026heshao/dsh-armory?label=release" alt="release"></a>
+  <a href="https://www.npmjs.com/package/dsh-armory"><img src="https://img.shields.io/npm/dt/dsh-armory?label=npm%20downloads" alt="npm downloads"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
   <img src="https://img.shields.io/badge/DSH-%3E%3D0.1.5--rc.1-blue" alt="DSH">
   <a href="https://github.com/topics/dsh-plugin"><img src="https://img.shields.io/badge/topic-dsh--plugin-8b5cf6" alt="topic: dsh-plugin"></a>
@@ -17,10 +18,14 @@
 ## Install in one line
 
 ```sh
-dsh plugin --profile web add github:2026heshao/dsh-skill-mcp-board
+# npm (recommended: no build-approval step, ready to use)
+dsh plugin --profile web add dsh-armory
+
+# GitHub
+dsh plugin --profile web add github:2026heshao/dsh-armory
 ```
 
-Restart DSH, then open **Skills · MCP** from the global panel list at the top of the sidebar (or the floating button bottom-right). Desktop users on the `desktop` profile: swap `--profile web` for `--profile desktop`.
+Restart DSH, then open **Skills · MCP · Experts** from the global panel list at the top of the sidebar (or the floating button bottom-right). Desktop users on the `desktop` profile: swap `--profile web` for `--profile desktop`. You can also search `armory` and one-click install inside [dsh-market](https://github.com/dsh-market/dsh-market#readme).
 
 ## What it solves
 
@@ -32,12 +37,13 @@ Restart DSH, then open **Skills · MCP** from the global panel list at the top o
 | Migrating from Claude/Cursor/VS Code means copying config by hand | Detects local configs from 11 clients and imports them with a preview |
 
 
-A **unified board** for DeepSeek Harness (Web and desktop): four top-level tabs — **MCP**, **Skill**, **Tool Tailor** and **Market** — reachable from the global panel list at the top of the sidebar or the floating button. The panel floats above the session — **it never interrupts an ongoing conversation**.
+A **unified board** for DeepSeek Harness (Web and desktop): five top-level tabs — **MCP**, **Skill**, **Expert**, **Tool Tailor** and **Market** — reachable from the global panel list at the top of the sidebar or the floating button. The panel floats above the session — **it never interrupts an ongoing conversation**.
 
 | Tab | Manages |
 |---|---|
 | **MCP** | MCP servers: connection status, tool list, enable/disable, import, market install |
 | **Skill** | Skills: enable/disable of `SKILL.md` folders, source directories, session audit scan |
+| **Expert** | WorkBuddy expert directory (429 experts / 15 industries): browse, search, and "summon" one into a new session as an independent agent preset |
 | **Tool Tailor** | Per-tool call counts, error rates, latency and context-token cost from local session logs; prune dead tools |
 | **Market** | Three sub-tabs: WorkBuddy connectors (316), curated built-ins (47), SkillHub skills (190k+) — browse, search, one-click install |
 
@@ -73,32 +79,41 @@ A **unified board** for DeepSeek Harness (Web and desktop): four top-level tabs 
   - **Connectors (MCP)**: reads the official WorkBuddy distribution ZIP (`static.workbuddy.cn`, the same source the WorkBuddy desktop app uses) on demand — 316 connectors, 242 installable (mostly streamable-http), while 74 CLI-based or WorkBuddy-token-dependent ones are honestly labeled "view only" with the reason. Installing = merging the connector's `mcpServers` into your MCP config through the same pipeline as "Import JSON" (admission, duplicate skip, entry-id reservation), in either global or project scope. The ZIP is ETag-cached under `~/.dsh/wb-market/` and decompressed with Node's built-in zlib — **zero new runtime dependencies**
   - **Skills (SkillHub)**: reads the public SkillHub API (`api.skillhub.cn`, 190k+ skills) with keyword search, four sort orders, and pagination; details include publisher verification and security-scan status. Installing = downloading file-by-file, verifying each against the manifest's sha256, and writing into `~/.agents/skills/` (the same discovery scope as the official skill subsystem) — effective immediately. Installed skills show an "installed" badge, support one-click uninstall, and reinstalling updates them
   - Skills belong to their respective authors. Both upstreams are third-party interfaces whose fields may change; the panel carries a persistent note saying so
+- **Experts (direct, 1.9.0)** — a dedicated board tab (the sidebar entry is renamed **Skills · MCP · Experts**):
+  - **Directory**: reads the official WorkBuddy expert center distribution (`expert_center.json`, 429 experts / 15 industries, ETag-cached under `~/.dsh/wb-market/experts/`) with category filter, keyword search, and a detail dialog (persona, bundled skills, sample prompts) before you summon
+  - **Summoning** = appending one independent **agent preset** row to the profile patch (a `@deepseek-ai/dsh-agent-preset` entry that mirrors the built-in `standard` preset, with only the persona prefix swapped for the expert's full persona). New sessions then offer **WorkBuddy Expert · …** and that expert takes over the session, while the standard tools / planning / compaction / delegation stay intact. Multiple experts coexist; writes go through the existing patch pipeline (file lock + version check + atomic write), preserving other rows, comments and `!!js` expressions
+  - **Bundled skills**: tick to install them too — a full local WorkBuddy cache (`~/.workbuddy/plugins/cache/experts/`) is copied wholesale into `~/.agents/skills/` (prefixed `wbexpert__`, discovered by the skill registry immediately); without a cache it falls back to the CDN's single `SKILL.md` and labels the source honestly
+  - **Dismissing** removes that preset and its skill directory (hot-reloaded, no restart); team-type experts (expert team) are read-only for now
 - Import MCP configuration from other clients installed on this machine: Claude Code, Codex (`config.toml`), OpenCode (including `.jsonc`), pi, Claude Desktop, Cursor, Windsurf, VS Code, Gemini CLI, Roo Code, and the cross-tool shared config. Everything is previewed before writing, with "merge" and "replace" modes
 - Follows the DSH dark/light theme and adapts to narrow/mobile widths
-- Update notice and **one-click upgrade**: a dismissible banner when a newer release exists (at most one check per day; disable with `DSH_MCP_MANAGER_DISABLE_UPDATE_CHECK`). Nothing happens until you press Upgrade — it **never auto-updates**
+- Update notice and **one-click upgrade**: a dismissible banner when a newer release exists (at most one check per day; disable with `DSH_ARMORY_DISABLE_UPDATE_CHECK`). Nothing happens until you press Upgrade — it **never auto-updates**; the upgrade itself is executed by DSH's official pluginManager, which handles version checks and rollback. Local dev copies installed via `link:` / `file:` / `github:` get no button (it would replace your link with an npm package)
 - **What changed, said once**: after the version changes, the first time you open the panel a small card lists what's new; confirming it never shows it again, and it uses no network and sends nothing
 
 ## Install (details)
 
 ```sh
-dsh plugin --profile web add github:2026heshao/dsh-skill-mcp-board
+# npm (recommended)
+dsh plugin --profile web add dsh-armory
+
+# GitHub
+dsh plugin --profile web add github:2026heshao/dsh-armory
 ```
 
-Then **restart `dsh web`**. To upgrade (GitHub installs: re-add with a new tag):
+Then **restart DSH** (restart the desktop app, or `dsh web` for the browser GUI; desktop users: swap `--profile web` for `--profile desktop`). To upgrade: npm installs can click the in-panel upgrade banner; GitHub installs re-add with a new tag:
 
 ```sh
-dsh plugin --profile web update dsh-skill-mcp-board
+dsh plugin --profile web update dsh-armory
 ```
 
 To uninstall (your configured MCP entries stay in place):
 
 ```sh
-dsh plugin --profile web remove dsh-skill-mcp-board
+dsh plugin --profile web remove dsh-armory
 ```
 
 Details, local development installs, and troubleshooting: [docs/installation.md](docs/installation.md) (Chinese).
 
-> Do not add `skill-mcp-board` to the profile's `cordis.patch.yml`, an agent preset, or an extra `--patch` file by hand — the plugin command already does that, and duplicating it fails loudly on purpose.
+> Do not add `dsh-armory` to the profile's `cordis.patch.yml`, an agent preset, or an extra `--patch` file by hand — the plugin command already does that, and duplicating it fails loudly on purpose.
 
 ## Usage
 
@@ -107,7 +122,7 @@ Details, local development installs, and troubleshooting: [docs/installation.md]
 Two entry points, one panel:
 
 - **Floating button (bottom-right)**: draggable, position remembered;
-- **Sidebar entry at the bottom**: above "Settings" when expanded, icon-only in the 56px rail.
+- **Sidebar entry "Skills · MCP · Experts"**: above "Settings" when expanded, icon-only in the 56px rail.
 
 The panel floats above the session; closing it ("Close" or Esc) does not affect the conversation.
 
@@ -140,7 +155,7 @@ The detail pane lists the tools a server currently registers; expand one for its
 That server is disabled, so it registers no tools. Enable it in the panel.
 
 **How do I upgrade? Why did the panel not notify me?**
-GitHub tag-pinned installs never cross versions — re-add with the new tag (`github:2026heshao/dsh-skill-mcp-board#v1.6.0`). The banner only queries this repo's GitHub Releases, at most once a day, is dismissible, and never acts on its own.
+GitHub tag-pinned installs never cross versions — re-add with the new tag (`github:2026heshao/dsh-armory#v1.9.0`). The banner only queries this repo's GitHub Releases, at most once a day, is dismissible, and never acts on its own.
 
 **Will editing touch my other configuration?**
 No. Global edits only rewrite the entries declared by `@deepseek-ai/dsh-mcp-client` that this plugin manages, preserving other plugin rows, comments, and `!!js` expressions.

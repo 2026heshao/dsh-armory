@@ -115,7 +115,9 @@ mcpManager/projectConnections → { connections: [{ wsPath, serverName, state, r
 - **面板的挂载点与悬浮按钮是同一个 slot 注册**（`shell.overlay`），所以「关掉悬浮按钮」只能是不渲染那个按钮，注册必须留着——侧栏入口只改 `panelVisibility`，真正渲染面板的是这个组件。把整个组件也用偏好门住 = 侧栏入口点了没反应，用户直接锁死。渲染决策抽成纯函数 `overlaySeats()`，就为了把这条能脱离 React 测出来（组件在 node 里渲染不起来，测试替身的 hooks 是空实现）。
 - **侧栏入口隐藏用「渲染 null」，不注销注册**：宿主 list 型 slot 把每个条目的组件直接渲染进侧栏的 `.footerActions`（`display:flex`、无 gap/padding），外层 outlet 锚点又是 `display:contents`，所以空子树不占布局、也不留空行（对着 0.1.5-rc.2 的 `dsh-client-ui-renderer` 确认过）。注销注册要多管一份生命周期，换不来任何可观测差别。
 
-偏好存 localStorage（`dsh-skill-mcp-board/entry`），与悬浮按钮位置（`dsh-skill-mcp-board/fab-pos`）同一条路。不进 profile 配置：本插件没有 Config 面，客户端半也拿不到插件配置，为一个显示偏好加一条 host→client 投递不划算，而且改配置还要等宿主热加载。localStorage 是外部输入（旧版本写的、手改的、原型链上的键），一律归一化回默认；存储被禁用时本次会话内仍然生效，只是不跨会话记忆。
+偏好存 localStorage（`dsh-armory/entry`），与悬浮按钮位置（`dsh-armory/fab-pos`）同一条路。不进 profile 配置：本插件没有 Config 面，客户端半也拿不到插件配置，为一个显示偏好加一条 host→client 投递不划算，而且改配置还要等宿主热加载。localStorage 是外部输入（旧版本写的、手改的、原型链上的键），一律归一化回默认；存储被禁用时本次会话内仍然生效，只是不跨会话记忆。
+
+> **1.9.0 的键名前缀迁移**：插件由 `dsh-skill-mcp-board` 更名为 `dsh-armory`，`/entry`、`/fab-pos`、`.updateHint.dismissed`、`.whatsNew.seen` 四个键的前缀一起换了。旧键**不直接丢**：`lib/client.js` 在模块初始化时逐键搬移——新键已有值就不动，新键没有而旧键有就搬到新键再删旧键；全程 try/catch，存储不可用时退回默认值（与上面那句同一纪律）。
 
 ## 更新提示：「这次变了什么」为什么要本地写一份
 
@@ -193,7 +195,7 @@ DSH 宿主 API 通过 `peerDependencies` 以 `>=0.1.5-rc.1 <0.2.0` 声明。
 
   改的时候**别动 `COMPAT_WINDOW`**：它是 peer 窗口（`>=0.1.5-rc.1 <0.2.0`），下限是硬要求、上限是宿主的硬闸门；把它收窄到新版本会挡住仍在 `0.1.5-rc.x` 上的用户（宿主闸门带 `includePrerelease`，所以老版本确实装得上，见上文第 2 条）。要改的常量只有 `package-contract.test.mjs` 的 `DEV_BASELINE`，锁文件里那个具体版本从它推导（原来那里硬编码了一份，是两个真源）。
 
-已实测（2026-09-24，于上游仓库 Imzl-zl/dsh-mcp-manager-ui 漂移任务 run 35943153431，三个渠道各 190 项全绿、0 跳过）：
+已实测（2026-09-24，漂移任务 [run 35943153431](https://github.com/2026heshao/dsh-armory/actions/runs/35943153431)，三个渠道各 190 项全绿、0 跳过）：
 
 | 渠道 | 宿主 | 结果 |
 |---|---|---|
@@ -237,7 +239,7 @@ peer 怎么被解析到也很关键：官方 profile 的 `pnpm-workspace.yaml` �
 
 ## 设计约束
 
-`dsh-skill-mcp-board` 是 Web Host 单实例插件。固定的 Remote namespace 和 UI slot id 是有意设计；重复加载属于配置错误，插件会明确失败，而不是静默忽略。多个 MCP server 则由 `@deepseek-ai/dsh-mcp-client` 的不同 `serverName` 实例管理。
+`dsh-armory` 是 Web Host 单实例插件。固定的 Remote namespace 和 UI slot id 是有意设计；重复加载属于配置错误，插件会明确失败，而不是静默忽略。多个 MCP server 则由 `@deepseek-ai/dsh-mcp-client` 的不同 `serverName` 实例管理。
 
 ## 面板样式：为什么没有任何自选配色
 

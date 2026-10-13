@@ -1,12 +1,3 @@
 node_modules/
+.ai-memory/
 *.log
-npm-debug.log*
-.DS_Store
-Thumbs.db
-.env
-*.local
-.vscode/
-.idea/
-coverage/
-dist/
-*.tgz

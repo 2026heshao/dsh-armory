@@ -1,0 +1,88 @@
+name: release
+
+# 推 tag 发版：校验版本 → 装依赖 → 测试 → npm publish（trusted publishing）→ GitHub Release。
+# npm 与 GitHub Releases 必须同一次都更新：面板的更新提示查的是 GitHub Releases，
+# 而用户升级走 npm；两者版本不一致就会出现「提示说有新版、update 却拿不到」。
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # gh release create 需要
+      id-token: write   # npm trusted publishing（OIDC）需要
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          # 不配 registry-url：trusted publishing 走 OIDC，不需要 NODE_AUTH_TOKEN。
+          # 配了反而会让 npm 去要一个不存在的 token。
+
+      - name: 校验 tag 与 package.json 版本一致
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/v}"
+          VERSION="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "::error::tag v$TAG 与 package.json version $VERSION 不一致"
+            exit 1
+          fi
+
+      - name: 校验 whats-new 已写当前版本条目
+        # 面板的「更新到 vX」提示真源是 lib/whats-new.js，漏写这一条测试会红。
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          if ! grep -q "version: '$VERSION'" lib/whats-new.js; then
+            echo "::error::lib/whats-new.js 缺少 version: '$VERSION' 条目"
+            exit 1
+          fi
+
+      - name: 校验 release notes 稿子存在
+        # 稿子必须放 .github/release-notes/，不能放 docs/（docs 会随包发布到 npm）。
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          if [ ! -f ".github/release-notes/v$VERSION.md" ]; then
+            echo "::error::缺少 .github/release-notes/v$VERSION.md"
+            exit 1
+          fi
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: 测试门槛
+        # 客户端那一半是替身测试，CI 全绿证明不了面板能显示。
+        # 碰了 lib/client.js 或推进了 DSH 基线时，维护者必须在打 tag 前真机过一遍
+        # （见 docs/installation.md「发布流程」）。
+        run: pnpm test
+
+      - name: npm publish（trusted publishing）
+        run: |
+          set -euo pipefail
+          npm publish --provenance --access public
+
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          NOTES=".github/release-notes/v$VERSION.md"
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            gh release edit "v$VERSION" --notes-file "$NOTES"
+          else
+            gh release create "v$VERSION" --title "dsh-armory v$VERSION" --notes-file "$NOTES"
+          fi

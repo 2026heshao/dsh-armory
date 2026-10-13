@@ -1,14 +1,14 @@
 {
-  "name": "dsh-skill-mcp-board",
-  "version": "1.8.2",
-  "description": "Unified Skill + MCP board for DeepSeek Harness Web — global panel page, JSON import, WorkBuddy connector & SkillHub market installs, tool-usage tailor, and profile-backed Host Remote management.",
+  "name": "dsh-armory",
+  "version": "1.9.0",
+  "description": "Unified Skill + MCP + Expert board for DeepSeek Harness (desktop app and Web GUI) — global panel page, JSON import, WorkBuddy connector & SkillHub & Expert market installs, tool-usage tailor, and profile-backed Host Remote management.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Imzl-zl/dsh-mcp-manager-ui.git"
+    "url": "git+https://github.com/2026heshao/dsh-armory.git"
   },
-  "homepage": "https://github.com/Imzl-zl/dsh-mcp-manager-ui#readme",
+  "homepage": "https://github.com/2026heshao/dsh-armory#readme",
   "bugs": {
-    "url": "https://github.com/Imzl-zl/dsh-mcp-manager-ui/issues"
+    "url": "https://github.com/2026heshao/dsh-armory/issues"
   },
   "type": "module",
   "main": "lib/index.js",
@@ -73,7 +73,10 @@
     "dsh",
     "dsh-plugin",
     "cordis",
-    "mcp"
+    "mcp",
+    "armory",
+    "skill",
+    "expert"
   ],
   "license": "MIT"
 }

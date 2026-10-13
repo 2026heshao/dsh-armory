@@ -125,7 +125,7 @@ DSH 里 `serverName` 同时决定工具名 `mcp__<serverName>__<tool>`。如果�
 
 ### 你已经有最强的落地载体
 
-`dsh-skill-mcp-board` 里 `lib/mcp-config.js` 的 `BUILTIN_MCP_SERVERS` 是**硬编码的 5 条**（Exa / Tavily / Firecrawl / Chrome DevTools / Playwright）。这个市场的本质就是：
+`dsh-armory` 里 `lib/mcp-config.js` 的 `BUILTIN_MCP_SERVERS` 是**硬编码的 5 条**（Exa / Tavily / Firecrawl / Chrome DevTools / Playwright）。这个市场的本质就是：
 
 > 把那 5 条硬编码，换成一个可远程更新、可社区提交的数据源。
 
@@ -521,7 +521,7 @@ font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace
 
 ## 九、落地路径
 
-复用 `dsh-skill-mcp-board` 的现有能力，分四步：
+复用 `dsh-armory` 的现有能力，分四步：
 
 | 阶段 | 做什么 | 产出 |
 |---|---|---|
@@ -536,8 +536,8 @@ font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace
 
 ## 十、待决问题
 
-1. **独立仓库还是并入 `dsh-skill-mcp-board`？**
-   并入的优势：现成的安装 UI、双作用域写入、`!!js` 表达式生成、工具清单渲染，阶段 1 的工作量能砍掉大半；且 `dsh-skill-mcp-board` 已发 npm、有 CI 和测试基线（248 tests）。
+1. **独立仓库还是并入 `dsh-armory`？**
+   并入的优势：现成的安装 UI、双作用域写入、`!!js` 表达式生成、工具清单渲染，阶段 1 的工作量能砍掉大半；且 `dsh-armory` 已发 npm、有 CI 和测试基线（248 tests）。
    独立的优势：目录是公共资产，不该绑在一个插件上；贡献者不必懂面板代码。
    **倾向：目录独立成仓（`dsh-mcp-catalog`），面板作为它的第一个消费者。** 这样目录能独立演进和被第三方消费，而面板继续吃它的现成能力——两边的好处都拿到。
 

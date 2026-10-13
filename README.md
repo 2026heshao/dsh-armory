@@ -1,14 +1,15 @@
-# dsh-skill-mcp-board — 军械库 / Armory
+# dsh-armory — 军械库 / Armory
 
 中文 | [English](README.en.md)
 
-> **DeepSeek Harness 的一体化管理看板**：MCP 服务器 · 技能 · 工具使用账本 · 三大市场（WorkBuddy 连接器 316 个 / 内置精选 47 个 / SkillHub 技能 19 万+），浏览、搜索、一键安装。
-> 本项目 fork 并改写自 [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui)（MIT），
-> 从纯 MCP 管理面板升级为 **MCP + 技能 + 市场 + 工具账本** 四合一看板。
+> **DeepSeek Harness 的一体化管理看板**：MCP 服务器 · 技能 · 专家 · 工具使用账本 · 三大市场（WorkBuddy 连接器 316 个 / 内置精选 47 个 / SkillHub 技能 19 万+ / WorkBuddy 专家 429 位），浏览、搜索、一键安装、一键召唤。
+> 本项目 fork 并改写自 [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui)（MIT，原项目仅 MCP 管理），现仓库为 [2026heshao/dsh-armory](https://github.com/2026heshao/dsh-armory)，
+> 从纯 MCP 管理面板升级为 **MCP + 技能 + 专家 + 市场 + 工具账本** 五合一看板。
 
 <p align="center">
-  <a href="https://github.com/2026heshao/dsh-skill-mcp-board/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-skill-mcp-board?style=social" alt="stars"></a>
-  <a href="https://github.com/2026heshao/dsh-skill-mcp-board/releases"><img src="https://img.shields.io/github/v/release/2026heshao/dsh-skill-mcp-board?label=release" alt="release"></a>
+  <a href="https://github.com/2026heshao/dsh-armory/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-armory?style=social" alt="stars"></a>
+  <a href="https://github.com/2026heshao/dsh-armory/releases"><img src="https://img.shields.io/github/v/release/2026heshao/dsh-armory?label=release" alt="release"></a>
+  <a href="https://www.npmjs.com/package/dsh-armory"><img src="https://img.shields.io/npm/dt/dsh-armory?label=npm%20downloads" alt="npm downloads"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
   <img src="https://img.shields.io/badge/DSH-%3E%3D0.1.5--rc.1-blue" alt="DSH">
   <a href="https://github.com/topics/dsh-plugin"><img src="https://img.shields.io/badge/topic-dsh--plugin-8b5cf6" alt="topic: dsh-plugin"></a>
@@ -17,10 +18,14 @@
 ## 一键安装
 
 ```sh
-dsh plugin --profile web add github:2026heshao/dsh-skill-mcp-board
+# npm（推荐：免构建授权，装完即用）
+dsh plugin --profile web add dsh-armory
+
+# GitHub
+dsh plugin --profile web add github:2026heshao/dsh-armory
 ```
 
-装完**重启 DSH**，侧栏顶部「全局面板」里点 **技能 · MCP**（或右下角悬浮按钮）。桌面端装在 `desktop` profile 时把 `--profile web` 换成 `--profile desktop`。
+装完**重启 DSH**，侧栏顶部「全局面板」里点 **技能 · MCP · 专家**（或右下角悬浮按钮）。桌面端装在 `desktop` profile 时把 `--profile web` 换成 `--profile desktop`。也可以在装了 [dsh-market](https://github.com/dsh-market/dsh-market#readme) 的 DSH 里搜 `armory` 一键安装。
 
 ## 它解决什么
 
@@ -57,29 +62,38 @@ dsh plugin --profile web add github:2026heshao/dsh-skill-mcp-board
 - **MCP 市场**：47 个逐条一手核实过的服务，分 10 类（搜索、开发工具、安全与逆向、数据库与数据、AI 与知识、浏览器自动化、云与基础设施、效率协作、文件与本地、通讯）。搜索为主操作，配分类与「只要免密钥」筛选、排序、卡片直接安装；每条如实标注免费额度与需要准备什么（密钥 / 连接信息 / 装完还得改的参数）。已配置的只识别并跳过，不覆盖
 - 导入本机其他客户端的 MCP 配置：自动检测 Claude Code、Codex（`config.toml`）、OpenCode（含 `.jsonc`）、pi、Claude Desktop、Cursor、Windsurf、VS Code、Gemini CLI、Roo Code 与跨工具的共享配置，逐个列出，点一条即导入；也能粘贴 Claude/Cursor/Cline/Roo 的 `mcpServers` 或 VS Code 的 `servers` JSON。写入前预览，支持「合并（同名更新）」与「替换」
 - 跟随 DSH 深色/浅色主题，适配窄屏与移动宽度
-- 更新提示与**一键升级**：有新版时在面板顶部显示可关闭的提示条（每天最多查一次，可用 `DSH_MCP_MANAGER_DISABLE_UPDATE_CHECK` 关闭）。点了「升级」才动，**不会自动升级**；升级由 DSH 官方的 pluginManager 执行，装完提示重启宿主生效。用 `link:` / `file:` / `github:` 装的本地开发副本不给按钮（那会把链接换成 npm 包）
+- 更新提示与**一键升级**：有新版时在面板顶部显示可关闭的提示条（每天最多查一次，可用 `DSH_ARMORY_DISABLE_UPDATE_CHECK` 关闭）。点了「升级」才动，**不会自动升级**；升级由 DSH 官方的 pluginManager 执行，装完提示重启宿主生效。用 `link:` / `file:` / `github:` 装的本地开发副本不给按钮（那会把链接换成 npm 包）
 - **升级后主动说一次变了什么**：版本变了后第一次打开面板弹一张小卡片，列出本次更新内容，并指路新功能在哪（例如「入口」开关在面板右上角）；确认一次后不再提示，不联网、不发任何数据
 - **工具裁缝**（1.7.0 新增）：扫描本机会话日志（只解析 `tool/call` / `tool/result` 两类事件，不读消息正文），统计每个工具近 7/30/90 天的调用次数、错误率与最后使用时间；同时按当前注册表估算每个工具 Schema 每轮请求占用的上下文 token。窗口内零调用的 MCP 工具自动进「死工具清单」，行内可一键禁用/启用对应服务器（复用官方写链，随时可恢复）。全程只读，多帧 zstd 日志逐帧解析、个别帧损坏跳过不中断
 - **WB 市场（直连安装，1.8.0 新增）**：看板第四个分类，两个市场一处浏览——
   - **连接器（MCP）**：直读 WorkBuddy 官方分发 ZIP（`static.workbuddy.cn`，与 WorkBuddy 桌面端同一数据源），316 个连接器按需解析；可安装的 242 个（streamable-http 为主），CLI 型 / 需 WorkBuddy token 注入的 74 个如实标注「仅展示」并给出原因。安装 = 把该连接器的 `mcpServers` 合并写入 MCP 配置，与「导入 JSON」同一链路（准入、同名跳过、entry id 预留一致），全局与项目作用域都可选；ZIP 按 ETag 缓存在 `~/.dsh/wb-market/`，解压用 Node 内置 zlib，**零新增运行时依赖**
   - **技能（SkillHub）**：直读 SkillHub 公开 API（`api.skillhub.cn`，19 万+ 技能），支持搜索（`keyword`）、排序（下载/安装/星标/评分）、分页；详情含发布方认证与安全扫描状态。安装 = 逐文件下载并按清单 sha256 校验后写入 `~/.agents/skills/`（与官方 skill 子系统同一发现范围），装完即刻生效；已装的显示「已安装」，可一键卸载、重装即更新
   - 技能版权归原作者所有；两个均为第三方接口，字段可能随上游改版变化（面板顶部有常驻说明）
+- **专家直连（1.9.0 新增，体验对齐 WorkBuddy 专家中心）**：看板独立分类「专家」（侧栏入口同步更名「技能 · MCP · 专家」）——
+  - **目录**：直读 WorkBuddy 专家中心官方分发（`expert_center.json`，429 位专家 / 15 个行业分类，ETag 缓存在 `~/.dsh/wb-market/experts/`），分类筛选 + 关键词搜索 + 详情弹层（召唤前看人设正文、捆绑技能、试试这样问）
+  - **召唤** = 往 profile 补丁写入一条**独立 Agent 预设**（`@deepseek-ai/dsh-agent-preset` 行，plugins 复刻内置 standard 预设、仅 persona 的 prefix 换成专家人设全文）——新建会话时选择「WorkBuddy 专家 · …」即专家接管该会话，标准工具/规划/压缩/委派原样保留；多个专家可共存，写入走既有 patch 写链（文件锁 + 版本校验 + 原子写），其余条目、注释与 `!!js` 表达式原样保留
+  - **捆绑技能**：召唤时可勾选一并安装——本机 WorkBuddy 缓存（`~/.workbuddy/plugins/cache/experts/`）有完整技能树就整目录复制到 `~/.agents/skills/`（`wbexpert__` 前缀，即刻被技能注册表发现）；无缓存时按 CDN 的 SKILL.md 单文件兜底并如实标注来源
+  - **送还** = 摘除该召唤预设与对应技能目录（热加载，无需重启）；团队型（expert team）暂只读展示
 
 ## 安装
 
 ```sh
-dsh plugin --profile web add github:2026heshao/dsh-skill-mcp-board
+# 从 npm 安装（推荐）
+dsh plugin --profile web add dsh-armory
+
+# 从 GitHub 安装
+dsh plugin --profile web add github:2026heshao/dsh-armory
 ```
 
-装完**重启 `dsh web`**（桌面端把 `--profile web` 换成 `--profile desktop`）。升级：换新版 tag 重新 `add`，或在面板「一键升级」提示条上直接点。卸载（不会删除 profile 里已有的 MCP 条目）：
+装完**重启 DSH**（桌面端重启应用，Web 端重启 `dsh web`；桌面端把 `--profile web` 换成 `--profile desktop`）。升级：npm 安装可在面板「一键升级」提示条上直接点，GitHub 安装换新版 tag 重新 `add`。卸载（不会删除 profile 里已有的 MCP 条目）：
 
 ```sh
-dsh plugin --profile web remove dsh-skill-mcp-board
+dsh plugin --profile web remove dsh-armory
 ```
 
 细节、本地开发安装与故障排查见 [安装与升级](docs/installation.md)。
 
-> 不要把 `mcp-manager-ui` 手工插进 profile 的 `cordis.patch.yml`、Agent preset 或额外的 `--patch` 文件——插件命令已经完成这件事，重复装配会明确报错。
+> 不要把 `dsh-armory` 手工插进 profile 的 `cordis.patch.yml`、Agent preset 或额外的 `--patch` 文件——插件命令已经完成这件事，重复装配会明确报错。
 
 ## 使用
 
@@ -88,7 +102,7 @@ dsh plugin --profile web remove dsh-skill-mcp-board
 两个入口，同一个面板：
 
 - **右下角悬浮按钮**：可拖拽移动，位置会被记住；
-- **侧栏底部「MCP」**：展开态在「设置」上方，侧栏收起成 56px 轨道时只剩图标。
+- **侧栏「技能 · MCP · 专家」**：展开态在「设置」上方，侧栏收起成 56px 轨道时只剩图标。
 
 面板浮在会话之上，关掉它（右上角「关闭」或 Esc）不会影响会话。
 
@@ -155,7 +169,7 @@ dsh plugin --profile web remove dsh-skill-mcp-board
 它们把两件独立的事分开说：**连接在不在** —— `已连接 · 当前无会话使用（连接保留，下次直接用）`（最后一个会话结束了，连接按空闲策略留着）/ `已连接 · N 个会话在用 · M 工具` / `连接中…` / `连接失败` / `尚未建立连接（新会话自动挂载）`；**几个会话在用** —— 就是那句里的 `N 个会话在用`。旧版本的「待会话挂载」正是把这两件事压成一句，所以容易被读成"还没连上"。
 
 **怎么升级？为什么面板没提示？**
-从 npm 装的直接 `dsh plugin --profile web update dsh-mcp-manager-ui` 就会升小版本，也可以直接点面板提示条上的「升级」（同一件事，免去敲命令）。面板的提示条只查 GitHub Releases、每天最多一次、可关闭、不会自己动；固定 tag 安装的用户不会自动跨版本，需要用新 tag 重新 `add`（见 [安装与升级](docs/installation.md)）。
+从 npm 装的直接 `dsh plugin --profile web update dsh-armory` 就会升小版本，也可以直接点面板提示条上的「升级」（同一件事，免去敲命令）。面板的提示条只查 GitHub Releases、每天最多一次、可关闭、不会自己动；固定 tag 安装的用户不会自动跨版本，需要用新 tag 重新 `add`（见 [安装与升级](docs/installation.md)）。
 
 **改动会不会碰到我的其他配置？**
 不会。全局改动只动 profile 补丁里由 `@deepseek-ai/dsh-mcp-client` 声明、且由本插件管理的条目，保留其他插件条目、注释与 `!!js` 表达式；导入「替换」也只替换这一部分，不会删除其他 bundle 或 Agent preset 自带的 MCP。
