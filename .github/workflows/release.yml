@@ -1,8 +1,15 @@
 name: release
 
-# 推 tag 发版：校验版本 → 装依赖 → 测试 → npm publish（trusted publishing）→ GitHub Release。
+# 推 tag 发版：校验版本 → 装测试依赖 → 测试 → npm publish（trusted publishing）→ GitHub Release。
 # npm 与 GitHub Releases 必须同一次都更新：面板的更新提示查的是 GitHub Releases，
 # 而用户升级走 npm；两者版本不一致就会出现「提示说有新版、update 却拿不到」。
+#
+# 依赖现实（勿改回 pnpm install --frozen-lockfile）：
+# - 本仓库没有 pnpm-lock.yaml（运行依赖全是宿主提供的 peer，不装进包）；
+# - devDependencies 里的 @deepseek-ai/* 是宿主内部包，npm registry 上不存在；
+# - 测试只需要 `yaml`（test/expert-manual.mjs 唯一裸导入；node:test 内置）。
+# 测试文件里的 profile-redirect loader 会先尝试标准解析（CI 装了 yaml 就走标准路），
+# 本机 profile 副本只是开发机兜底。
 
 on:
   push:
@@ -22,12 +29,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: pnpm
           # 不配 registry-url：trusted publishing 走 OIDC，不需要 NODE_AUTH_TOKEN。
           # 配了反而会让 npm 去要一个不存在的 token。
 
@@ -61,13 +65,14 @@ jobs:
             exit 1
           fi
 
-      - run: pnpm install --frozen-lockfile
+      - name: 安装测试依赖（仅 yaml）
+        run: |
+          set -euo pipefail
+          mkdir -p node_modules
+          npm install --no-save --prefix "$PWD" yaml@2
 
-      - name: 测试门槛
-        # 客户端那一半是替身测试，CI 全绿证明不了面板能显示。
-        # 碰了 lib/client.js 或推进了 DSH 基线时，维护者必须在打 tag 前真机过一遍
-        # （见 docs/installation.md「发布流程」）。
-        run: pnpm test
+      - name: 测试门槛（专家市场写链 33 断言）
+        run: node ./test/run-expert-manual.mjs
 
       - name: npm publish（trusted publishing）
         run: |
