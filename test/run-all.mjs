@@ -15,6 +15,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const SUITES = [
   { name: "expert-manual（专家市场写链）", file: "run-expert-manual.mjs" },
   { name: "upgrade-plan（一键升级判据）", file: "upgrade-plan.mjs" },
+  { name: "session-persona（会话级专家随时挂/换/摘）", file: "session-persona.mjs" },
   // 真机验证：读真实 profile manifest，证明判定对真数据成立。profile 不存在时
   // 该文件会自行 SKIP（其它机器 / CI 上跑不出结论，但不会误报失败）。
   { name: "verify-install-info（真 profile 数据）", file: "verify-install-info.mjs" },

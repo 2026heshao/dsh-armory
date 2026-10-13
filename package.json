@@ -1,7 +1,7 @@
 {
   "name": "dsh-armory",
-  "version": "1.9.1",
-  "description": "Unified Skill + MCP + Expert board for DeepSeek Harness (desktop app and Web GUI) — global panel page, JSON import, WorkBuddy connector & SkillHub & Expert market installs, tool-usage tailor, and profile-backed Host Remote management.",
+  "version": "1.9.2",
+  "description": "Unified Skill + MCP + Expert board for DeepSeek Harness (desktop app and Web GUI) 鈥?global panel page, JSON import, WorkBuddy connector & SkillHub & Expert market installs, tool-usage tailor, and profile-backed Host Remote management.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/2026heshao/dsh-armory.git"
