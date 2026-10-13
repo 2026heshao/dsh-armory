@@ -75,8 +75,17 @@ jobs:
         run: npm test
 
       - name: npm publish（trusted publishing）
+        # 幂等守卫：版本已在 npm 上就跳过，不报错。
+        # 为什么需要：① 重跑同一个 tag 时不再因「版本已存在」把后续 GitHub Release 步骤连带 skip；
+        # ② trusted publishing 尚未在该包上配置完成前，发布由维护者本地 `npm publish` 完成，
+        # 此后 CI 走到这一步应当是「确认已发布」而不是失败。
         run: |
           set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          if npm view "dsh-armory@$VERSION" version >/dev/null 2>&1; then
+            echo "npm 上已有 dsh-armory@$VERSION，跳过发布"
+            exit 0
+          fi
           npm publish --provenance --access public
 
       - name: GitHub Release
