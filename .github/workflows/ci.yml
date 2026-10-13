@@ -1,0 +1,40 @@
+name: ci
+
+# push 到 main 与每个 PR 跑「与发版完全相同的门槛」：装 yaml → 专家市场写链断言。
+# 与 release.yml 的分工：本文件只管「合进来的代码是绿的」，不发布任何东西；
+# release.yml 在推 tag 时再跑一遍同一条门槛，绿了才 npm publish + GitHub Release。
+#
+# 依赖现实（与 release.yml 同源，勿改成 pnpm install --frozen-lockfile）：
+# - 本仓库没有 pnpm-lock.yaml（运行依赖全是宿主提供的 peer，不装进包）；
+# - devDependencies 里的 @deepseek-ai/* 是宿主内部包，npm registry 上不存在；
+# - 测试只需要 `yaml`（test/expert-manual.mjs 唯一裸导入；node:test 内置）。
+# 门槛命令与 release.yml 保持逐字一致，两处不一致就会出现「CI 绿、发版红」。
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: 安装测试依赖（仅 yaml）
+        run: |
+          set -euo pipefail
+          mkdir -p node_modules
+          npm install --no-save --prefix "$PWD" yaml@2
+
+      - name: 测试门槛（专家市场写链 + 一键升级判据）
+        run: npm test

@@ -116,25 +116,35 @@ npm 与 GitHub Releases 必须**同一次发布里都更新**：用户从 npm �
 
 ```sh
 # 1) 改版本：package.json + README/docs 里的版本与 tag 引用 + lib/whats-new.js 的更新条目
-#    + .github/release-notes/v<新版本>.md（后两项缺一项，下面的 npm test 就会红）
-npm test
+#    + .github/release-notes/v<新版本>.md（后两项缺一项，release.yml 的校验步骤就会红）
+npm install --no-save yaml@2   # 测试唯一的裸依赖；干净 checkout 必须先装
+npm test                       # 专家市场写链 33 断言（与 CI / 发版门槛同一条命令）
 
 # 2) 真机过一遍（触发条件见下），**必须在打 tag 之前**
 dsh web    # 打开面板点一遍
 
-# 3) 提交并推 tag（CI 会校验 tag 与 version 一致，不一致就拒绝发布）
+# 3) 提交并推 tag（release.yml 会校验 tag 与 version 一致，不一致就拒绝发布）
 git add -A && git commit -m "..."
 git push origin main
-git tag -a v1.9.0 -m "v1.8.0 ..." && git push origin v1.9.0
+git tag -a v1.9.1 -m "v1.9.1 ..." && git push origin v1.9.1
 ```
 
-推 tag 后 CI 依次做：校验版本 → `pnpm install --frozen-lockfile` → `npm test` → `npm publish`（trusted publishing，无需 token）→ `gh release create`。
+推 tag 后 `.github/workflows/release.yml` 依次做：校验 tag 与版本一致 → 校验 whats-new 有当前版本条目 → 校验 release notes 稿存在 → 装 `yaml@2` → `node ./test/run-expert-manual.mjs` → `npm publish`（trusted publishing，无需 token）→ `gh release create`。
 
-**第 2 步的真机检查什么时候必须做**：客户端那一半是替身测试——组件在 node 里渲染不起来（见[设计与限制](design.md#版本范围怎么定以及它管不到什么)），所以 CI 全绿也证明不了面板能显示。因此**只要本次改动碰了 `lib/client.js`、或推进了 DSH 基线，就必须做**：起 `dsh web`，确认侧栏入口能打开面板、悬浮按钮在位，然后导入 / 预览 / 启停各点一次。本次改名恰好动了 `lib/client.js`（插件 id、CSS 去重键、typert method id、localStorage 迁移），所以这一遍不能省。
+CI 分工（两条工作流，门槛命令**逐字相同**，改一处必须改另一处）：
+
+| 工作流 | 触发 | 跑什么 |
+| --- | --- | --- |
+| `.github/workflows/ci.yml` | push 到 main、PR、手动 | 装 `yaml@2` → `node ./test/run-expert-manual.mjs`（只验证，不发布） |
+| `.github/workflows/release.yml` | 推 `v*.*.*` tag、手动 | 同上门槛 + 版本 / whats-new / release-notes 三项校验 → `npm publish` → GitHub Release |
+
+> **本仓库没有 `pnpm-lock.yaml`**（运行依赖全是宿主提供的 peer，不装进包），而 devDependencies 里的 `@deepseek-ai/*` 是宿主内部包、npm registry 上不存在。所以两条工作流都**不能用** `pnpm install --frozen-lockfile`——改回它会立刻红（历史上失败过一次）。测试只需 `yaml`，用 `npm install --no-save` 装。
+
+**第 2 步的真机检查什么时候必须做**：客户端那一半是替身测试——组件在 node 里渲染不起来（见[设计与限制](design.md#版本范围怎么定以及它管不到什么)），所以 CI 全绿也证明不了面板能显示。因此**只要本次改动碰了 `lib/client.js`、或推进了 DSH 基线，就必须做**：起 `dsh web`，确认侧栏入口能打开面板、悬浮按钮在位，然后导入 / 预览 / 启停各点一次。
 
 为什么不能交给 CI：这类失败的表现是**面板白屏**，不会让任何用例变红（注册契约是好的，渲染不出来而已）。宿主改 slot 就是这种改动的典型——`0.1.6-alpha.2` 的发布说明里有「客户端 Session 会话支持多实例共存，相关 API 及 slot 有变化」，2026-09-24 推进基线到 `0.1.7-rc.1`、09-28 推进到 `0.1.7-rc.2` 时也属于这一类，所以它固定成检查单而不是靠记得。纯 Host 侧改动（`lib/index.js`、`lib/workspace-*.js` 等）可以跳过这一步。
 
-**Release notes 是必写的**，稿子放 `.github/release-notes/vX.Y.Z.md`（**不要**放 `docs/`，docs 会随包发布到 npm）；有稿子就用它，没有才退回 `--generate-notes`。为什么必写：本仓库全部直接提交到 main、没有 PR，自动生成几乎生成不出内容（v1.3.0 及之前每个 Release 页面都只有一行 compare 链接），而面板的更新提示正是把用户指到那一页。`test/package-contract.test.mjs` 会拦下「bump 了版本却没写稿」，所以在打 tag 之前本地就会红。
+**Release notes 是必写的**，稿子放 `.github/release-notes/vX.Y.Z.md`（**不要**放 `docs/`，docs 会随包发布到 npm）；`release.yml` 的「校验 release notes 稿子存在」步骤会拦下漏写，`gh release create --notes-file` 用它作为 Release 页面正文。为什么必写：本仓库全部直接提交到 main、没有 PR，自动生成几乎生成不出内容（v1.3.0 及之前每个 Release 页面都只有一行 compare 链接），而面板的更新提示正是把用户指到那一页。
 
 **应用内的「更新到 vX」提示是另一件事**：它的内容真源是 `lib/whats-new.js`（随包发布，宿主的 `whatsNew` RPC 直接转发它），发布前必须给它写上当前版本那一条——`test/whats-new.test.mjs` 会拦下「bump 了版本却没写更新内容」。只写一条就够，不必和 GitHub Release notes 逐字一致。
 

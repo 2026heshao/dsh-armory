@@ -1,6 +1,6 @@
 {
   "name": "dsh-armory",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "description": "Unified Skill + MCP + Expert board for DeepSeek Harness (desktop app and Web GUI) — global panel page, JSON import, WorkBuddy connector & SkillHub & Expert market installs, tool-usage tailor, and profile-backed Host Remote management.",
   "repository": {
     "type": "git",
@@ -13,7 +13,12 @@
   "type": "module",
   "main": "lib/index.js",
   "scripts": {
-    "test": "node --test"
+    "test": "node ./test/run-all.mjs",
+    "test:expert": "node ./test/run-expert-manual.mjs",
+    "test:upgrade": "node ./test/upgrade-plan.mjs",
+    "test:install": "node ./test/verify-install-info.mjs",
+    "test:e2e": "node ./test/run-e2e.mjs",
+    "migrate": "node ./test/run.mjs migrate"
   },
   "exports": {
     "./typert": "./lib/typert.js",

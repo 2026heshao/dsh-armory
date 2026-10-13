@@ -71,8 +71,8 @@ jobs:
           mkdir -p node_modules
           npm install --no-save --prefix "$PWD" yaml@2
 
-      - name: 测试门槛（专家市场写链 33 断言）
-        run: node ./test/run-expert-manual.mjs
+      - name: 测试门槛（专家市场写链 + 一键升级判据）
+        run: npm test
 
       - name: npm publish（trusted publishing）
         run: |

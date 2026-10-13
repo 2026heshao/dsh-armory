@@ -190,12 +190,18 @@ dsh plugin --profile web remove dsh-armory
 ## 开发
 
 ```sh
-npm test                              # 全部测试（含真机集成用例）
-dsh --profile web --dump-config       # 看 profile 的有效配置
-dsh web                               # 起 Web 做真实操作验证
+npm install --no-save yaml@2            # 测试唯一的裸依赖（node:test 内置）
+npm test                                # 专家市场写链 33 断言（与 CI / 发版门槛同一条）
+npm run test:e2e                        # 可选：用宿主补丁算法验证专家预设进入组合树
+dsh --profile web --dump-config         # 看 profile 的有效配置
+dsh web                                 # 起 Web 做真实操作验证
 ```
 
-`npm test` 里除替身用例（验证插件内部自洽）外，还有一组**真机集成用例**：真 `cordis` + 真 `dsh-tools` + 真 `dsh-scope` + 真 `dsh-mcp-client` + 一个真 stdio MCP 子进程，覆盖「同项目两个会话共用一份连接、工具投射进会话层、不泄漏到全局、子进程随最后一个会话退出」。CI（push 到 main / PR，以及推 tag 发版）跑的是同一条门槛，发版流程见 [安装与升级](docs/installation.md#发布流程维护者)。
+`npm test` 跑的是 `test/expert-manual.mjs`：真网拉 WorkBuddy 专家目录（ETag 命中后走磁盘缓存）与 senior-developer 人设，再对 `lib/expert-market.js` 的 patch 写链做 33 条断言——含 1.9.1 修复的回归用例（召唤预设必须写成顶层 `- insert:` 指令、旧版顶层裸条目要能被迁移）。本机存在 `~/.dsh/profiles/desktop/cordis.patch.yml` 时会追加一组真实 profile 往返断言，没有则记 `SKIP`。
+
+CI（push 到 main / PR，见 `.github/workflows/ci.yml`）与发版门槛（推 tag，见 `.github/workflows/release.yml`）跑的是**逐字相同**的命令（装 `yaml@2` → `node ./test/run-expert-manual.mjs`），两处口径不许分叉；发版流程见 [安装与升级](docs/installation.md#发布流程维护者)。
+
+> 本机若没有 `yaml`，`npm test` 会以 `ERR_MODULE_NOT_FOUND` 退出——`test/loader.mjs` 会先试标准解析，失败才回退开发机的 profile 副本（`~/.dsh/profiles/desktop/node_modules`），所以干净环境必须先装依赖。
 
 ## 文档
 
