@@ -25,7 +25,7 @@ dsh plugin --profile web add dsh-armory
 dsh plugin --profile web add github:2026heshao/dsh-armory
 ```
 
-装完**重启 DSH**，侧栏顶部「全局面板」里点 **技能 · MCP · 专家**（或右下角悬浮按钮）。桌面端装在 `desktop` profile 时把 `--profile web` 换成 `--profile desktop`。也可以在装了 [dsh-market](https://github.com/dsh-market/dsh-market#readme) 的 DSH 里搜 `armory` 一键安装。
+装完**重启 DSH**，侧栏顶部「全局面板」里点 **技能 · MCP · 专家**（或右下角悬浮按钮）。桌面端装在 `desktop` profile 时把 `--profile web` 换成 `--profile desktop`。
 
 ## 它解决什么
 

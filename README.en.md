@@ -25,7 +25,7 @@ dsh plugin --profile web add dsh-armory
 dsh plugin --profile web add github:2026heshao/dsh-armory
 ```
 
-Restart DSH, then open **Skills · MCP · Experts** from the global panel list at the top of the sidebar (or the floating button bottom-right). Desktop users on the `desktop` profile: swap `--profile web` for `--profile desktop`. You can also search `armory` and one-click install inside [dsh-market](https://github.com/dsh-market/dsh-market#readme).
+Restart DSH, then open **Skills · MCP · Experts** from the global panel list at the top of the sidebar (or the floating button bottom-right). Desktop users on the `desktop` profile: swap `--profile web` for `--profile desktop`.
 
 ## What it solves
 
