@@ -43,8 +43,8 @@ A **unified board** for DeepSeek Harness (Web and desktop): five top-level tabs 
 |---|---|
 | **MCP** | MCP servers: connection status, tool list, enable/disable, import, market install |
 | **Skill** | Skills: enable/disable of `SKILL.md` folders, source directories, session audit scan |
-| **Expert** | WorkBuddy expert directory (429 experts / 15 industries): browse, search, and "summon" one into a new session as an independent agent preset |
-| **Tool Tailor** | Per-tool call counts, error rates, latency and context-token cost from local session logs; prune dead tools |
+| **Expert** | WorkBuddy expert directory (429 experts / 15 industries, including 53 expert **teams**): browse, search, and "summon" one into a new session as an independent agent preset. Team experts summon with their full roster — member personas are materialised locally and the lead is handed a runtime bridge that maps WorkBuddy's `TeamCreate` / `Agent(name=…)` onto DSH's `subagent` |
+| **Tool Tailor** | Per-tool call counts, error rates, latency and context-token cost from local session logs; dead tools shown inline and prunable. Shows **all tools with their real call counts by default** — toggle "zero-call only (N)" to narrow. A persistent "showing N/M tools" read-out makes the filter state unmistakable |
 | **Market** | Three sub-tabs: WorkBuddy connectors (316), curated built-ins (47), SkillHub skills (190k+) — browse, search, one-click install |
 
 > The Skill panel reads DSH's custom skill directory (default `~/.agents/skills`): each skill is a folder with a `SKILL.md`,
@@ -53,19 +53,45 @@ A **unified board** for DeepSeek Harness (Web and desktop): five top-level tabs 
 
 ## Screenshots
 
-### Global panel
+One shot per board tab (captured on the Windows desktop app, light theme):
 
-![MCP management panel](docs/images/mcp-manager-overview.png)
+### MCP — global board
 
-### Project scope (`.dsh/mcp.json`)
+Global / per-project scope tabs, inline enable/disable toggles; global and project servers may share a name while staying independent:
 
-![Project MCP](docs/images/mcp-manager-workspace.png)
+![MCP global board](docs/images/mcp-overview.png)
 
-### Connection details and adding a server
+### MCP — connection details
 
-![MCP connection details](docs/images/mcp-manager-detail.png)
+Transport, connection parameters, call timeout and config source at a glance; below is the server's registered tool list (170 here — expand any row for its full input JSON Schema):
 
-![Add MCP](docs/images/mcp-manager-add.png)
+![MCP connection details](docs/images/mcp-detail.png)
+
+### Tool Tailor — tool-usage ledger
+
+Four metric cards for the 30-day window (total calls / tools seen / zero-call MCP tools / overall error rate), one row per tool with calls, errors, error rate, Schema context tax and last use, and a persistent tailor suggestion at the bottom. Shows all tools with real call counts by default; "zero-call only (N)" narrows the view:
+
+![Tool Tailor ledger](docs/images/tool-ledger.png)
+
+### Experts — summoned list
+
+One card per summoned expert / expert team: bundled skills, details, dismiss; team experts expose a "roster" block in the detail dialog (each member's duty and persona file path):
+
+![Experts panel](docs/images/experts.png)
+
+### Market — three direct sources
+
+Connectors (official WorkBuddy distribution, 316 entries; installable ones are labeled "install", CLI-based / token-dependent ones honestly show "view only" with the reason):
+
+![WB connector market](docs/images/market-connectors.png)
+
+Skills (public SkillHub API, 190k+ skills; search + sort + pagination, installed ones show an "installed" badge with one-click uninstall):
+
+![SkillHub market cards](docs/images/market-skills.png)
+
+Experts (WorkBuddy expert center, 429 experts / 15 industries; category filter + keyword search, "summon" straight from the card):
+
+![Expert market cards](docs/images/market-experts.png)
 
 ## Features (MCP board)
 
@@ -83,7 +109,8 @@ A **unified board** for DeepSeek Harness (Web and desktop): five top-level tabs 
   - **Directory**: reads the official WorkBuddy expert center distribution (`expert_center.json`, 429 experts / 15 industries, ETag-cached under `~/.dsh/wb-market/experts/`) with category filter, keyword search, and a detail dialog (persona, bundled skills, sample prompts) before you summon
   - **Summoning** = appending one independent **agent preset** row to the profile patch (a `@deepseek-ai/dsh-agent-preset` entry that mirrors the built-in `standard` preset, with only the persona prefix swapped for the expert's full persona). New sessions then offer **WorkBuddy Expert · …** and that expert takes over the session, while the standard tools / planning / compaction / delegation stay intact. Multiple experts coexist; writes go through the existing patch pipeline (file lock + version check + atomic write), preserving other rows, comments and `!!js` expressions
   - **Bundled skills**: tick to install them too — a full local WorkBuddy cache (`~/.workbuddy/plugins/cache/experts/`) is copied wholesale into `~/.agents/skills/` (prefixed `wbexpert__`, discovered by the skill registry immediately); without a cache it falls back to the CDN's single `SKILL.md` and labels the source honestly
-  - **Dismissing** removes that preset and its skill directory (hot-reloaded, no restart); team-type experts (expert team) are read-only for now
+  - **Team experts (summonable since 1.9.4)**: WorkBuddy's 53 "expert teams" assume `TeamCreate` and `Agent(name=…)`, neither of which DSH has. Summoning now also writes one file per member persona under `~/.dsh/wb-market/experts/teams/<expert>/`, and appends a **runtime adaptation** block to the lead's persona: creating the team becomes a no-op (the roster is fixed at summon time); dispatching a member becomes `subagent` (after `read`-ing that member's persona into the prompt), with sequential SOPs passing `run_in_background: false` so the lead waits for the result; follow-ups use `send_message`. The original rules — never ghost-write a member's output, never connect members directly, everything relayed through the lead — are preserved verbatim. Member personas stay **out of the system prompt** (otherwise every turn would pay for all five), and are read only when dispatching
+  - **Dismissing** removes that preset, its skill directory and the team member personas (hot-reloaded, no restart)
 - **Summon menu (in-session quick access, enhanced in 1.9.3)** — the small board icon at the right of the composer toolbar opens three categories (**Skills / MCP / Experts**); hovering a category expands its submenu, and clicking an entry writes a reference into the composer (skills = `/skill-name`, MCP = names the `mcp__server__*` tools, experts = attaches to the current session):
   - **Six rows per screen, scrollable**: a submenu shows six entries at a time and scrolls for the rest (thin themed scrollbar), while the **Manage skills / MCP / experts…** button stays pinned to the bottom instead of scrolling away
   - **Most-recently-used first**: entries you just used float to the top with a "recent" badge, the rest keep their original order; the recency pool holds 40 entries

@@ -38,19 +38,45 @@ dsh plugin --profile web add github:2026heshao/dsh-armory
 
 ## 界面预览
 
-### 全局管理面板
+看板五个分类页各一张（Windows 桌面端实拍，浅色主题）：
 
-![MCP 管理面板](docs/images/mcp-manager-overview.png)
+### MCP — 全局管理面板
 
-### 项目作用域（`.dsh/mcp.json`）
+全局 / 项目双作用域切换，行内启停；全局与各项目之间可以同名共存、各自独立连接：
 
-![项目 MCP](docs/images/mcp-manager-workspace.png)
+![MCP 全局管理面板](docs/images/mcp-overview.png)
 
-### 连接详情与新增
+### MCP — 连接详情
 
-![MCP 连接详情](docs/images/mcp-manager-detail.png)
+传输方式、连接参数、调用超时、配置来源一目了然，下方是该服务器注册的工具清单（本例 170 个，展开可看完整输入 JSON Schema）：
 
-![新增 MCP](docs/images/mcp-manager-add.png)
+![MCP 连接详情](docs/images/mcp-detail.png)
+
+### 工具裁缝 — 工具使用账本
+
+30 天窗口四张指标卡（调用总次数 / 出现过的工具 / 零调用 MCP 工具 / 整体错误率），逐工具列出调用、错误、错误率、Schema 上下文税与最后使用时间，底部常驻裁缝建议。默认显示全部工具与真实调用次数，需要时点「只看零调用（N）」收窄：
+
+![工具裁缝账本](docs/images/tool-ledger.png)
+
+### 专家 — 已召唤清单
+
+每个召唤的专家 / 专家团一张卡片：绑定技能、详情、送还；团队型专家在详情弹层里有「团队编制」区块（每位成员的职责与人设路径）：
+
+![专家召唤面板](docs/images/experts.png)
+
+### 市场 — 三处直连
+
+连接器（WorkBuddy 官方分发 316 个；可安装的标「可安装」，CLI 型 / 需 token 注入的如实标「仅展示」并给出原因）：
+
+![WB 连接器市场](docs/images/market-connectors.png)
+
+技能（SkillHub 公开 API，19 万+ 技能；搜索 + 排序 + 分页，已装的标「已安装」可一键卸载）：
+
+![SkillHub 市场卡片](docs/images/market-skills.png)
+
+专家（WorkBuddy 专家中心 429 位 / 15 个行业；分类筛选 + 关键词搜索，卡片直接「召唤」）：
+
+![专家市场卡片](docs/images/market-experts.png)
 
 ## 功能
 
@@ -64,7 +90,7 @@ dsh plugin --profile web add github:2026heshao/dsh-armory
 - 跟随 DSH 深色/浅色主题，适配窄屏与移动宽度
 - 更新提示与**一键升级**：有新版时在面板顶部显示可关闭的提示条（每天最多查一次，可用 `DSH_ARMORY_DISABLE_UPDATE_CHECK` 关闭）。点了「升级」才动，**不会自动升级**；升级由 DSH 官方的 pluginManager 执行，装完提示重启宿主生效。用 `link:` / `file:` / `github:` 装的本地开发副本不给按钮（那会把链接换成 npm 包）
 - **升级后主动说一次变了什么**：版本变了后第一次打开面板弹一张小卡片，列出本次更新内容，并指路新功能在哪（例如「入口」开关在面板右上角）；确认一次后不再提示，不联网、不发任何数据
-- **工具裁缝**（1.7.0 新增）：扫描本机会话日志（只解析 `tool/call` / `tool/result` 两类事件，不读消息正文），统计每个工具近 7/30/90 天的调用次数、错误率与最后使用时间；同时按当前注册表估算每个工具 Schema 每轮请求占用的上下文 token。窗口内零调用的 MCP 工具自动进「死工具清单」，行内可一键禁用/启用对应服务器（复用官方写链，随时可恢复）。全程只读，多帧 zstd 日志逐帧解析、个别帧损坏跳过不中断
+- **工具裁缝**（1.7.0 新增）：扫描本机会话日志（只解析 `tool/call` / `tool/result` 两类事件，不读消息正文），统计每个工具近 7/30/90 天的调用次数、错误率与最后使用时间；同时按当前注册表估算每个工具 Schema 每轮请求占用的上下文 token。窗口内零调用的 MCP 工具自动进「死工具清单」，行内可一键禁用/启用对应服务器（复用官方写链，随时可恢复）。**默认显示全部工具与真实调用次数**，零调用的行以底色标出；想只看死工具时点「只看零调用（N）」切换。顶部说明栏常驻回显「显示 N/M 个工具」，避免筛选态被误读成「所有计数都是 0」。全程只读，多帧 zstd 日志逐帧解析、个别帧损坏跳过不中断
 - **WB 市场（直连安装，1.8.0 新增）**：看板第四个分类，两个市场一处浏览——
   - **连接器（MCP）**：直读 WorkBuddy 官方分发 ZIP（`static.workbuddy.cn`，与 WorkBuddy 桌面端同一数据源），316 个连接器按需解析；可安装的 242 个（streamable-http 为主），CLI 型 / 需 WorkBuddy token 注入的 74 个如实标注「仅展示」并给出原因。安装 = 把该连接器的 `mcpServers` 合并写入 MCP 配置，与「导入 JSON」同一链路（准入、同名跳过、entry id 预留一致），全局与项目作用域都可选；ZIP 按 ETag 缓存在 `~/.dsh/wb-market/`，解压用 Node 内置 zlib，**零新增运行时依赖**
   - **技能（SkillHub）**：直读 SkillHub 公开 API（`api.skillhub.cn`，19 万+ 技能），支持搜索（`keyword`）、排序（下载/安装/星标/评分）、分页；详情含发布方认证与安全扫描状态。安装 = 逐文件下载并按清单 sha256 校验后写入 `~/.agents/skills/`（与官方 skill 子系统同一发现范围），装完即刻生效；已装的显示「已安装」，可一键卸载、重装即更新
@@ -73,7 +99,8 @@ dsh plugin --profile web add github:2026heshao/dsh-armory
   - **目录**：直读 WorkBuddy 专家中心官方分发（`expert_center.json`，429 位专家 / 15 个行业分类，ETag 缓存在 `~/.dsh/wb-market/experts/`），分类筛选 + 关键词搜索 + 详情弹层（召唤前看人设正文、捆绑技能、试试这样问）
   - **召唤** = 往 profile 补丁写入一条**独立 Agent 预设**（`@deepseek-ai/dsh-agent-preset` 行，plugins 复刻内置 standard 预设、仅 persona 的 prefix 换成专家人设全文）——新建会话时选择「WorkBuddy 专家 · …」即专家接管该会话，标准工具/规划/压缩/委派原样保留；多个专家可共存，写入走既有 patch 写链（文件锁 + 版本校验 + 原子写），其余条目、注释与 `!!js` 表达式原样保留
   - **捆绑技能**：召唤时可勾选一并安装——本机 WorkBuddy 缓存（`~/.workbuddy/plugins/cache/experts/`）有完整技能树就整目录复制到 `~/.agents/skills/`（`wbexpert__` 前缀，即刻被技能注册表发现）；无缓存时按 CDN 的 SKILL.md 单文件兜底并如实标注来源
-  - **送还** = 摘除该召唤预设与对应技能目录（热加载，无需重启）；团队型（expert team）暂只读展示
+  - **团队型专家（1.9.4 可召唤）**：WorkBuddy 的 53 个「专家团」人设原本依赖 `TeamCreate` / `Agent(name=…)` 两个 DSH 没有的工具。召唤时除了写主理人预设，还会把每位成员的人设各自落成一份文件（`~/.dsh/wb-market/experts/teams/<专家>/`），并在主理人人设末尾追加一段**运行时适配**：建团队 → 无需调用（编制已在召唤时固定）；派活 → `subagent`（先把该成员人设 `read` 出来拼进 prompt），顺序 SOP 传 `run_in_background: false` 当场等结果；续聊用 `send_message`。原人设的铁律（不得代写成员产出、成员之间不直连、一切经主理人中转）原样保留。成员人设**不进系统提示**（否则每轮都要为 5 份人设白付上下文费），只在调度时按需读取
+  - **送还** = 摘除该召唤预设、对应技能目录与团队成员人设（热加载，无需重启）
 - **召唤菜单（会话内快速调用，1.9.3 增强）**：会话输入框工具行右侧的看板小图标 → 「技能 / MCP / 专家」三分类，悬停展开子菜单，点一条即把引用写进输入框（技能 = `/技能名`、MCP = 点名 `mcp__服务__*`、专家 = 挂到当前会话）——
   - **每屏 6 行 + 滚动**：子菜单一次显示 6 条，超出的往下滚（细滚动条跟随主题）；「管理技能 / MCP / 专家…」固定在底部，不被列表滚走
   - **最近使用置顶**：刚用过的条目自动排到最前并带「最近」标记，其余保持原有顺序；最近使用记录池 40 条
@@ -196,13 +223,24 @@ dsh plugin --profile web remove dsh-armory
 
 ```sh
 npm install --no-save yaml@2            # 测试唯一的裸依赖（node:test 内置）
-npm test                                # 专家市场写链 33 断言（与 CI / 发版门槛同一条）
+npm test                                # 全 6 套件（与 CI / 发版门槛同一条）
 npm run test:e2e                        # 可选：用宿主补丁算法验证专家预设进入组合树
 dsh --profile web --dump-config         # 看 profile 的有效配置
 dsh web                                 # 起 Web 做真实操作验证
 ```
 
-`npm test` 跑的是 `test/expert-manual.mjs`：真网拉 WorkBuddy 专家目录（ETag 命中后走磁盘缓存）与 senior-developer 人设，再对 `lib/expert-market.js` 的 patch 写链做 33 条断言——含 1.9.1 修复的回归用例（召唤预设必须写成顶层 `- insert:` 指令、旧版顶层裸条目要能被迁移）。本机存在 `~/.dsh/profiles/desktop/cordis.patch.yml` 时会追加一组真实 profile 往返断言，没有则记 `SKIP`。
+`npm test` 跑的是 `test/run-all.mjs`，依次执行 6 个独立套件（各自是独立 node 进程，任一非零退出即整体失败）：
+
+| 套件 | 覆盖 |
+| --- | --- |
+| `run-expert-manual.mjs` | 专家市场写链：真网拉 WorkBuddy 专家目录（ETag 命中后走磁盘缓存）与 senior-developer 人设，对 `lib/expert-market.js` 的 patch 写链做 33 条断言——含 1.9.1 修复的回归用例（召唤预设必须写成顶层 `- insert:` 指令、旧版顶层裸条目要能被迁移） |
+| `upgrade-plan.mjs` | 一键升级安全判据：本地安装 / 来源未知一律不写盘 |
+| `session-persona.mjs` | 会话级专家随时挂 / 换 / 摘（替身宿主验证 systemPrompt 作用域与 ctx 重绑两个假设） |
+| `team-bridge.mjs` | 团队专家桥接：成员人设落盘、桥接段内容、preset 不含成员正文、送还清理、取不到人设时降级 |
+| `verify-install-info.mjs` | 真 profile 数据下的安装来源判定（profile 不存在时自动 SKIP） |
+| `verify-host-installinfo.mjs` | 宿主读取路径下的安装来源判定 |
+
+本机存在 `~/.dsh/profiles/desktop/cordis.patch.yml` 时，`run-expert-manual.mjs` 会追加一组真实 profile 往返断言，没有则记 `SKIP`。
 
 CI（push 到 main / PR，见 `.github/workflows/ci.yml`）与发版门槛（推 tag，见 `.github/workflows/release.yml`）跑的是**逐字相同**的命令（装 `yaml@2` → `node ./test/run-expert-manual.mjs`），两处口径不许分叉；发版流程见 [安装与升级](docs/installation.md#发布流程维护者)。
 
