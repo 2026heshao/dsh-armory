@@ -3,7 +3,7 @@
 // 用法：node --import ./test/loader.mjs test/expert-manual.mjs
 import { pathToFileURL } from "node:url";
 import { homedir } from "node:os";
-import { join, dirname } from "node:path";
+import { join } from "node:path";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 
 const PROFILE_MODULES = join(homedir(), ".dsh", "profiles", "desktop", "node_modules");

@@ -2,7 +2,7 @@
 // （宿主按 id-targeted override 解释 → warn 跳过 → 预设不注册 → 「Unknown agent preset」）
 // 原位迁移为合法的 insert 指令。复用修复后的 writeExpertPreset（legacy 分支）。
 // 用法：node --(runner) migrate-profile-patch.mjs [--write]
-import { readFile, writeFile, rename, rm } from "node:fs/promises";
+import { readFile, writeFile, rename } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { readExpertPresets, writeExpertPreset } from "../lib/expert-market.js";

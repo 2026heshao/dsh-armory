@@ -1,0 +1,17 @@
+# 依赖与产物
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+*.log
+
+# 内部工作区（不发布）
+.ai-memory/
+
+# 长篇手写文档：proseWrap 已设为 preserve，但它更长于人工维护，不纳入机器检查
+docs/
+README.md
+README.en.md
+优化建议.md
+
+# 本插件自身的构建产物（screenshots.json 由脚本生成，格式不归 Prettier 管）
+screenshots.json

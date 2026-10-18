@@ -7,7 +7,9 @@ name: release
 # 依赖现实（勿改回 pnpm install --frozen-lockfile）：
 # - 本仓库没有 pnpm-lock.yaml（运行依赖全是宿主提供的 peer，不装进包）；
 # - devDependencies 里的 @deepseek-ai/* 是宿主内部包，npm registry 上不存在；
-# - 测试只需要 `yaml`（test/expert-manual.mjs 唯一裸导入；node:test 内置）。
+# - 测试需要 `yaml`（test/expert-manual.mjs 与 test/mcp-config.mjs 的裸导入；
+#   test/tool-ledger.mjs 只用 node: 内置模块）；
+# - lint 需要 eslint（配置不 import 任何第三方包，见 eslint.config.mjs）。
 # 测试文件里的 profile-redirect loader 会先尝试标准解析（CI 装了 yaml 就走标准路），
 # 本机 profile 副本只是开发机兜底。
 
@@ -65,14 +67,18 @@ jobs:
             exit 1
           fi
 
-      - name: 安装测试依赖（仅 yaml）
+      - name: 安装测试与 lint 依赖（yaml + eslint）
         run: |
           set -euo pipefail
           mkdir -p node_modules
-          npm install --no-save --prefix "$PWD" yaml@2
+          npm install --no-save --prefix "$PWD" yaml@2 eslint@9
 
-      - name: 测试门槛（专家市场写链 + 一键升级判据）
+      - name: 测试门槛（专家市场写链 + 一键升级判据 + 工具账本 + MCP 配置）
         run: npm test
+
+      # 与 ci.yml 的 lint job 同一门槛：不合 lint 的代码不发版。
+      - name: lint 门槛
+        run: npm run lint
 
       - name: npm publish（trusted publishing）
         # 幂等守卫：版本已在 npm 上就跳过，不报错。

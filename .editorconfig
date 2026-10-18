@@ -1,0 +1,24 @@
+root = true
+
+# 本仓库没有 .git，编辑器配置是唯一的「统一约定」载体。
+# 缩进刻意保持 indent_size = 2 而不是强制重排既有文件：lib/ 里现有 5 个文件用 tab、
+# 4 个用 4 空格（见优化建议.md OPT-10），一次性重排会产生 2 万行差异却零行为收益。
+# 新代码按本文件写；旧文件在下次实际修改时顺带对齐。
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.md]
+# Markdown 行尾空格是有语义的（硬换行），不能裁。
+trim_trailing_whitespace = false
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.json]
+indent_size = 2

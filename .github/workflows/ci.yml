@@ -7,7 +7,9 @@ name: ci
 # 依赖现实（与 release.yml 同源，勿改成 pnpm install --frozen-lockfile）：
 # - 本仓库没有 pnpm-lock.yaml（运行依赖全是宿主提供的 peer，不装进包）；
 # - devDependencies 里的 @deepseek-ai/* 是宿主内部包，npm registry 上不存在；
-# - 测试只需要 `yaml`（test/expert-manual.mjs 唯一裸导入；node:test 内置）。
+# - 测试只需要 `yaml`（test/expert-manual.mjs 与 test/mcp-config.mjs 的裸导入；
+#   test/tool-ledger.mjs 只用 node: 内置模块，任何环境都能跑）；
+# - lint 只需要 eslint 与 prettier，同样用 --no-save 临时装。
 # 门槛命令与 release.yml 保持逐字一致，两处不一致就会出现「CI 绿、发版红」。
 
 on:
@@ -36,5 +38,36 @@ jobs:
           mkdir -p node_modules
           npm install --no-save --prefix "$PWD" yaml@2
 
-      - name: 测试门槛（专家市场写链 + 一键升级判据）
+      - name: 测试门槛（专家市场写链 + 一键升级判据 + 工具账本 + MCP 配置）
         run: npm test
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # 只装 lint 工具，不装任何运行依赖：ESLint 配置刻意不 import 第三方包
+      # （见 eslint.config.mjs 顶部注释），所以这里不需要 yaml / smol-toml / zod。
+      - name: 安装 lint 工具
+        run: |
+          set -euo pipefail
+          mkdir -p node_modules
+          npm install --no-save --prefix "$PWD" eslint@9 prettier@3
+
+      # 抓真缺陷：未定义标识符、死变量、空分支、重复键。
+      # 它已经抓到过 test/mcp-config.mjs 里定义了却从未调用的 skip()，
+      # 以及 client.js 里引用未安装插件的无效 eslint-disable 指令。
+      - name: ESLint（no-undef / no-unused-vars / no-empty 等）
+        run: npm run lint
+
+      # 注意：本仓库当前**不做全量 Prettier 格式化**，所以这里是 check 而不是 block——
+      # 一次性重排会产生约 2 万行差异（优化建议.md OPT-10 有实测数据），且本仓库没有
+      # git 仓库可回退。这条只用来发现「新文件是否已按 .prettierrc 写」，失败不阻断。
+      - name: Prettier 风格提示（不阻断）
+        continue-on-error: true
+        run: npm run format:check
+
