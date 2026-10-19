@@ -53,45 +53,19 @@ A **unified board** for DeepSeek Harness (Web and desktop): five top-level tabs 
 
 ## Screenshots
 
-One shot per board tab (captured on the Windows desktop app, light theme):
+### Global panel
 
-### MCP — global board
+![MCP management panel](docs/images/mcp-manager-overview.png)
 
-Global / per-project scope tabs, inline enable/disable toggles; global and project servers may share a name while staying independent:
+### Project scope (`.dsh/mcp.json`)
 
-![MCP global board](docs/images/mcp-overview.png)
+![Project MCP](docs/images/mcp-manager-workspace.png)
 
-### MCP — connection details
+### Connection details and adding a server
 
-Transport, connection parameters, call timeout and config source at a glance; below is the server's registered tool list (170 here — expand any row for its full input JSON Schema):
+![MCP connection details](docs/images/mcp-manager-detail.png)
 
-![MCP connection details](docs/images/mcp-detail.png)
-
-### Tool Tailor — tool-usage ledger
-
-Four metric cards for the 30-day window (total calls / tools seen / zero-call MCP tools / overall error rate), one row per tool with calls, errors, error rate, Schema context tax and last use, and a persistent tailor suggestion at the bottom. Shows all tools with real call counts by default; "zero-call only (N)" narrows the view:
-
-![Tool Tailor ledger](docs/images/tool-ledger.png)
-
-### Experts — summoned list
-
-One card per summoned expert / expert team: bundled skills, details, dismiss; team experts expose a "roster" block in the detail dialog (each member's duty and persona file path):
-
-![Experts panel](docs/images/experts.png)
-
-### Market — three direct sources
-
-Connectors (official WorkBuddy distribution, 316 entries; installable ones are labeled "install", CLI-based / token-dependent ones honestly show "view only" with the reason):
-
-![WB connector market](docs/images/market-connectors.png)
-
-Skills (public SkillHub API, 190k+ skills; search + sort + pagination, installed ones show an "installed" badge with one-click uninstall):
-
-![SkillHub market cards](docs/images/market-skills.png)
-
-Experts (WorkBuddy expert center, 429 experts / 15 industries; category filter + keyword search, "summon" straight from the card):
-
-![Expert market cards](docs/images/market-experts.png)
+![Add MCP](docs/images/mcp-manager-add.png)
 
 ## Features (MCP board)
 
@@ -199,7 +173,7 @@ No. Uninstalling the plugin leaves existing `@deepseek-ai/dsh-mcp-client` rows i
 
 | Item | Verified |
 |---|---|
-| DeepSeek Harness | `0.1.5-rc.1` and above (verified through `0.2.0-rc.2`) |
+| DeepSeek Harness | `0.1.5-rc.1` and above (verified through `0.2.1-rc.2`, DSH 44.7.0) |
 | Node.js | whatever runtime DSH ships/supports |
 | Platform | Windows; Linux/macOS share the same DSH Web contracts |
 

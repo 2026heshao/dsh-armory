@@ -92,6 +92,49 @@ function scanWraps(text) {
 		while (p >= 0 && /\s/.test(text[p])) p -= 1;
 		return p >= 0 ? text[p] : "";
 	};
+	// OPT-14 字典区域豁免：en-US 字典里的键是查表键（中文原文）不是展示文案，本身
+	// 不该包 t()。预扫描 setI18nMessages(...) 第一个实参的括号配平区间，落在区间内
+	// 的 sq 字符串不计 miss。
+	function dictArgRanges(text) {
+		const ranges = [];
+		let from = 0;
+		for (;;) {
+			const m = text.indexOf("setI18nMessages", from);
+			if (m < 0) break;
+			from = m + "setI18nMessages".length;
+			let open = m + "setI18nMessages".length;
+			while (open < text.length && /\s/.test(text[open])) open += 1;
+			if (text[open] !== "(") continue;
+			let depth = 0, i = open;
+			let inLine = false, inBlock = false, inSq = false, inDq = false, inTpl = false;
+			while (i < text.length) {
+				const c = text[i];
+				if (inLine) { if (c === "\n") inLine = false; }
+				else if (inBlock) { if (c === "*" && text[i + 1] === "/") { inBlock = false; i += 1; } }
+				else if (inSq || inDq) {
+					if (c === "\\") i += 1;
+					else if (inSq && c === "'") inSq = false;
+					else if (inDq && c === '"') inDq = false;
+				} else if (inTpl) {
+					if (c === "\\") i += 1;
+					else if (c === "`") inTpl = false;
+					else if (c === "$" && text[i + 1] === "{") { depth += 1; i += 1; }
+					else if (c === "}" && depth > 0) depth -= 1;
+				} else if (c === "/" && text[i + 1] === "/") inLine = true;
+				else if (c === "/" && text[i + 1] === "*") { inBlock = true; i += 1; }
+				else if (c === "'") inSq = true;
+				else if (c === '"') inDq = true;
+				else if (c === "`") inTpl = true;
+				else if (c === "(") depth += 1;
+				else if (c === ")") { depth -= 1; if (depth === 0) { i += 1; break; } }
+				i += 1;
+			}
+			ranges.push([open, i]);
+		}
+		return ranges;
+	}
+	const DICT_RANGES = dictArgRanges(source);
+	const inDictRegion = (at) => DICT_RANGES.some(([s, e]) => at > s && at < e);
 	const isWrapped = (at) => {
 		const prev = prevSignificant(at);
 		return prev === "(" && at >= 2 && text[at - 2] === "t";
@@ -132,7 +175,8 @@ function scanWraps(text) {
 				j += 1;
 			}
 			const inner = text.slice(i + 1, Math.min(j, n - 1));
-			if (q === "'" && CJK.test(inner) && !MATCH_MARKERS.has(inner)) {
+			// OPT-14：字典键是查找键不是展示文案，setI18nMessages 实参区间内不计 miss。
+			if (q === "'" && CJK.test(inner) && !MATCH_MARKERS.has(inner) && !inDictRegion(i)) {
 				top += 1;
 				if (isWrapped(i)) wrapped += 1; else miss(i, inner);
 			}

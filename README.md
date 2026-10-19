@@ -38,45 +38,19 @@ dsh plugin --profile web add github:2026heshao/dsh-armory
 
 ## 界面预览
 
-看板五个分类页各一张（Windows 桌面端实拍，浅色主题）：
+### 全局管理面板
 
-### MCP — 全局管理面板
+![MCP 管理面板](docs/images/mcp-manager-overview.png)
 
-全局 / 项目双作用域切换，行内启停；全局与各项目之间可以同名共存、各自独立连接：
+### 项目作用域（`.dsh/mcp.json`）
 
-![MCP 全局管理面板](docs/images/mcp-overview.png)
+![项目 MCP](docs/images/mcp-manager-workspace.png)
 
-### MCP — 连接详情
+### 连接详情与新增
 
-传输方式、连接参数、调用超时、配置来源一目了然，下方是该服务器注册的工具清单（本例 170 个，展开可看完整输入 JSON Schema）：
+![MCP 连接详情](docs/images/mcp-manager-detail.png)
 
-![MCP 连接详情](docs/images/mcp-detail.png)
-
-### 工具裁缝 — 工具使用账本
-
-30 天窗口四张指标卡（调用总次数 / 出现过的工具 / 零调用 MCP 工具 / 整体错误率），逐工具列出调用、错误、错误率、Schema 上下文税与最后使用时间，底部常驻裁缝建议。默认显示全部工具与真实调用次数，需要时点「只看零调用（N）」收窄：
-
-![工具裁缝账本](docs/images/tool-ledger.png)
-
-### 专家 — 已召唤清单
-
-每个召唤的专家 / 专家团一张卡片：绑定技能、详情、送还；团队型专家在详情弹层里有「团队编制」区块（每位成员的职责与人设路径）：
-
-![专家召唤面板](docs/images/experts.png)
-
-### 市场 — 三处直连
-
-连接器（WorkBuddy 官方分发 316 个；可安装的标「可安装」，CLI 型 / 需 token 注入的如实标「仅展示」并给出原因）：
-
-![WB 连接器市场](docs/images/market-connectors.png)
-
-技能（SkillHub 公开 API，19 万+ 技能；搜索 + 排序 + 分页，已装的标「已安装」可一键卸载）：
-
-![SkillHub 市场卡片](docs/images/market-skills.png)
-
-专家（WorkBuddy 专家中心 429 位 / 15 个行业；分类筛选 + 关键词搜索，卡片直接「召唤」）：
-
-![专家市场卡片](docs/images/market-experts.png)
+![新增 MCP](docs/images/mcp-manager-add.png)
 
 ## 功能
 
@@ -213,7 +187,7 @@ dsh plugin --profile web remove dsh-armory
 
 | 项目 | 已验证 |
 |---|---|
-| DeepSeek Harness | `0.1.5-rc.1` 及以上（已验证至 `0.2.0-rc.2`） |
+| DeepSeek Harness | `0.1.5-rc.1` 及以上（已验证至 `0.2.1-rc.2`，DSH 44.7.0） |
 | Node.js | DSH 自带/支持的运行时 |
 | 平台 | Windows；Linux/macOS 使用同一 DSH Web 契约 |
 
