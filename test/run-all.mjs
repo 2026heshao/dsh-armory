@@ -62,6 +62,11 @@ const SUITES = [
   { name: "error-boundary-copy（崩溃详情可复制）", file: "error-boundary-copy.mjs" },
   // teardown 残留诊断（清单 2.4）：live/final 两种读法 + 超龄不送 + 记录表裁剪，真跑函数。
   { name: "teardown-residue（teardown 残留诊断）", file: "teardown-residue.mjs" },
+  // README 配图守护：v1.10.0 那次提交把「界面预览」整段覆盖回 1.8 时代的四张旧图，
+  // 1.9.4 新增的五页实拍从仓库树里一并消失，而编译器/测试/CI 全绿 —— 因为没有一条断言
+  // 关心 README 引用的是哪几张图。这里钉「引用可解析 + screenshots.json 与 README 一致 +
+  // mcp-manager-* 旧图名不得复活」三条。
+  { name: "readme-images（README 配图不回退守护）", file: "readme-images.mjs" },
 ];
 
 let failed = 0;
