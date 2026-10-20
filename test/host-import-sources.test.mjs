@@ -23,7 +23,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 register("./loader.mjs", pathToFileURL(join(here, "/")));
 
 const SOURCES_URL = new URL("../lib/mcp-import-sources.js", import.meta.url).href;
-const { IMPORT_SOURCES, normalizeSourceText, hashSourceText } = await import(SOURCES_URL);
+// 只解构本套件真正断言的两个导出：多解构一个不用的绑定会让 `no-unused-vars` 报错。
+const { IMPORT_SOURCES, normalizeSourceText } = await import(SOURCES_URL);
 
 let failures = 0;
 const ok = (name, condition, extra = "") => {

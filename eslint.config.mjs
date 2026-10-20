@@ -38,6 +38,9 @@ const BROWSER_GLOBALS = {
   document: 'readonly',
   navigator: 'readonly',
   location: 'readonly',
+  // history 与 location 同为浏览器的全局对象：`writeHashParams` 用它 replaceState
+  // 同步「当前作用域 / 分类」到 hash，是合法的浏览器用法，不是笔误。
+  history: 'readonly',
   localStorage: 'readonly',
   sessionStorage: 'readonly',
   console: 'readonly',
