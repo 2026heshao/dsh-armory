@@ -2,9 +2,11 @@
 
 中文 | [English](README.en.md)
 
-> **DeepSeek Harness 的一体化管理看板**：MCP 服务器 · 技能 · 专家 · 工具使用账本 · 三大市场（WorkBuddy 连接器 316 个 / 内置精选 47 个 / SkillHub 技能 19 万+ / WorkBuddy 专家 429 位），浏览、搜索、一键安装、一键召唤。
+> **DeepSeek Harness 的一体化管理看板**：MCP 服务器 · 技能 · 专家 · 插件 · 工具使用账本 · 四大市场（WorkBuddy 连接器 316 个 / 内置精选 47 个 / SkillHub 技能 19 万+ / WorkBuddy 专家 429 位 / CodeBuddy 官方插件 + DSH 社区清单），浏览、搜索、一键安装、一键召唤。
 > 本项目 fork 并改写自 [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui)（MIT，原项目仅 MCP 管理），现仓库为 [2026heshao/dsh-armory](https://github.com/2026heshao/dsh-armory)，
-> 从纯 MCP 管理面板升级为 **MCP + 技能 + 专家 + 市场 + 工具账本** 五合一看板。
+> 从纯 MCP 管理面板升级为 **MCP + 技能 + 专家 + 插件 + 市场 + 工具账本** 看板。
+>
+> **v2.0.0 起**：新增「插件」页（三个来源）、MCP OAuth 一键授权、安装凭据引导、安装状态账本、技能看板六大分类。详见 [更新日志](.github/release-notes/v2.0.0.md)。
 
 <p align="center">
   <a href="https://github.com/2026heshao/dsh-armory/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-armory?style=social" alt="stars"></a>
@@ -35,10 +37,13 @@ dsh plugin --profile web add github:2026heshao/dsh-armory
 | 装技能要去各处翻 `SKILL.md` 仓库 | **市场直连**：SkillHub 19 万+ 技能、WorkBuddy 316 个连接器、47 个一手核实的内置服务，搜索/筛选/一键安装，逐文件 sha256 校验 |
 | 每个 MCP 的工具描述都在吃上下文 token，零调用的工具白白占位 | **工具裁缝**：扫描本机会话日志统计每个工具的调用/错误/延迟，死工具清单一键禁用 |
 | 从 Claude/Cursor/VS Code 迁移要逐条抄配置 | 自动检出 11 种客户端的本机配置，预览后一键导入 |
+| 插件散在宿主自带、CodeBuddy 官方、社区清单三处，格式与可装性各不相同 | **插件页**：三个来源并进一个可搜索目录并标明可装性，安装统一走宿主 `pluginManager`，装完明确提示需重启 |
+| 远端 MCP 要 OAuth，而官方 client 只认静态 headers，只能手搓 token | **一键授权**：按 RFC 9728/8414/7591/7636/8707 走完发现 → 注册 → PKCE → 回调 → 换 token，回调通道三级降级（loopback / 粘贴回调地址 / 手贴 token），到期自动刷新 |
+| 装过的连接器、插件，过几天忘了是从哪来的 | **安装状态账本**：`~/.dsh/armory/install-state.json` 记录每条的来源市场，市场页可跨页筛出已安装项，并把「本插件装的」与「别处手动配的」分开 |
 
 ## 界面预览
 
-看板五个分类页各一张（Windows 桌面端实拍，浅色主题）：
+看板五个主要分类页各一张（Windows 桌面端实拍，浅色主题）。2.0.0 新增的「插件」页与 OAuth 授权流程暂无截图：
 
 ### MCP — 全局管理面板
 
@@ -106,6 +111,20 @@ dsh plugin --profile web add github:2026heshao/dsh-armory
   - **最近使用置顶**：刚用过的条目自动排到最前并带「最近」标记，其余保持原有顺序；最近使用记录池 40 条
   - **专家随时挂 / 换 / 摘**：点一个专家即接管当前会话（包括已经聊了一半的），再点别的直接替换，点 chip 的 × 立刻取消；**只影响这一个会话**，不动工具目录、不写任何持久化配置
   - **显示与实效一致**：挂专家后，会话标题栏显示的始终是**当前真正生效**的专家（宿主那条「会话创建时的预设」标签在挂载期间自动让位）；三处显示（标题栏徽章、输入框 chip、菜单）挂/换/摘后同帧同步
+- **插件市场（2.0.0 新增）**：新增「插件」页，把三类来源并进一个可搜索、可筛选的目录，每条标明来源与可装性——
+  - **官方**：DSH 宿主自带组件，随宿主分发，不可单独安装（仅展示）
+  - **CodeBuddy 官方**：ZIP 分发，解析 `.codebuddy-plugin/marketplace.json` 与 `external_plugins/<name>/.codebuddy-plugin/plugin.json`（`MAX_ZIP_BYTES = 64MB`，ETag 命中不重下）
+  - **DSH 社区**：`awesome-dsh-plugins` 社区清单（单文件裸 JSON、五千余条，jsdelivr 主源 → fastly 备源），拉取后瘦身到 `SLIM_MAX_BYTES = 3MB` 再落缓存
+  - **安装**：统一走宿主 `pluginManager.installBundle` 拉取落盘，**装完需重启 DSH 宿主才生效**；宿主无 `pluginManager` / 条目无 npm 包名 / 无 repository 三种情况各自给出明确文案，不静默失败
+- **MCP OAuth 一键授权（2.0.0 新增）**：官方 `@deepseek-ai/dsh-mcp-client` 的 transport 只认 `requestInit.headers`、没有 authProvider，所以 OAuth 必须在**安装前**由本插件跑完，把 `authorization: Bearer <token>` 静态写进 patch 的 headers，此后由本模块负责刷新——
+  - 按 **RFC 9728**（受保护资源元数据）→ **RFC 8414**（授权服务器元数据）→ **RFC 7591**（动态客户端注册）→ **RFC 7636 PKCE**（只发 S256）→ **RFC 8707**（`resource` 参数）逐条实现
+  - 回调通道**三级降级**：本地 `127.0.0.1:<随机端口>/callback` 自动收 code（主流实现）→ DCR 只接受自定义 scheme 时提示「粘贴完整回调地址」→ 都不通则直接「粘贴访问令牌」
+  - 服务器返回 401 时自动弹出「授权 {服务器}」对话框并打开浏览器，无需用户先去找入口
+- **安装凭据引导（2.0.0 新增）**：安装前扫 `mcpServers` 里的 `${...}` 占位符，弹「填写 {连接器} 的凭据」逐槽填写后「带凭据安装」；留空表示稍后自行补全，装完提示「另有 N 个占位符未填写，配置里保留原样」；无占位符的连接器直接放行
+- **安装状态账本（2.0.0 新增）**：`~/.dsh/armory/install-state.json`（`INSTALL_STATE_VERSION = 1`）记录每条连接器 / 技能 / 插件的 `source {marketplace, url, kind}`，市场页据此支持**跨页**筛出已安装项（技能侧仍只筛当前页，两处文案分别说明），并把「本插件装的」与「别处手动配的」分开；登记失败不影响安装，只补一句提示
+- **技能看板分类（2.0.0 新增）**：技能按 **编程开发 / 设计与创作 / 文档办公 / 效率与自动化 / 开发运维 / 未分类** 六类归置，网格与列表双视图可切、可按分类过滤，常驻「显示 N / M 个 skill」；详情新增所属分类、来源目录、文件位置，可一键「复制 SKILL.md 路径」「复制 @会话引用」。看板仍是只读的（宿主只提供 `listSkills` / `skillDetail`）
+- **多市场注册表（2.0.0 新增）**：市场源不再硬编码，落 `~/.dsh/armory/marketplaces.json`（`REGISTRY_VERSION = 1`），缺失或损坏回落内置默认项、首读即落盘，支持增删改；写盘一律 staging + rename 原子替换
+- **社区目录秒开（2.0.0 新增）**：上次成功的精简清单镜像进浏览器 `localStorage`（7 天 / 4MB 上限，超配额保留旧快照），首屏先渲染快照再被真实结果静默替换（0 网络 0 IPC）；源不可达时明说「显示的是本地缓存」而非给空列表
 
 ## 安装
 
@@ -222,27 +241,31 @@ dsh plugin --profile web remove dsh-armory
 ## 开发
 
 ```sh
-npm install --no-save yaml@2            # 测试唯一的裸依赖（node:test 内置）
-npm test                                # 全 6 套件（与 CI / 发版门槛同一条）
+npm install --no-save yaml@2 eslint@9   # 测试与风格检查的唯一裸依赖（运行依赖全部由宿主提供）
+npm test                                # 全 31 套件（与 CI / 发版门槛同一条）
+npm run lint                            # ESLint：no-undef / no-unused-vars / no-empty 等
 npm run test:e2e                        # 可选：用宿主补丁算法验证专家预设进入组合树
 dsh --profile web --dump-config         # 看 profile 的有效配置
 dsh web                                 # 起 Web 做真实操作验证
 ```
 
-`npm test` 跑的是 `test/run-all.mjs`，依次执行 6 个独立套件（各自是独立 node 进程，任一非零退出即整体失败）：
+`npm test` 跑的是 `test/run-all.mjs`，依次执行 **31** 个独立套件（各自是独立 node 进程，任一非零退出即整体失败）。套件是显式白名单而非 `node --test` 自动发现——`test/` 下还有带副作用的迁移脚本与需要宿主模块的端到端脚本，自动发现会误跑。
 
-| 套件 | 覆盖 |
-| --- | --- |
-| `run-expert-manual.mjs` | 专家市场写链：真网拉 WorkBuddy 专家目录（ETag 命中后走磁盘缓存）与 senior-developer 人设，对 `lib/expert-market.js` 的 patch 写链做 33 条断言——含 1.9.1 修复的回归用例（召唤预设必须写成顶层 `- insert:` 指令、旧版顶层裸条目要能被迁移） |
-| `upgrade-plan.mjs` | 一键升级安全判据：本地安装 / 来源未知一律不写盘 |
-| `session-persona.mjs` | 会话级专家随时挂 / 换 / 摘（替身宿主验证 systemPrompt 作用域与 ctx 重绑两个假设） |
-| `team-bridge.mjs` | 团队专家桥接：成员人设落盘、桥接段内容、preset 不含成员正文、送还清理、取不到人设时降级 |
-| `verify-install-info.mjs` | 真 profile 数据下的安装来源判定（profile 不存在时自动 SKIP） |
-| `verify-host-installinfo.mjs` | 宿主读取路径下的安装来源判定 |
+| 分组 | 套件 | 覆盖 |
+| --- | --- | --- |
+| 账本与配置层 | `tool-ledger` `mcp-config` | 工具账本的 zstd/缓存/尺寸闸门；MCP 配置归一化与 patch 往返 |
+| 契约与入口 | `contract-consistency` `client-entry` `host-import-sources` | 面板可调方法必须在 typert 声明 / client 契约数组 / 宿主方法集三处同时存在；三个入口「全关」不可表达；VS Code `${input:}` 降级 |
+| 客户端质量 | `client-i18n` `i18n-coverage` `error-boundary-copy` `persona-truncate` `tailor-window` | 中文皆包 `t()`；en-US 字典双向差集；崩溃详情可复制；persona 4000 预览阈值；工具裁缝时间窗四档 |
+| 专家与团队 | `run-expert-manual` `session-persona` `team-bridge` `expert-card-actions` `recent-sort-regression` | 专家市场写链（真网目录 + 人设 + patch 往返，33 条断言）；会话级挂/换/摘；团队桥接；卡片按钮真值表；「最近使用」排序 |
+| 升级与安装真机 | `upgrade-plan` `verify-install-info` `verify-host-installinfo` `teardown-residue` | 一键升级判据（本地安装 / 来源未知一律不写）；真 profile 数据下的来源判定（profile 不存在自行 SKIP）；teardown 残留诊断 |
+| 市场与安装链（2.0.0） | `wb-registry` `wb-install-state` `wb-auth-rules` `wb-connector-meta` `wb-plugin-market` `wb-awesome-market` `wb-install-flow` `wb-update-hint` `auth-gate-regression` `install-toast` | 多市场注册表原子写；安装状态与来源锁；令牌槽扫描与注入规则；连接器 R1/R2/R3 投影；插件清单嵌套解析；awesome 过滤/瘦身/304/双源切换；令牌替换写链；R9 更新探测五枚举；装前 401 鉴权闸；顶部安装浮层跨卸载可见 |
+| 回归护栏 | `readme-images` `bugfix-armory` | README 配图不回退（引用可解析 + `screenshots.json` 与 README 一致 + 旧图名不得复活）；市场入口强制选中与看板页重复让位 |
 
 本机存在 `~/.dsh/profiles/desktop/cordis.patch.yml` 时，`run-expert-manual.mjs` 会追加一组真实 profile 往返断言，没有则记 `SKIP`。
 
-CI（push 到 main / PR，见 `.github/workflows/ci.yml`）与发版门槛（推 tag，见 `.github/workflows/release.yml`）跑的是**逐字相同**的命令（装 `yaml@2` → `node ./test/run-expert-manual.mjs`），两处口径不许分叉；发版流程见 [安装与升级](docs/installation.md#发布流程维护者)。
+> `auth-gate-regression.mjs` 的被测对象是**运行时副本**（`~/.dsh/profiles/desktop/node_modules/dsh-armory/lib/`），开工前做 SHA256 哈希预检，不符即中止。
+
+CI（`.github/workflows/ci.yml`）与发版门槛（`.github/workflows/release.yml`）跑同两条命令：`npm run lint` + `npm test`，两处口径不许分叉。`release.yml` 另外校验 tag / `package.json` / `lib/whats-new.js` / `.github/release-notes/v<version>.md` 四者版本一致，才 `npm publish` 并建 GitHub Release；发版流程见 [安装与升级](docs/installation.md#发布流程维护者)。
 
 > 本机若没有 `yaml`，`npm test` 会以 `ERR_MODULE_NOT_FOUND` 退出——`test/loader.mjs` 会先试标准解析，失败才回退开发机的 profile 副本（`~/.dsh/profiles/desktop/node_modules`），所以干净环境必须先装依赖。
 

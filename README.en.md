@@ -2,9 +2,11 @@
 
 [中文](README.md) | English
 
-> **The all-in-one control board for DeepSeek Harness**: MCP servers · Skills · Experts · tool-usage ledger · three markets (WorkBuddy connectors ×316 / curated built-ins ×47 / SkillHub skills ×190k+ / WorkBuddy experts ×429), with browsing, search and one-click install.
-> This project is a fork of [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui) (MIT),
-> upgraded from a pure MCP panel into a **five-in-one board: MCP + Skills + Experts + Markets + Tool Tailor**.
+> **The all-in-one control board for DeepSeek Harness**: MCP servers · Skills · Experts · Plugins · tool-usage ledger · four markets (WorkBuddy connectors ×316 / curated built-ins ×47 / SkillHub skills ×190k+ / WorkBuddy experts ×429, plus CodeBuddy official plugins and the DSH community list), with browsing, search, one-click install and one-click summon.
+> This project is a fork of [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui) (MIT, the original covered MCP only); this repo is [2026heshao/dsh-armory](https://github.com/2026heshao/dsh-armory),
+> upgraded from a pure MCP panel into a **MCP + Skills + Experts + Plugins + Markets + Tool Tailor** board.
+>
+> **New in v2.0.0**: a Plugins page with three sources, one-click MCP OAuth authorization, credential prompts before install, an install-state ledger, and six categories for the skill board. See the [changelog](.github/release-notes/v2.0.0.md).
 
 <p align="center">
   <a href="https://github.com/2026heshao/dsh-armory/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-armory?style=social" alt="stars"></a>
@@ -35,17 +37,19 @@ Restart DSH, then open **Skills · MCP · Experts** from the global panel list a
 | Installing skills means hunting for `SKILL.md` repos everywhere | **Direct markets**: SkillHub (190k+ skills), WorkBuddy connectors (316), 47 first-party-verified built-ins — search, filter, one-click install with per-file sha256 verification |
 | Every MCP's tool descriptions eat context tokens; zero-use tools sit there for free | **Tool Tailor**: scans local session logs for call counts / errors / latency per tool; prune dead tools with one click |
 | Migrating from Claude/Cursor/VS Code means copying config by hand | Detects local configs from 11 clients and imports them with a preview |
+| OAuth-protected or key-protected servers and plugins just fail, with no hint why | **Plugin market** (CodeBuddy official + DSH community list) with per-entry source and installability, **one-click MCP OAuth** (RFC 9728 → 8414 → 7591 → 7636 PKCE → 8707, three callback fallbacks ending at "paste a token"), and a **credential prompt before install** that fills `${...}` placeholders so the server works on first connect |
 
 
-A **unified board** for DeepSeek Harness (Web and desktop): five top-level tabs — **MCP**, **Skill**, **Expert**, **Tool Tailor** and **Market** — reachable from the global panel list at the top of the sidebar or the floating button. The panel floats above the session — **it never interrupts an ongoing conversation**.
+A **unified board** for DeepSeek Harness (Web and desktop): six top-level tabs — **MCP**, **Skill**, **Expert**, **Plugins**, **Tool Tailor** and **Market** — reachable from the global panel list at the top of the sidebar or the floating button. The panel floats above the session — **it never interrupts an ongoing conversation**.
 
 | Tab | Manages |
 |---|---|
 | **MCP** | MCP servers: connection status, tool list, enable/disable, import, market install |
-| **Skill** | Skills: enable/disable of `SKILL.md` folders, source directories, session audit scan |
+| **Skill** | Skills: enable/disable of `SKILL.md` folders, source directories, session audit scan, six categories (dev / design & creative / docs & office / productivity / ops / uncategorised), grid or list view |
 | **Expert** | WorkBuddy expert directory (429 experts / 15 industries, including 53 expert **teams**): browse, search, and "summon" one into a new session as an independent agent preset. Team experts summon with their full roster — member personas are materialised locally and the lead is handed a runtime bridge that maps WorkBuddy's `TeamCreate` / `Agent(name=…)` onto DSH's `subagent` |
+| **Plugins** | Three sources in one searchable directory: DSH built-ins (shipped with the host, display-only), CodeBuddy official (ZIP distribution, manifest parsed from `marketplace.json` / `plugin.json`), DSH community (`awesome-dsh-plugins`). Install goes through the host's `pluginManager.installBundle` and **needs a host restart to take effect** |
 | **Tool Tailor** | Per-tool call counts, error rates, latency and context-token cost from local session logs; dead tools shown inline and prunable. Shows **all tools with their real call counts by default** — toggle "zero-call only (N)" to narrow. A persistent "showing N/M tools" read-out makes the filter state unmistakable |
-| **Market** | Three sub-tabs: WorkBuddy connectors (316), curated built-ins (47), SkillHub skills (190k+) — browse, search, one-click install |
+| **Market** | Four sub-tabs: WorkBuddy connectors (316), curated built-ins (47), SkillHub skills (190k+), WorkBuddy experts (429) — browse, search, one-click install. Installed state is remembered across pages in `~/.dsh/armory/install-state.json` |
 
 > The Skill panel reads DSH's custom skill directory (default `~/.agents/skills`): each skill is a folder with a `SKILL.md`,
 > whose frontmatter declares the invocation policy (`disable-model-invocation` / `user-invocable`).
@@ -53,7 +57,7 @@ A **unified board** for DeepSeek Harness (Web and desktop): five top-level tabs 
 
 ## Screenshots
 
-One shot per board tab (captured on the Windows desktop app, light theme):
+One shot per main board tab (captured on the Windows desktop app, light theme). The v2.0.0 Plugins page and the OAuth flow are not pictured yet:
 
 ### MCP — global board
 
@@ -116,6 +120,20 @@ Experts (WorkBuddy expert center, 429 experts / 15 industries; category filter +
   - **Most-recently-used first**: entries you just used float to the top with a "recent" badge, the rest keep their original order; the recency pool holds 40 entries
   - **Experts attach / swap / detach at any time**: click one to take over the current session (including one already mid-conversation), click another to replace it, click the chip's × to drop it. It affects **only that session** — no tool catalog changes, nothing persisted
   - **What you see is what's active**: once an expert is attached, the session header shows the expert that is **actually in effect** (the host's "preset chosen at session creation" label steps aside while an expert is attached); the header badge, the composer chip and the menu stay in sync within the same frame after attach / swap / detach
+- **Plugins page (new in 2.0.0)**: three sources in one searchable, filterable directory, each entry labelled with its source and whether it can be installed —
+  - **Built-in**: components shipped with the DSH host; display-only
+  - **CodeBuddy official**: ZIP distribution, manifests parsed from `.codebuddy-plugin/marketplace.json` and `external_plugins/<name>/.codebuddy-plugin/plugin.json` (`MAX_ZIP_BYTES = 64MB`, ETag-cached)
+  - **DSH community**: the `awesome-dsh-plugins` list (a single bare-JSON file, 5000+ entries, jsdelivr primary → fastly fallback), slimmed to `SLIM_MAX_BYTES = 3MB` before caching
+  - **Installing** goes through the host's `pluginManager.installBundle`, and **the host must be restarted** for the plugin to load. A missing `pluginManager`, an entry with no npm package name, and an entry with no repository each produce a specific message instead of failing silently
+- **One-click MCP OAuth (new in 2.0.0)**: `@deepseek-ai/dsh-mcp-client` accepts only `requestInit.headers` and has no authProvider, so OAuth has to complete **before** install — this plugin runs the flow and writes `authorization: Bearer <token>` into the patch headers, then refreshes it —
+  - Implements **RFC 9728** (protected-resource metadata) → **RFC 8414** (authorization-server metadata) → **RFC 7591** (dynamic client registration) → **RFC 7636 PKCE** (S256 only) → **RFC 8707** (`resource` parameter)
+  - **Three callback fallbacks**: a local `127.0.0.1:<random port>/callback` captures the code automatically (the common case) → when the registered client only accepts a custom scheme, it asks for the full callback URL to be pasted → otherwise it falls back to "paste an access token"
+  - A 401 from the server pops the "Authorize {server}" dialog and opens the browser for you
+- **Credential prompts before install (new in 2.0.0)**: scans `mcpServers` for `${...}` placeholders, opens "Fill in {connector}'s credentials", and installs with them; leaving a field blank means "I'll do it later" and the panel says "N placeholders left as-is". Connectors with no placeholders install straight through
+- **Install-state ledger (new in 2.0.0)**: `~/.dsh/armory/install-state.json` (`INSTALL_STATE_VERSION = 1`) records each connector / skill / plugin's `source {marketplace, url, kind}`, so the market can filter installed entries **across pages** and distinguishes "installed by this plugin" from "configured by hand elsewhere". A failed registration never blocks the install
+- **Skill board categories (new in 2.0.0)**: skills are grouped into **dev / design & creation / docs & office / productivity & automation / ops / uncategorised**, with grid and list views, a category filter and a persistent "showing N/M skills" line. Details add the category, source directory and file location, with one-click "copy SKILL.md path" and "copy @session reference". The board stays read-only (the host only exposes `listSkills` / `skillDetail`)
+- **Marketplace registry (new in 2.0.0)**: market sources are no longer hard-coded — they live in `~/.dsh/armory/marketplaces.json` (`REGISTRY_VERSION = 1`), fall back to the built-in defaults when missing or corrupt, persist on first read, and can be added / edited / removed. Writes are staging + atomic rename
+- **Instant community list (new in 2.0.0)**: the last successful slim list is mirrored into `localStorage` (7 days / 4MB cap, older snapshot kept on quota errors), so the first paint renders the snapshot before the real result silently replaces it (zero network, zero IPC). When no source is reachable it says "showing the local cache" instead of an empty list
 - Import MCP configuration from other clients installed on this machine: Claude Code, Codex (`config.toml`), OpenCode (including `.jsonc`), pi, Claude Desktop, Cursor, Windsurf, VS Code, Gemini CLI, Roo Code, and the cross-tool shared config. Everything is previewed before writing, with "merge" and "replace" modes
 - Follows the DSH dark/light theme and adapts to narrow/mobile widths
 - Update notice and **one-click upgrade**: a dismissible banner when a newer release exists (at most one check per day; disable with `DSH_ARMORY_DISABLE_UPDATE_CHECK`). Nothing happens until you press Upgrade — it **never auto-updates**; the upgrade itself is executed by DSH's official pluginManager, which handles version checks and rollback. Local dev copies installed via `link:` / `file:` / `github:` get no button (it would replace your link with an npm package)

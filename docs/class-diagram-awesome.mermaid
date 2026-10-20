@@ -1,0 +1,142 @@
+%%{init: {'theme':'neutral'}}%%
+classDiagram
+    direction LR
+
+    class AwesomeMarketStore {
+        <<module lib/wb-awesome-market.js · 新建>>
+        +AWESOME_SOURCES$ string[2] jsdelivr→fastly
+        +AWESOME_MARKETPLACE_ID$ string = 'awesome-dsh-plugins'
+        +slimEntries(rawArray) SlimEntry[] 纯函数·过滤+映射+防御
+        +wbAwesomeCatalog(options) AwesomeCatalogResult
+        +wbAwesomeDetail(name, options) AwesomeDetailResult
+        +wbAwesomeUpdateCheck(options) WbUpdateHintResult 复用既有symbol
+        +wbAwesomeCachedInfo(options) AwesomeCachedInfo
+        -ensureSlim(options) SlimState 读缓存→条件GET→瘦身→原子写
+        -fetchChain(etag) FetchOutcome 双源顺序容错
+        -writeCacheAtomic(path, data) Promise staging+rename
+        -slimPathOf(options) string
+        -metaPathOf(options) string
+    }
+
+    class SlimEntry {
+        <<瘦身影射 · R11 口径 · 单条≤~300B>>
+        +string name
+        +string repo
+        +string npm 非空才收录
+        +string description 截断≤120
+        +string category plugin|skill|bundle|tool|theme
+        +string status 恒 'verified'
+        +string[] tags ≤2
+        +number stars 缺失记0
+        +boolean official
+        +string verifiedAgainst
+        +number lastVerified
+    }
+
+    class SlimState {
+        <<slim.json + meta.json>>
+        +SlimEntry[] entries
+        +string etag
+        +number fetchedAt
+        +string updated 上游 updated=YYYY-MM-DD
+        +Counts counts
+        +string marketplace
+    }
+
+    class Counts {
+        +number total
+        +number slim
+        +number skipped 畸形丢弃计数
+    }
+
+    class AwesomeCatalogResult {
+        <<Remote Result · AwesomeCatalogResult>>
+        +boolean ok
+        +string loadedFrom disk|network
+        +boolean stale 全源失败但有缓存
+        +string updated
+        +Counts counts
+        +SlimEntry[] plugins
+        +string marketplace
+        +string? error
+    }
+
+    class AwesomeDetailResult {
+        <<Remote Result · AwesomeDetailResult>>
+        +boolean ok
+        +SlimEntry? plugin
+        +string? error
+    }
+
+    class McpManagerGateway {
+        <<lib/index.js · 增量3方法>>
+        +wbAwesomeCatalog(payload)$ Remote('wbAwesomeCatalog')
+        +wbAwesomeDetail(payload)$ Remote('wbAwesomeDetail')
+        +wbAwesomeUpdateCheck()$ Remote('wbAwesomeUpdateCheck')
+    }
+
+    class TypertRegistry {
+        <<lib/typert.js · TYPERT 增量>>
+        +mv('wbAwesomeCatalog', [payloadParam], 'AwesomeCatalogResult')
+        +mv('wbAwesomeDetail', [payloadParam], 'AwesomeDetailResult')
+        +mv('wbAwesomeUpdateCheck', [], 'WbUpdateHintResult') 复用
+    }
+
+    class PluginBoardClient {
+        <<lib/client.js · 插件tab 增量>>
+        +string pluginSource 'codebuddy'|'awesome' · localStorage持久化
+        +SlimEntry[] awesomePlugins
+        +boolean awesomeLoading
+        +string awesomeError
+        +string awesomeStaleUpdated
+        +object awesomeUpdateHint
+        +SlimEntry? awesomeDetail
+        +string awesomeQuery
+        +string awesomeCategory 5 chips
+        +string[] awesomeTags 17枚举多选
+        +string awesomeSort 默认stars降序
+        +number awesomePage ≤50/页
+        +loadAwesomeCatalog(refresh) void
+        +checkAwesomeUpdate() void 懒触发·useRef去重·X4
+        +awesomeInstallSpec(item) string npm:&lt;name&gt;
+        +installPlugin(item) void 复用既有·严格双参
+    }
+
+    class AWESOME_SORTS {
+        <<client.js 常量 · 参照 WB_CONNECTOR_SORTS>>
+        stars降序(默认) added最新收录 名称A→Z
+    }
+
+    class InstallStateStore {
+        <<既有 lib/wb-install-state.js · 零改动>>
+        +record(item) Promise 同kind+key覆盖
+    }
+
+    class InstallStateItem {
+        <<既有 shape>>
+        +string kind = 'plugin'
+        +string key = plugin.name
+        +string version
+        +Source source
+    }
+
+    class Source {
+        +string kind = 'marketplace'
+        +string marketplace = 'awesome-dsh-plugins'
+    }
+
+    %% 关系
+    AwesomeMarketStore ..> SlimEntry : slimEntries 投影产出
+    AwesomeMarketStore *-- SlimState : 原子写 slim.json+meta.json
+    SlimState *-- Counts
+    AwesomeMarketStore ..> AwesomeCatalogResult : 形状
+    AwesomeMarketStore ..> AwesomeDetailResult : 形状
+    McpManagerGateway --> AwesomeMarketStore : import 薄转发
+    TypertRegistry ..> McpManagerGateway : strict schema 声明（client⊆typert）
+    McpManagerGateway ..> AwesomeCatalogResult : 返回
+    McpManagerGateway ..> AwesomeDetailResult : 返回
+    PluginBoardClient ..> McpManagerGateway : call('wbAwesomeCatalog/Detail/UpdateCheck')
+    PluginBoardClient ..> AWESOME_SORTS : 排序定义
+    PluginBoardClient --> InstallStateStore : call('wbInstallStateRecord') 安装后登记
+    InstallStateStore *-- InstallStateItem : record 合并投影
+    InstallStateItem *-- Source

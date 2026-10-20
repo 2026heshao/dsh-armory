@@ -67,6 +67,64 @@ const SUITES = [
   // 关心 README 引用的是哪几张图。这里钉「引用可解析 + screenshots.json 与 README 一致 +
   // mcp-manager-* 旧图名不得复活」三条。
   { name: "readme-images（README 配图不回退守护）", file: "readme-images.mjs" },
+  // ── 双 Bug 回归护栏（v1.10.x）──────────────────────────────────────────────
+  // 用户报的两条都是**行为缺陷**，正则改一改就能骗过文本断言，编译器更是一句话都不会说：
+  //   1. 「去市场找现成的」跳到会话界面 —— 根因是 openBoardCategory 借用了开关语义的
+  //      openBoardPanel，已在看板页时反手 selectPanel(null)。改成强制选中即可，但
+  //      openBoardPanel 的 toggle 语义是 4 个入口按钮共用的，**不能被顺手改掉**；
+  //   2. 首次进看板页内容整体偏下 40px —— 根因是 Windows 上框架已让过标题栏，插件又用
+  //      --dsh-frame-top-clearance 让一次，再用 100dvh 反算，三段相加多出一整个标题栏。
+  // 本套件把源码片段抽出来在 vm 里真跑（跳转链、分类状态机），并对 CSS 做高度账，
+  // 另配 mutation 反向自测：把旧写法注回去断言必须变红，否则说明正向断言是空转。
+  // 不联网、不写盘、不碰真实 profile，可安全纳入 CI。
+  { name: "bugfix-armory（市场入口强制选中 + 看板页重复让位）", file: "bugfix-armory.mjs" },
+  // 「最近使用」排序修复回归（QA）：listExpertRecent 的 expert 分支曾漏 await ——
+  // patch 恒为 Promise → readExpertPresets(Promise) 抛 TypeError → wbExpertRecent RPC
+  // 恒失败 → 菜单永远按字母序。钉住三件事：① 修复后写法 `patch = await readFile(...)`
+  // 在场且旧 dynamic import 组合不得复活；② readExpertPresets(patch) 有独立 try/catch
+  // 兜底（patch 被改坏回落 live=null，不炸整条链）；③ live 对账后过滤写回的原有语义
+  // 未被顺手改掉。动态项真调 listExpertRecent（只读不断言条数）。
+  { name: "recent-sort-regression（最近使用排序修复回归）", file: "recent-sort-regression.mjs" },
+  // ── T01 共享数据层（多市场注册表 / 安装状态 / 认证注入规则）───────────────
+  // 三个模块只用本机内置模块、零网络、零真实 ~/.dsh（隔离靠 mkdtemp + rootDir 注入），
+  // 注册表还把「内置 connectors 源 URL 与 lib/wb-market.js 现值一致」钉进了用例。
+  { name: "wb-registry（多市场注册表：默认回落/合并投影/原子写）", file: "wb-registry.mjs" },
+  { name: "wb-install-state（安装状态与来源锁）", file: "wb-install-state.mjs" },
+  { name: "wb-auth-rules（认证注入规则与令牌槽扫描）", file: "wb-auth-rules.mjs" },
+  // ── T02 连接器元数据投影 / T03 插件市场投影 ──────────────────────────────
+  // 两者都是纯解析层守护：零网络（T03 的 zip 用手工字节内存构造）、零真实 ~/.dsh。
+  // T02 钉 R1 注入规则标注 / R2 visible_in 标签筛选 / R3 examples 优先；
+  // T03 钉 marketplace.json 嵌套解析、plugin.json 提取、dependencies 防御。
+  { name: "wb-connector-meta（连接器 R1/R2/R3 投影：注入规则/标签筛选/examples）", file: "wb-connector-meta.mjs" },
+  { name: "wb-plugin-market（插件市场 R5/R6：嵌套清单解析/依赖防御/投影）", file: "wb-plugin-market.mjs" },
+  // 市场安装鉴权闸 + 装前 401 探测回归（BugFix 第四单 QA）：被测对象是运行时副本
+  // （~/.dsh/profiles/desktop/node_modules/dsh-armory/lib/，DSH 重启后实际加载的版本），
+  // 开工先做 SHA256 哈希预检（不符即中止，防并行会话中间态）。钉住三件事：
+  // ① probeServerAuthorization 状态码判定（401/403 throw 且错误含 server 名与 URL，
+  //   200/500 放行，stdio/无 url skipped 放行，mcp.json headers 透传，本地 node:http 零外网）；
+  // ② probeMcpServersAuthorization 任一 401 整体中止 / 全放行返回 {ok:true,checked:n}；
+  // ③ wbConnectorCatalog 在真实 316 条索引上：95 条 auth_mode 非空全不可装且 blockedReason
+  //   非空，tec-do（漏标鉴权裸 URL）仍 installable=true；运行时 lib/index.js 装链里探测
+  //   位于 wbConnectorPreview 之后、json 组装之前（静态针）。8 秒真实超时按规约 SKIP。
+  { name: "auth-gate-regression（市场安装鉴权闸 + 装前 401 探测）", file: "auth-gate-regression.mjs" },
+  // T05 收尾：把现有两道护栏的盲区补上——(1) 装饰器声明了但方法体没写、
+  // (2) import 了却从未调用、(3) 上一个函数少闭合 } 导致下一个声明被嵌进它体内。
+  // 这三类 node --check 与 contract-consistency 都抓不到，本期各出过一次真事故。
+  { name: "wb-install-flow（T04：令牌替换写链 + 安装状态账本 + 三盲区静态守卫）", file: "wb-install-flow.mjs" },
+  // R9 更新探测五枚举（no-source/probe-failed/no-cache/up-to-date/update-available）
+  // + 「只探测不落盘」安全边界 + UI 侧 reason 映射与状态名不冲突。
+  { name: "wb-update-hint（T05：R9 ETag 更新探测五枚举 + UI reason 契约 + 无定时器）", file: "wb-update-hint.mjs" },
+  // ── T01 awesome 市场数据层（纯新增零网络真实依赖：mock fetch 替换 + mkdtemp 隔离）──
+  // 钉 R11 过滤口径（verified∧npm 交集）、瘦身字段形状、畸形行防御、原子写、
+  // 304 复用不重写、双源切换、全源失败 stale 回落与体积 ≤3MB 断言。
+  { name: "wb-awesome-market（T01：awesome 数据层过滤/瘦身/缓存/304/双源切换）", file: "wb-awesome-market.mjs" },
+  // ── 安装浮层（顶部轻提示）──
+  // 守两件事：(1) 浮层节点挂在 document.body 的模块级单例上，面板卸载/切标签页后
+  // 进度仍然可见（挂回组件子树就退化成「切窗口就没了」）；(2) 结果态 4.2s 后自己
+  // 收起、行数封顶 3、同一插件不许并发重复装（isInstallRunning 供按钮禁用）。
+  // 做法是从 lib/client.js 抽浮层一节的源码放进 node:vm 真跑，配最小 DOM 替身，
+  // 起止标记找不到直接失败，避免悄悄测个空。
+  { name: "install-toast（顶部安装浮层：跨卸载可见 + 自动淡出 + 防重复安装）", file: "install-toast.mjs" },
 ];
 
 let failed = 0;

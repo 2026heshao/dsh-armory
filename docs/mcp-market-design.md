@@ -553,3 +553,65 @@ font-family: var(--dsw-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace
 - **别名层用 `--mcp-*` 收口**，市场 UI 复用同一批，不另起一套。
 
 > 📌 本节与第八节只是**结论摘要**。规则正文（为什么挂 `body`、四条官方 spec 的判据从哪来、令牌存在性怎么查）以 `docs/design.md` 为准，避免两处各自演化。
+
+---
+
+## 十二、认证：401 连接器怎么装（OAuth 已落地）
+
+这一节补的是前面几节没覆盖的一类条目：**能连通、但必须有凭据**。316 条连接器里 `auth_mode=token` 73 条、`auth_mode=oauth` 8 条，另各 12+1 条 server-side / oneid-token。它们的共同表现是 `initialize` 直接 **HTTP 401**，而不是超时或 DNS 失败——这正是第五节探测里必须单独拎出来的一类状态。
+
+### 探测的三种结果，不是两种
+
+第五节那张表只有 `ok`，对需要授权的服务器永远是 `false`，会被误分类成「挂了」。实现上拆成三态（`lib/wb-market.js` 的 `probeServerAuthorization`）：
+
+| 结果 | 判据 | 面板语义 |
+|---|---|---|
+| `{ authorized: true, status }` | 2xx | 可用 |
+| `{ authorized: false, needsAuth: true, status, wwwAuthenticate, resourceMetadata }` | 401 / 403 | **需要授权** → 走引导，不报错 |
+| `{ authorized: true, error: "probe-unreachable" }` | fetch 抛错 / 8s 超时 | 不可达，与授权无关 |
+
+**关键决策：401 不 `throw`。** 旧实现把它包装成「该服务器要求鉴权凭据，DSH 无法自动注入；请改用 WorkBuddy」——一句话同时做了两件错事：把可恢复状态当致命错误、并把用户推向另一个产品。现在 401 只是一条数据，由 UI 决定下一步。
+
+### 为什么在插件侧做，而不是等宿主补
+
+DSH 核心在 `app.asar` 内不可改。但 OAuth 全链路是**纯 HTTP + 一个本地监听**，插件侧完全能做，不需要宿主任何配合。这条边界划清了，"等宿主支持"就不是理由。
+
+### 四段 RFC，每段都有真实坑
+
+| 步骤 | 做什么 | 实测踩到的坑 |
+|---|---|---|
+| **RFC 9728** 资源元数据 | 从 `WWW-Authenticate: Bearer resource_metadata="..."` 拿资源元数据地址，取得 `authorization_servers` | well-known 有**路径级**（`<resource-path>/.well-known/oauth-protected-resource`）与**根级**两种。westock-mcp 路径级 404、根级 200 —— 必须回落，不能只试一个 |
+| **RFC 8414** AS 元数据 | `/.well-known/oauth-authorization-server`，取 `authorization_endpoint` / `token_endpoint` / `registration_endpoint` / `scopes_supported` | `token_endpoint_auth_methods_supported` 里没有 `none` 就说明必须机密客户端（带 client_secret），插件侧做不到 → 明确失败，别硬试 |
+| **RFC 7591** 动态注册 | 公共客户端注册，拿 `client_id` | **最大的坑**：`redirect_uris` 白名单常常只收自家 scheme 模板。westock-mcp 只接受 `workbuddy://workbuddy/mcp/connector:<name>/oauth/callback`，loopback 一律 400。更阴的是错误 body 里 `<` `>` 被 JSON 转义成**字面** `\u003c` `\u003e`，正则按 `<...>` 匹配会直接漏掉 —— 必须先 unescape 再替换占位符，否则会拿一个含字面 `\u003cname\u003e` 的 URL 去重试，永远 400 |
+| **RFC 7636** PKCE | `S256` | `code_challenge_methods_supported` 没列 `S256` 就别降级 `plain`，直接判不支持 |
+
+### 回调的两条路
+
+1. **loopback**（默认）：监听 `127.0.0.1` 随机端口，浏览器授权后直接收 `code` 换 token。用户体验最好，一次点击。
+2. **手动回传**（降级）：服务端只认自定义 scheme 时，callback 无法被本地 HTTP 收到 —— 面板展示授权链接 + 「粘贴完整回调地址」输入框，用户手动贴回来，再从 URL 解析 `code`。同一套 `submitCallback` 处理，只是入口不同。
+
+两条路都要留「直接粘贴 access token」的兜底：有些服务端的授权页只对官方客户端开放，用户却能从别处拿到 token。
+
+### token 存哪、怎么注入
+
+- 落盘 `(DSH_HOME || ~/.dsh)/armory-oauth/<sha256(serverUrl)[:32]>.json`，`mode: 0o600`。
+- **不写进 `mcp.json`**：那个文件会被用户分享、同步、贴进 issue。凭据单独存，配置里只留引用关系。
+- 装前由 `injectStoredOAuthTokens` 把 `Authorization: Bearer <token>` 注入到 http 型 server 的 headers，**再**探测；探测因此直接 2xx，安装流程不需要感知 OAuth 存在。
+- 过期自动 refresh（`grant_type=refresh_token`）；无 `refresh_token` 时返回「需要重新授权」，而不是静默 401。
+
+### 安全边界
+
+- token 文件权限 `0o600`；面板只显示是否已授权，不回显完整 token。
+- 授权引导的错误文案**只拼服务器名**（`连接器需要授权：<name>、<name>`），不拼 URL、不拼 token。旧版把完整 URL 抛给用户，URL 带 query 时会把凭据一起泄进日志。
+- 只信任连接器**自己声明**的授权服务器，不做跨域发现、不跟随到第三方 AS。
+
+### 仍未做
+
+- **server-side（12 条）**：需要闭源代理，插件侧无解，只在安装时标注「需自备凭据」。
+- **oneid-token（1 条）**：绑定 WB 账号登录态，不做。
+- token 文件加密（当前靠文件权限）、多账号隔离 —— 与 X1/X9 同源，属定位外。
+- 非公共客户端（`token_endpoint_auth_methods_supported` 无 `none`）的服务端：需要用户自备 `client_id`/`client_secret`，尚未提供输入口。
+
+### 回归
+
+接口约定落在 `test/auth-gate-regression.mjs`（6 节：三态探测、可装性、PKCE/元数据解析、token 生命周期、装饰器与 RPC 契约、静态锚点），不联网、不依赖部署状态。

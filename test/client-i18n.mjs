@@ -135,6 +135,41 @@ function scanWraps(text) {
 	}
 	const DICT_RANGES = dictArgRanges(source);
 	const inDictRegion = (at) => DICT_RANGES.some(([s, e]) => at > s && at < e);
+	// Skill 分类关键词豁免：SKILL_CATS 的 strong/weak 数组是与 skill 原始
+	// name/description 做子串匹配的键，不是展示文案——en-US 表一旦翻译它们，
+	// skillCategoryOf 在英文环境就全部失灵。预扫描 const SKILL_CATS = [...] 的
+	// 方括号配平区间，区间内的 sq 字符串不计 miss（新增分类词时无需同步本文件）。
+	function catArrayRanges(text) {
+		const ranges = [];
+		let from = 0;
+		for (;;) {
+			const m = text.indexOf("const SKILL_CATS", from);
+			if (m < 0) break;
+			from = m + "const SKILL_CATS".length;
+			const open = text.indexOf("[", m);
+			if (open < 0) break;
+			let depth = 0, i = open;
+			let inLine = false, inSq = false, inDq = false;
+			while (i < text.length) {
+				const c = text[i];
+				if (inLine) { if (c === "\n") inLine = false; }
+				else if (inSq || inDq) {
+					if (c === "\\") i += 1;
+					else if (inSq && c === "'") inSq = false;
+					else if (inDq && c === '"') inDq = false;
+				} else if (c === "/" && text[i + 1] === "/") inLine = true;
+				else if (c === "'") inSq = true;
+				else if (c === '"') inDq = true;
+				else if (c === "[") depth += 1;
+				else if (c === "]") { depth -= 1; if (depth === 0) { i += 1; break; } }
+				i += 1;
+			}
+			ranges.push([open, i]);
+		}
+		return ranges;
+	}
+	const CAT_RANGES = catArrayRanges(source);
+	const inCatRegion = (at) => CAT_RANGES.some(([s, e]) => at > s && at < e);
 	const isWrapped = (at) => {
 		const prev = prevSignificant(at);
 		return prev === "(" && at >= 2 && text[at - 2] === "t";
@@ -176,7 +211,7 @@ function scanWraps(text) {
 			}
 			const inner = text.slice(i + 1, Math.min(j, n - 1));
 			// OPT-14：字典键是查找键不是展示文案，setI18nMessages 实参区间内不计 miss。
-			if (q === "'" && CJK.test(inner) && !MATCH_MARKERS.has(inner) && !inDictRegion(i)) {
+			if (q === "'" && CJK.test(inner) && !MATCH_MARKERS.has(inner) && !inDictRegion(i) && !inCatRegion(i)) {
 				top += 1;
 				if (isWrapped(i)) wrapped += 1; else miss(i, inner);
 			}

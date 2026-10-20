@@ -1,0 +1,63 @@
+%% dsh-armory「WorkBuddy 市场对标」—— 程序调用流（docs/system_design.md §4 抽取）
+sequenceDiagram
+    autonumber
+    participant U as 用户
+    participant P as WorkBuddyMarket (client.js)
+    participant R as McpManagerRemote (index.js)
+    participant PM as PluginMarket
+    participant CM as ConnectorMarket
+    participant Reg as MarketRegistry
+    participant St as InstallStateStore
+    participant H as 宿主 pluginManager
+
+    rect rgb(240,248,255)
+    Note over U,H: 插件市场（R4/R5/R6/R8）
+    U->>P: 切到「插件」子 tab
+    P->>R: call('wbPluginCatalog')
+    R->>Reg: sourceFor("plugins")
+    Reg-->>R: codebuddy-plugins-official（zip 源）
+    R->>PM: wbPluginCatalog()
+    PM->>PM: 下载 zip（ETag 304 探测，缓存 ~/.dsh/armory/plugin-market/）
+    PM->>PM: 解析 .codebuddy-plugin/marketplace.json + external_plugins/*/plugin.json（dependencies 缺失=无依赖）
+    PM-->>P: 150+ 插件行（组成 chips / keywords / author / installSpec）
+    U->>P: 点开插件详情 → 依赖清单展示
+    U->>P: 确认安装
+    P->>P: pluginManager.installBundle(targetSpec, {}) ←严格双参
+    H-->>P: restart-required
+    P->>R: call('wbInstallStateRecord', {kind:'plugin', source锁})
+    R->>St: record(item)
+    P->>U: 醒目持久提示「需重启 DSH 宿主才生效」
+    end
+
+    rect rgb(255,248,240)
+    Note over U,H: 连接器浏览 + 令牌引导安装（R1/R2/R3/R7/R8）
+    U->>P: 打开「连接器」子 tab
+    P->>R: call('wbConnectorCatalog')
+    R->>Reg: sourceFor("connectors")
+    R->>CM: wbConnectorCatalog()
+    CM->>CM: 注册表源替换原硬编码 URL，ETag 链路不变
+    CM->>CM: 投影 visible_in/version/examples + 注入规则计数 + token 槽位扫描
+    CM-->>P: 目录行（含 needsTokens/injectionRules）
+    U->>P: 安装 auth_mode=token 连接器
+    P->>U: 令牌弹窗（每个 env/header 占位符一行，遮罩输入）
+    U->>P: 填入 token → 确认安装
+    P->>R: call('wbConnectorInstall', {connectorId, tokens, mode, wsPath})
+    R->>CM: wbConnectorPreview() → AuthRules.applyTokens() 替换占位符
+    R->>R: applyManagedImport/applyWorkspaceImport（既有准入+patch 写链）
+    R->>St: record({kind:'connector', version, source锁})
+    R-->>P: 安装完成 + note
+    end
+
+    rect rgb(245,255,245)
+    Note over U,H: 保鲜提示（R9）
+    U->>P: 打开市场页
+    P->>R: call('wbPluginUpdateCheck')
+    R->>PM: 对注册表各源 if-none-match 探测
+    PM-->>P: {marketplaces:[{id,updated}]}
+    alt 有更新
+        P->>U: 顶部轻提示「目录有更新」
+        U->>P: 确认 → 重拉 wbPluginCatalog / wbConnectorCatalog
+    else 无更新
+        P->>U: 无感知
+    end
+    end
