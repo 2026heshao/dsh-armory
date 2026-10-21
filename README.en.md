@@ -7,6 +7,7 @@
 > upgraded from a pure MCP panel into a **MCP + Skills + Experts + Plugins + Markets + Tool Tailor** board.
 >
 > **New in v2.0.0**: a Plugins page with three sources, one-click MCP OAuth authorization, credential prompts before install, an install-state ledger, and six categories for the skill board. See the [changelog](.github/release-notes/v2.0.0.md).
+> **New in v2.1.0**: community plugins now render their README in place (fetched on demand, cached to disk for 7 days, `javascript:` pseudo-links downgraded to plain text), and two long-standing traps are fixed — the instant-open snapshot no longer shadows the real list, and update probing no longer reports failures on machines where the primary source is unreachable. See the [changelog](.github/release-notes/v2.1.0.md).
 
 <p align="center">
   <a href="https://github.com/2026heshao/dsh-armory/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-armory?style=social" alt="stars"></a>
@@ -57,7 +58,7 @@ A **unified board** for DeepSeek Harness (Web and desktop): six top-level tabs �
 
 ## Screenshots
 
-One shot per main board tab (captured on the Windows desktop app, light theme). The v2.0.0 Plugins page and the OAuth flow are not pictured yet:
+One shot per main board tab (captured on the Windows desktop app, light theme). The v2.0.0 Plugins page, the OAuth flow and the v2.1.0 README preview are not pictured yet:
 
 ### MCP — global board
 
@@ -134,6 +135,11 @@ Experts (WorkBuddy expert center, 429 experts / 15 industries; category filter +
 - **Skill board categories (new in 2.0.0)**: skills are grouped into **dev / design & creation / docs & office / productivity & automation / ops / uncategorised**, with grid and list views, a category filter and a persistent "showing N/M skills" line. Details add the category, source directory and file location, with one-click "copy SKILL.md path" and "copy @session reference". The board stays read-only (the host only exposes `listSkills` / `skillDetail`)
 - **Marketplace registry (new in 2.0.0)**: market sources are no longer hard-coded — they live in `~/.dsh/armory/marketplaces.json` (`REGISTRY_VERSION = 1`), fall back to the built-in defaults when missing or corrupt, persist on first read, and can be added / edited / removed. Writes are staging + atomic rename
 - **Instant community list (new in 2.0.0)**: the last successful slim list is mirrored into `localStorage` (7 days / 4MB cap, older snapshot kept on quota errors), so the first paint renders the snapshot before the real result silently replaces it (zero network, zero IPC). When no source is reachable it says "showing the local cache" instead of an empty list
+- **Community README preview (new in 2.1.0)**: click any card under Plugins → DSH community and the plugin fetches and renders that repository's README in place (headings, paragraphs, lists, tables, code blocks, quotes, and `<p align="center"><img …>` banners) —
+  - **On demand, fetched once**: the README is deliberately kept out of the slim directory cache and only fetched when you open a card; it tries `README.md` / `readme.md` / `Readme.md` / `README.MD` / `README.markdown` / `README_EN.md` in that order, and when the repository field holds an npm package name it asks `registry.npmjs.org` for `repository` first, then fetches the raw text from GitHub
+  - **Limits and cache**: 20s per fetch, 160k characters of body (truncated and labelled when longer); successful reads are cached to disk per repository / npm name for 7 days, so reopening the same plugin is instant, and when the network is down / rate-limited / the repository is gone it falls back to the cache and says so
+  - **Images and safety**: `http(s)` images go through the read-only `wsrv.nl` proxy (`output=webp&q=72&w=880`, allow-listed hosts only); relative paths are resolved against the repository URL and skipped when they cannot be; the body is turned into React elements by a small hand-written parser — **never `dangerouslySetInnerHTML`** — and `javascript:` / `data:` / `vbscript:` pseudo-links are downgraded to plain text
+- **Community directory and update-probe fixes (2.1.0)**: the instant-open snapshot no longer shadows the real list (previously the real result was dropped once the snapshot painted, leaving the directory stuck on the old snapshot), and update probing now follows the same source chain as the directory itself (it asks the source the cache actually came from, then falls back to the others, first ETag wins) — fixing the "directory opens but every update check says `probe-failed`" trap on machines where the primary source is unreachable
 - Import MCP configuration from other clients installed on this machine: Claude Code, Codex (`config.toml`), OpenCode (including `.jsonc`), pi, Claude Desktop, Cursor, Windsurf, VS Code, Gemini CLI, Roo Code, and the cross-tool shared config. Everything is previewed before writing, with "merge" and "replace" modes
 - Follows the DSH dark/light theme and adapts to narrow/mobile widths
 - Update notice and **one-click upgrade**: a dismissible banner when a newer release exists (at most one check per day; disable with `DSH_ARMORY_DISABLE_UPDATE_CHECK`). Nothing happens until you press Upgrade — it **never auto-updates**; the upgrade itself is executed by DSH's official pluginManager, which handles version checks and rollback. Local dev copies installed via `link:` / `file:` / `github:` get no button (it would replace your link with an npm package)

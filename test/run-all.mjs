@@ -60,6 +60,13 @@ const SUITES = [
   { name: "tailor-window（工具裁缝时间窗四档与默认值）", file: "tailor-window.mjs" },
   // 崩溃详情可复制（清单 6.1）：真跑边界组件，钉住 componentStack 入剪贴板与 retry 清 info。
   { name: "error-boundary-copy（崩溃详情可复制）", file: "error-boundary-copy.mjs" },
+  // 条件分支里的 hook（React #310 定式）：市场 → 专家点「详情」整块面板白屏的直接售后。
+  // 根因是详情弹层写成 `detail ? (() => { … })()`，而 hook 声明在弹层内部 —— 首帧 detail
+  // 为 null 时一次都不调，点开后同一组件突然多调两个 → Rendered more hooks than during
+  // the previous render。这类错误 node --check、ESLint（仓库未开 react-hooks 规则）、
+  // 以及全部行为断言都看不见，只能静态守形状：遮罩掉字符串/注释后配平花括号，断言任何
+  // 三元 / && / || 的 IIFE 体内零 use[A-Z] 调用，并把原始 bug 注回去反向自测必须变红。
+  { name: "no-conditional-hooks（条件分支内不得出现 hook / React #310）", file: "no-conditional-hooks.mjs" },
   // teardown 残留诊断（清单 2.4）：live/final 两种读法 + 超龄不送 + 记录表裁剪，真跑函数。
   { name: "teardown-residue（teardown 残留诊断）", file: "teardown-residue.mjs" },
   // README 配图守护：v1.10.0 那次提交把「界面预览」整段覆盖回 1.8 时代的四张旧图，
@@ -125,6 +132,12 @@ const SUITES = [
   // 做法是从 lib/client.js 抽浮层一节的源码放进 node:vm 真跑，配最小 DOM 替身，
   // 起止标记找不到直接失败，避免悄悄测个空。
   { name: "install-toast（顶部安装浮层：跨卸载可见 + 自动淡出 + 防重复安装）", file: "install-toast.mjs" },
+  // ── 市场插件 README 预览 ──
+  // 守三件事：(1) parseGithubRepo 十种仓库写法口径；(2) wbAwesomeReadme 无来源时零请求快速失败；
+  // (3) 客户端 Markdown 渲染器结构 + 安全边界——javascript: 伪链接必须降级成纯文本
+  // （new URL('javascript:x', base) 会解析成功，只校验 base 拼接就会放行），且全程不碰
+  // dangerouslySetInnerHTML。渲染器同样从 lib/client.js 整节抽源码进 node:vm 真跑。
+  { name: "awesome-readme（README 预览：仓库解析 + 渲染器结构 + 伪链接拦截）", file: "awesome-readme.mjs" },
 ];
 
 let failed = 0;

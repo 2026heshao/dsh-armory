@@ -7,6 +7,7 @@
 > 从纯 MCP 管理面板升级为 **MCP + 技能 + 专家 + 插件 + 市场 + 工具账本** 看板。
 >
 > **v2.0.0 起**：新增「插件」页（三个来源）、MCP OAuth 一键授权、安装凭据引导、安装状态账本、技能看板六大分类。详见 [更新日志](.github/release-notes/v2.0.0.md)。
+> **v2.1.0 起**：社区插件点开即可就地读 README（按需拉取 + 7 天落盘缓存 + `javascript:` 伪协议链接降级），并修掉「秒开快照顶掉真实目录」「更新探测误报失败」两处。详见 [更新日志](.github/release-notes/v2.1.0.md)。
 
 <p align="center">
   <a href="https://github.com/2026heshao/dsh-armory/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-armory?style=social" alt="stars"></a>
@@ -125,6 +126,11 @@ dsh plugin --profile web add github:2026heshao/dsh-armory
 - **技能看板分类（2.0.0 新增）**：技能按 **编程开发 / 设计与创作 / 文档办公 / 效率与自动化 / 开发运维 / 未分类** 六类归置，网格与列表双视图可切、可按分类过滤，常驻「显示 N / M 个 skill」；详情新增所属分类、来源目录、文件位置，可一键「复制 SKILL.md 路径」「复制 @会话引用」。看板仍是只读的（宿主只提供 `listSkills` / `skillDetail`）
 - **多市场注册表（2.0.0 新增）**：市场源不再硬编码，落 `~/.dsh/armory/marketplaces.json`（`REGISTRY_VERSION = 1`），缺失或损坏回落内置默认项、首读即落盘，支持增删改；写盘一律 staging + rename 原子替换
 - **社区目录秒开（2.0.0 新增）**：上次成功的精简清单镜像进浏览器 `localStorage`（7 天 / 4MB 上限，超配额保留旧快照），首屏先渲染快照再被真实结果静默替换（0 网络 0 IPC）；源不可达时明说「显示的是本地缓存」而非给空列表
+- **社区 README 预览（2.1.0 新增）**：点开「插件 → DSH 社区」任意卡片，即就地拉取并渲染该仓库 README（标题 / 段落 / 列表 / 表格 / 代码块 / 引用，含 `<p align="center"><img …>` 横幅）——
+  - **按需、只取一次**：README 不进目录的瘦身缓存，点开才拉；按 `README.md` / `readme.md` / `Readme.md` / `README.MD` / `README.markdown` / `README_EN.md` 顺序试；仓库填的是 npm 包名时，先问 `registry.npmjs.org` 取 `repository`，拿到再去 GitHub 取原文
+  - **限额与缓存**：单次 20s 超时、正文 16 万字符上限（超了截断并在界面标注）；取到后按「仓库或 npm 包名」落盘缓存 7 天，同一插件再点秒开，断网 / 限流 / 仓库被删回落缓存并标明「这是缓存」
+  - **图片与安全**：`http(s)` 图片过 `wsrv.nl` 只读代理（`output=webp&q=72&w=880`，仅对白名单主机生效），相对路径按仓库地址还原成绝对 URL、还原不了就跳过；正文由自写解析器生成 React 元素，**不碰 `dangerouslySetInnerHTML`**，`javascript:` / `data:` / `vbscript:` 伪协议链接一律降级成纯文本
+- **社区目录与更新探测修正（2.1.0）**：秒开快照不再顶掉真实目录（此前快照一渲染真实结果就被丢弃，目录于是一直停在旧快照）；更新探测与目录改走同一条源链（先问这份缓存实际来自哪个源、再兜底其余源，首个拿到 ETag 的源胜出），修掉「主源不通的机器上目录能开、点检查更新却每次 `probe-failed`」
 
 ## 安装
 
@@ -242,14 +248,14 @@ dsh plugin --profile web remove dsh-armory
 
 ```sh
 npm install --no-save yaml@2 eslint@9   # 测试与风格检查的唯一裸依赖（运行依赖全部由宿主提供）
-npm test                                # 全 31 套件（与 CI / 发版门槛同一条）
+npm test                                # 全 33 套件（与 CI / 发版门槛同一条）
 npm run lint                            # ESLint：no-undef / no-unused-vars / no-empty 等
 npm run test:e2e                        # 可选：用宿主补丁算法验证专家预设进入组合树
 dsh --profile web --dump-config         # 看 profile 的有效配置
 dsh web                                 # 起 Web 做真实操作验证
 ```
 
-`npm test` 跑的是 `test/run-all.mjs`，依次执行 **31** 个独立套件（各自是独立 node 进程，任一非零退出即整体失败）。套件是显式白名单而非 `node --test` 自动发现——`test/` 下还有带副作用的迁移脚本与需要宿主模块的端到端脚本，自动发现会误跑。
+`npm test` 跑的是 `test/run-all.mjs`，依次执行 **33** 个独立套件（各自是独立 node 进程，任一非零退出即整体失败）。套件是显式白名单而非 `node --test` 自动发现——`test/` 下还有带副作用的迁移脚本与需要宿主模块的端到端脚本，自动发现会误跑。
 
 | 分组 | 套件 | 覆盖 |
 | --- | --- | --- |
@@ -259,6 +265,7 @@ dsh web                                 # 起 Web 做真实操作验证
 | 专家与团队 | `run-expert-manual` `session-persona` `team-bridge` `expert-card-actions` `recent-sort-regression` | 专家市场写链（真网目录 + 人设 + patch 往返，33 条断言）；会话级挂/换/摘；团队桥接；卡片按钮真值表；「最近使用」排序 |
 | 升级与安装真机 | `upgrade-plan` `verify-install-info` `verify-host-installinfo` `teardown-residue` | 一键升级判据（本地安装 / 来源未知一律不写）；真 profile 数据下的来源判定（profile 不存在自行 SKIP）；teardown 残留诊断 |
 | 市场与安装链（2.0.0） | `wb-registry` `wb-install-state` `wb-auth-rules` `wb-connector-meta` `wb-plugin-market` `wb-awesome-market` `wb-install-flow` `wb-update-hint` `auth-gate-regression` `install-toast` | 多市场注册表原子写；安装状态与来源锁；令牌槽扫描与注入规则；连接器 R1/R2/R3 投影；插件清单嵌套解析；awesome 过滤/瘦身/304/双源切换；令牌替换写链；R9 更新探测五枚举；装前 401 鉴权闸；顶部安装浮层跨卸载可见 |
+| 社区与前端护栏（2.1.0） | `awesome-readme` `no-conditional-hooks` | README 仓库解析（npm / GitHub URL 归一）；解析器渲染结构与 `javascript:` / `data:` 伪链接拦截；组件内禁止条件调用 Hook（React #310） |
 | 回归护栏 | `readme-images` `bugfix-armory` | README 配图不回退（引用可解析 + `screenshots.json` 与 README 一致 + 旧图名不得复活）；市场入口强制选中与看板页重复让位 |
 
 本机存在 `~/.dsh/profiles/desktop/cordis.patch.yml` 时，`run-expert-manual.mjs` 会追加一组真实 profile 往返断言，没有则记 `SKIP`。
