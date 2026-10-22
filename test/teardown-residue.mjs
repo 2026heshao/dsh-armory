@@ -3,7 +3,7 @@
 // 护栏对象：清单 2.4「teardown 残留诊断」。
 //
 // 背景：本模块从不 spawn MCP 子进程，拿不到 pid，因此无法主动回收卡住的 teardown
-// （详见 lib/workspace-runtime.js:307-313 的注释与 docs/host-proposal-mcp-teardown.md）。
+// （详见 lib/workspace-runtime.js:307-313 的注释）。
 // 能做的是把「已经等了多久、有没有超阈、上次花了多久」变成可见事实。这套记录表就是
 // 面板那块读数的唯一出处，它的三档语义必须被钉死：
 //   live  —— 还在跑，elapsedMs 必须**现算**（存盘值一落地就过期）；

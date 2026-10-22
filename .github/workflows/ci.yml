@@ -65,7 +65,7 @@ jobs:
         run: npm run lint
 
       # 注意：本仓库当前**不做全量 Prettier 格式化**，所以这里是 check 而不是 block——
-      # 一次性重排会产生约 2 万行差异（优化建议.md OPT-10 有实测数据），且本仓库没有
+      # 一次性重排会产生约 2 万行差异（历史 OPT-10 有实测数据），且本仓库没有
       # git 仓库可回退。这条只用来发现「新文件是否已按 .prettierrc 写」，失败不阻断。
       - name: Prettier 风格提示（不阻断）
         continue-on-error: true

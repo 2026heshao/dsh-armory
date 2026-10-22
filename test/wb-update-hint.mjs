@@ -1,7 +1,7 @@
 // T05/R9：插件市场更新探测（lib/wb-plugin-market.js 的 wbPluginUpdateCheck）回归套件。
 //
 // A 部分（动态导入，真跑函数，假 fetch 零网络）：R9 五个 reason 分支的完整值域
-//   （设计文档 docs/system_design.md:407-417 钉死，UI 只看 reason 不看 error）：
+//   （R9 取值域已钉死，UI 只看 reason 不看 error）：
 //     no-source / no-cache / probe-failed(异常) / probe-failed(HTTP 500) /
 //     up-to-date(304) / up-to-date(200 etag 相同) / update-available(200 etag 不同)。
 //   另钉两条硬边界：
