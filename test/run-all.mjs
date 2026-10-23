@@ -58,6 +58,21 @@ const SUITES = [
   { name: "persona-truncate（persona 预览截断阈值）", file: "persona-truncate.mjs" },
   // 工具裁缝时间窗（清单 4.1）：新增「今日」档不得改变默认 30 天 —— 改了会让报告数字骤降。
   { name: "tailor-window（工具裁缝时间窗四档与默认值）", file: "tailor-window.mjs" },
+  // 工具裁缝的税时间维度（清单 6.1–6.4）：源自一次真实排查 —— 用户看到「消耗 token 几天没变」
+  // 但界面无法自证是裁缝坏了还是注册表真没改。合成 request/header 夹具真跑账本，钉住逐日真实下
+  // 发税、清单变化次数、注册表↔线上差额（无线上数据必须 null 不是 0）、跨度取整、undated 显形、
+  // 指纹表 64 上限。
+  { name: "tailor-timeline（工具裁缝：真实下发税与归因跨度）", file: "tailor-timeline.mjs" },
+  // 上面那套的**面板侧**：账本新字段（wireTaxDaily / wireTaxLatest / scannedSpanDays /
+  // undatedCalls / wireTaxTruncated / wireTaxDivergenceTokens）经 `$any` 信封传递，界面读错
+  // 字段名不会报错、只会静默不渲染。照 install-toast 的办法把 client.js 的三段源码抽进 vm
+  // 真跑，对真实节点树断言，并含两条反向自测（改错字段名 / 放开阈值都必须让护栏变红）。
+  { name: "tailor-tax-ui（工具裁缝：税时间维度的界面接线）", file: "tailor-tax-ui.mjs" },
+  // 工具裁缝「清空缓存」按钮的**删除**护栏（2026-10-23 实测：宿主丢掉 clearTextCache() 返回值 →
+  // 面板恒显示「正在清空缓存…」；先清后扫 → 占用一位不降；本机 92 日志 / 32 槽命中率 0%）。
+  // 钉的是「不许复活」：真跑 cacheLine 切片断言子树里没有 button/onClick/合成分，读数仍在；
+  // 再钉接线层（面板不再发 action、index.js 不再 import clearTextCache）。含 6 条反向自测。
+  { name: "tailor-cache-line（工具裁缝：账本缓存只读行，清空动作已删）", file: "tailor-cache-line.mjs" },
   // 崩溃详情可复制（清单 6.1）：真跑边界组件，钉住 componentStack 入剪贴板与 retry 清 info。
   { name: "error-boundary-copy（崩溃详情可复制）", file: "error-boundary-copy.mjs" },
   // 条件分支里的 hook（React #310 定式）：市场 → 专家点「详情」整块面板白屏的直接售后。
@@ -98,6 +113,25 @@ const SUITES = [
   { name: "wb-registry（多市场注册表：默认回落/合并投影/原子写）", file: "wb-registry.mjs" },
   { name: "wb-install-state（安装状态与来源锁）", file: "wb-install-state.mjs" },
   { name: "wb-auth-rules（认证注入规则与令牌槽扫描）", file: "wb-auth-rules.mjs" },
+  // 自定义套件数据层（Skill 看板「套件」功能的持久化）：整集合覆盖保存、id 由数据层
+  // 分配、成员保序去重。同样是零网络 + mkdtemp 隔离，并把失败模式两态（拒绝脏数据 /
+  // 放行 + 截断）与「拒绝后原文件逐字节未变」钉进用例——保存链一旦半写就是脏数据。
+  { name: "suites-registry（自定义套件：整集合覆盖/幂等/拒绝与截断两态）", file: "suites-registry.mjs" },
+  // 套件的客户端侧：数据层测不到「保存后同一套件分裂成两条」——那长在 id 归属契约上
+  // （本地临时 id 提交时置空 → 数据层分配真 id → UI 以返回值刷新副本）。这里把 client.js
+  // 里套件工具层与召唤菜单插入链的**源码原文**抽进 vm 真跑（与 install-toast.mjs 同套路），
+  // 顺带钉住「引用套件 = 展开成逐个 /name」与「最近使用按成员而非套件名上报」。
+  { name: "suites-client（自定义套件：id 归属契约/展开引用/三级写通道降级）", file: "suites-client.mjs" },
+  // 已安装 skill 的卸载数据层（lib/skill-remove.js）：全仓唯一会永久删文件的函数，
+  // 用例重点不是 happy path，而是「不能删什么」——来源白名单（bundled/runtime/custom）、
+  // 根目录自身与 `..` 穿越、跨来源根、缺 SKILL.md、符号链接只删链接 / 祖先链接逃逸。
+  // 全部落在 mkdtemp 下（home / cwd 注入），零网络、绝不碰真实 ~/.agents 或 ~/.dsh。
+  { name: "skill-remove（已安装 skill 卸载：来源白名单与路径边界）", file: "skill-remove.mjs" },
+  // Skill 集合变更的跨组件实时刷新（QA）：市场装/卸后顶部角标与看板列表必须立刻对齐。
+  // 缺口来自「角标只在 McpBoardPage 首次挂载读一次」，普通静态断言看不见——这里把变更
+  // 总线与角标重取函数抽进 vm 真跑（reason 透传 / 抛错隔离 / 退订 / 乱序守卫），并钉住
+  // 三个变更入口（看板卸载、市场安装、市场卸载）都广播、两个消费方都订阅。
+  { name: "skill-refresh（技能集合实时刷新：总线/角标重取/三入口广播）", file: "skill-refresh.mjs" },
   // ── T02 连接器元数据投影 / T03 插件市场投影 ──────────────────────────────
   // 两者都是纯解析层守护：零网络（T03 的 zip 用手工字节内存构造）、零真实 ~/.dsh。
   // T02 钉 R1 注入规则标注 / R2 visible_in 标签筛选 / R3 examples 优先；

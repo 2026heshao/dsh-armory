@@ -571,14 +571,25 @@ for (const site of CATEGORY_CALLSITES) {
 	else if (quoted.length === 2 && /\?/.test(arg)) literalKeys.push({ line: site.line, keys: quoted });
 	else literalKeys.push({ line: site.line, keys: [], raw: arg });
 }
-ok("3.5 openBoardCategory 调用点恰好 6 处（不新增、不误删；已排除注释与定义）", CATEGORY_CALLSITES.length === 6,
+// 调用点数是「不新增、不误删」的闸门：每一处都得是有意的跨分类跳转，加一处就在这里登记一处。
+// 2026-10-22 由 6 → 7：自定义套件功能新增 openSuiteManager()（召唤菜单底部「管理套件…」的落点）。
+// 它必须先切到 skill 看板，因为套件弹窗由 SkillBoard 承载——召唤菜单是输入框旁的临时浮层，
+// 不适合挂模态对话框；切过去之后 SkillBoard 靠 pendingSuiteOpen 自领并弹出（见 client.js）。
+const CATEGORY_CALLSITE_COUNT = 7;
+ok(`3.5 openBoardCategory 调用点恰好 ${CATEGORY_CALLSITE_COUNT} 处（不新增、不误删；已排除注释与定义）`, CATEGORY_CALLSITES.length === CATEGORY_CALLSITE_COUNT,
 	`count=${CATEGORY_CALLSITES.length} lines=${JSON.stringify(CATEGORY_CALLSITES.map((s) => s.line))}`);
 const WHITELIST = ["mcp", "skill", "expert", "tailor", "wb"];
 const allKeys = literalKeys.flatMap((e) => e.keys);
-ok("3.6 6 个 openBoardCategory 调用点的参数都能解析成字面量 key", allKeys.length >= 6 && literalKeys.every((e) => e.keys.length > 0), `解析到=${JSON.stringify(literalKeys.map((e) => ({ line: e.line, keys: e.keys })))}`);
+ok(`3.6 ${CATEGORY_CALLSITE_COUNT} 个 openBoardCategory 调用点的参数都能解析成字面量 key`, allKeys.length >= CATEGORY_CALLSITE_COUNT && literalKeys.every((e) => e.keys.length > 0), `解析到=${JSON.stringify(literalKeys.map((e) => ({ line: e.line, keys: e.keys })))}`);
 ok("3.7 全部调用点传入的 key 都在 BOARD_CATEGORIES 白名单内（否则会被新白名单静默吞掉）",
 	allKeys.every((k) => WHITELIST.includes(k)),
 	`越界=${JSON.stringify(allKeys.filter((k) => !WHITELIST.includes(k)))}`);
+
+// 第 7 处的形状单独钉死：套件入口必须是「切 skill 看板」而不是别的分类，也不能改成
+// openBoardPanel()（那是 toggle，会把已经打开的看板关掉，弹窗就永远出不来）。
+// 锚定函数体而非行号——行号会随 client.js 插入漂移。
+ok("3.11 套件入口 openSuiteManager 走 openBoardCategory('skill')（弹窗由 SkillBoard 承载）",
+	/function openSuiteManager\(\)\s*\{[\s\S]{0,400}?openBoardCategory\('skill'\)/.test(source));
 
 // Bug 1 的触发点：「去市场找现成的」按钮。按文案锚定，不按行号。
 const bug1Site = CATEGORY_CALLSITES.find((s) => s.text.includes("去市场找现成的"));

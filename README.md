@@ -4,10 +4,11 @@
 
 > **DeepSeek Harness 的一体化管理看板**：MCP 服务器 · 技能 · 专家 · 插件 · 工具使用账本 · 四大市场（WorkBuddy 连接器 316 个 / 内置精选 47 个 / SkillHub 技能 19 万+ / WorkBuddy 专家 429 位 / CodeBuddy 官方插件 + DSH 社区清单），浏览、搜索、一键安装、一键召唤。
 > 本项目 fork 并改写自 [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui)（MIT，原项目仅 MCP 管理），现仓库为 [2026heshao/dsh-armory](https://github.com/2026heshao/dsh-armory)，
-> 从纯 MCP 管理面板升级为 **MCP + 技能 + 专家 + 插件 + 市场 + 工具账本** 看板。
+> 从纯 MCP 管理面板升级为 **MCP + 技能（含自定义套件）+ 专家 + 插件 + 市场 + 工具账本** 看板。
 >
 > **v2.0.0 起**：新增「插件」页（三个来源）、MCP OAuth 一键授权、安装凭据引导、安装状态账本、技能看板六大分类。详见 [更新日志](.github/release-notes/v2.0.0.md)。
 > **v2.1.0 起**：社区插件点开即可就地读 README（按需拉取 + 7 天落盘缓存 + `javascript:` 伪协议链接降级），并修掉「秒开快照顶掉真实目录」「更新探测误报失败」两处。详见 [更新日志](.github/release-notes/v2.1.0.md)。
+> **v2.2.0 起**：技能可以打包成「自定义套件」，召唤菜单点一次即展开为整组 `/name`；Skill 看板支持卸载已安装技能，市场装 / 卸后角标与列表实时刷新；工具裁缝新增按天采样的「真实下发税」趋势，能直接看出改注册表有没有生效；SkillHub 下载量排序改为页内本地排序，修掉上游挂起导致的空白。详见 [更新日志](.github/release-notes/v2.2.0.md)。
 
 <p align="center">
   <a href="https://github.com/2026heshao/dsh-armory/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-armory?style=social" alt="stars"></a>
@@ -60,7 +61,7 @@ dsh plugin --profile web add github:2026heshao/dsh-armory
 
 ### 工具裁缝 — 工具使用账本
 
-30 天窗口四张指标卡（调用总次数 / 出现过的工具 / 零调用 MCP 工具 / 整体错误率），逐工具列出调用、错误、错误率、Schema 上下文税与最后使用时间，底部常驻裁缝建议。默认显示全部工具与真实调用次数，需要时点「只看零调用（N）」收窄：
+30 天窗口四张指标卡（调用总次数 / 出现过的工具 / 零调用 MCP 工具 / 整体错误率），逐工具列出调用、错误、错误率、Schema 上下文税与最后使用时间，底部常驻裁缝建议。默认显示全部工具与真实调用次数，需要时点「只看零调用（N）」收窄。指标卡下方是**第二条趋势**：按天采样日志里每次请求真实下发的工具清单（`request/header`）并算出它的税，同时给出「窗口内下发清单变过几次」和最近一次的时间；说明栏还会在本机日志短于所选窗口时直接印出「窗口 N 天，读到的调用记录只跨 M 天」，让「数字几天没变」这件事在屏幕上就能归因：
 
 ![工具裁缝账本](docs/images/tool-ledger.png)
 
@@ -96,10 +97,10 @@ dsh plugin --profile web add github:2026heshao/dsh-armory
 - 跟随 DSH 深色/浅色主题，适配窄屏与移动宽度
 - 更新提示与**一键升级**：有新版时在面板顶部显示可关闭的提示条（每天最多查一次，可用 `DSH_ARMORY_DISABLE_UPDATE_CHECK` 关闭）。点了「升级」才动，**不会自动升级**；升级由 DSH 官方的 pluginManager 执行，装完提示重启宿主生效。用 `link:` / `file:` / `github:` 装的本地开发副本不给按钮（那会把链接换成 npm 包）
 - **升级后主动说一次变了什么**：版本变了后第一次打开面板弹一张小卡片，列出本次更新内容，并指路新功能在哪（例如「入口」开关在面板右上角）；确认一次后不再提示，不联网、不发任何数据
-- **工具裁缝**（1.7.0 新增）：扫描本机会话日志（只解析 `tool/call` / `tool/result` 两类事件，不读消息正文），统计每个工具近 7/30/90 天的调用次数、错误率与最后使用时间；同时按当前注册表估算每个工具 Schema 每轮请求占用的上下文 token。窗口内零调用的 MCP 工具自动进「死工具清单」，行内可一键禁用/启用对应服务器（复用官方写链，随时可恢复）。**默认显示全部工具与真实调用次数**，零调用的行以底色标出；想只看死工具时点「只看零调用（N）」切换。顶部说明栏常驻回显「显示 N/M 个工具」，避免筛选态被误读成「所有计数都是 0」。全程只读，多帧 zstd 日志逐帧解析、个别帧损坏跳过不中断
+- **工具裁缝**（1.7.0 新增）：扫描本机会话日志（解析 `tool/call` / `tool/result` / `request/header` 三类事件，不读消息正文），统计每个工具近 7/30/90 天的调用次数、错误率与最后使用时间；上下文税给**两个口径**——按当前注册表估算的 Schema 快照（它是 Schema 长度的纯函数，只有改动注册表才会变），以及按天采样 `request/header` 得到的每轮真实下发清单税，两者差额非零时说明栏指出「改了没生效 / 线上下发的比注册表多」；窗口内零调用的 MCP 工具自动进「死工具清单」，行内可一键禁用/启用对应服务器（复用官方写链，随时可恢复）。**默认显示全部工具与真实调用次数**，零调用的行以底色标出；想只看死工具时点「只看零调用（N）」切换。顶部说明栏常驻回显「显示 N/M 个工具」，避免筛选态被误读成「所有计数都是 0」；本机日志覆盖不足窗口天数、或有条目缺时间戳（`undatedCalls`）时也在这里显形，不再静默。账本缓存行只读（「清空缓存」按钮已删——实测既不回收空间也不修任何事）。全程只读，多帧 zstd 日志逐帧解析、个别帧损坏跳过不中断
 - **WB 市场（直连安装，1.8.0 新增）**：看板第四个分类，两个市场一处浏览——
   - **连接器（MCP）**：直读 WorkBuddy 官方分发 ZIP（`static.workbuddy.cn`，与 WorkBuddy 桌面端同一数据源），316 个连接器按需解析；可安装的 242 个（streamable-http 为主），CLI 型 / 需 WorkBuddy token 注入的 74 个如实标注「仅展示」并给出原因。安装 = 把该连接器的 `mcpServers` 合并写入 MCP 配置，与「导入 JSON」同一链路（准入、同名跳过、entry id 预留一致），全局与项目作用域都可选；ZIP 按 ETag 缓存在 `~/.dsh/wb-market/`，解压用 Node 内置 zlib，**零新增运行时依赖**
-  - **技能（SkillHub）**：直读 SkillHub 公开 API（`api.skillhub.cn`，19 万+ 技能），支持搜索（`keyword`）、排序（下载/安装/星标/评分）、分页；详情含发布方认证与安全扫描状态。安装 = 逐文件下载并按清单 sha256 校验后写入 `~/.agents/skills/`（与官方 skill 子系统同一发现范围），装完即刻生效；已装的显示「已安装」，可一键卸载、重装即更新
+  - **技能（SkillHub）**：直读 SkillHub 公开 API（`api.skillhub.cn`，19 万+ 技能），支持搜索（`keyword`）、排序（下载/安装/星标/评分）、分页；详情含发布方认证与安全扫描状态。安装 = 逐文件下载并按清单 sha256 校验后写入 `~/.agents/skills/`（与官方 skill 子系统同一发现范围），装完即刻生效；已装的显示「已安装」，可一键卸载、重装即更新。下载量排序在**当前页内**本地完成（上游 `sortBy=downloads` 现在会挂起），其余排序照常走远程；单次请求 15 秒超时，超时文案已中文化
   - 技能版权归原作者所有；两个均为第三方接口，字段可能随上游改版变化（面板顶部有常驻说明）
 - **专家直连（1.9.0 新增，体验对齐 WorkBuddy 专家中心）**：看板独立分类「专家」（侧栏入口同步更名「技能 · MCP · 专家」）——
   - **目录**：直读 WorkBuddy 专家中心官方分发（`expert_center.json`，429 位专家 / 15 个行业分类，ETag 缓存在 `~/.dsh/wb-market/experts/`），分类筛选 + 关键词搜索 + 详情弹层（召唤前看人设正文、捆绑技能、试试这样问）
@@ -123,7 +124,10 @@ dsh plugin --profile web add github:2026heshao/dsh-armory
   - 服务器返回 401 时自动弹出「授权 {服务器}」对话框并打开浏览器，无需用户先去找入口
 - **安装凭据引导（2.0.0 新增）**：安装前扫 `mcpServers` 里的 `${...}` 占位符，弹「填写 {连接器} 的凭据」逐槽填写后「带凭据安装」；留空表示稍后自行补全，装完提示「另有 N 个占位符未填写，配置里保留原样」；无占位符的连接器直接放行
 - **安装状态账本（2.0.0 新增）**：`~/.dsh/armory/install-state.json`（`INSTALL_STATE_VERSION = 1`）记录每条连接器 / 技能 / 插件的 `source {marketplace, url, kind}`，市场页据此支持**跨页**筛出已安装项（技能侧仍只筛当前页，两处文案分别说明），并把「本插件装的」与「别处手动配的」分开；登记失败不影响安装，只补一句提示
-- **技能看板分类（2.0.0 新增）**：技能按 **编程开发 / 设计与创作 / 文档办公 / 效率与自动化 / 开发运维 / 未分类** 六类归置，网格与列表双视图可切、可按分类过滤，常驻「显示 N / M 个 skill」；详情新增所属分类、来源目录、文件位置，可一键「复制 SKILL.md 路径」「复制 @会话引用」。看板仍是只读的（宿主只提供 `listSkills` / `skillDetail`）
+- **技能看板分类（2.0.0 新增）**：技能按 **编程开发 / 设计与创作 / 文档办公 / 效率与自动化 / 开发运维 / 未分类** 六类归置，网格与列表双视图可切、可按分类过滤，常驻「显示 N / M 个 skill」；详情新增所属分类、来源目录、文件位置，可一键「复制 SKILL.md 路径」「复制 @会话引用」
+- **技能卸载（2.2.0 新增）**：用户级 / 项目级目录里的 skill 可在详情里直接卸载（就地二次确认、**永久删除且不可撤销**）；随 DSH 分发、运行时注册与自定义目录的 skill 只读，并说明不在可卸载范围内。宿主本身只提供读取接口，卸载由本插件的 `removeSkill` 完成：来源白名单 → 根目录严格包含性 → 父目录 realpath → 符号链接只 unlink 不碰目标 → 目录必须含 `SKILL.md` 且在根内
+- **技能集合实时刷新（2.2.0 新增）**：市场安装 / 卸载技能、看板自己卸载，三处都会向模块级变更总线广播；顶部 **Skill** 数量角标与看板列表订阅同一条总线，各自重读真值，角标重取带序号守卫，快速连点也不会被乱序回包回滚。装完 / 卸完立刻对新集合，不必切页或重开面板
+- **自定义套件（2.2.0 新增）**：把常一起用的 skill 打包成「套件」——Skill 看板工具栏的「套件」打开管理窗，左侧挑技能、右侧编排（点 **+** 或拖入添加，拖拽排序，删除就地二次确认），一次保存即整集合覆盖落盘到 `~/.dsh/armory/suites.json`（staging + rename 原子写，坏数据拒绝且原文件不动）。输入框召唤菜单的「技能」子菜单顶部会出现套件分组，点一次就按成员顺序把多个 `/name` 一并插进草稿。上限 100 个套件 / 每套 40 个成员；成员按各自的技能名进「最近使用」，不会把套件名记成一条孤立记录
 - **多市场注册表（2.0.0 新增）**：市场源不再硬编码，落 `~/.dsh/armory/marketplaces.json`（`REGISTRY_VERSION = 1`），缺失或损坏回落内置默认项、首读即落盘，支持增删改；写盘一律 staging + rename 原子替换
 - **社区目录秒开（2.0.0 新增）**：上次成功的精简清单镜像进浏览器 `localStorage`（7 天 / 4MB 上限，超配额保留旧快照），首屏先渲染快照再被真实结果静默替换（0 网络 0 IPC）；源不可达时明说「显示的是本地缓存」而非给空列表
 - **社区 README 预览（2.1.0 新增）**：点开「插件 → DSH 社区」任意卡片，即就地拉取并渲染该仓库 README（标题 / 段落 / 列表 / 表格 / 代码块 / 引用，含 `<p align="center"><img …>` 横幅）——
@@ -248,20 +252,23 @@ dsh plugin --profile web remove dsh-armory
 
 ```sh
 npm install --no-save yaml@2 eslint@9   # 测试与风格检查的唯一裸依赖（运行依赖全部由宿主提供）
-npm test                                # 全 33 套件（与 CI / 发版门槛同一条）
+npm test                                # 全 40 套件（与 CI / 发版门槛同一条）
 npm run lint                            # ESLint：no-undef / no-unused-vars / no-empty 等
 npm run test:e2e                        # 可选：用宿主补丁算法验证专家预设进入组合树
 dsh --profile web --dump-config         # 看 profile 的有效配置
 dsh web                                 # 起 Web 做真实操作验证
 ```
 
-`npm test` 跑的是 `test/run-all.mjs`，依次执行 **33** 个独立套件（各自是独立 node 进程，任一非零退出即整体失败）。套件是显式白名单而非 `node --test` 自动发现——`test/` 下还有带副作用的迁移脚本与需要宿主模块的端到端脚本，自动发现会误跑。
+`npm test` 跑的是 `test/run-all.mjs`，依次执行 **40** 个独立套件（各自是独立 node 进程，任一非零退出即整体失败）。套件是显式白名单而非 `node --test` 自动发现——`test/` 下还有带副作用的迁移脚本与需要宿主模块的端到端脚本，自动发现会误跑。
 
 | 分组 | 套件 | 覆盖 |
 | --- | --- | --- |
 | 账本与配置层 | `tool-ledger` `mcp-config` | 工具账本的 zstd/缓存/尺寸闸门；MCP 配置归一化与 patch 往返 |
 | 契约与入口 | `contract-consistency` `client-entry` `host-import-sources` | 面板可调方法必须在 typert 声明 / client 契约数组 / 宿主方法集三处同时存在；三个入口「全关」不可表达；VS Code `${input:}` 降级 |
 | 客户端质量 | `client-i18n` `i18n-coverage` `error-boundary-copy` `persona-truncate` `tailor-window` | 中文皆包 `t()`；en-US 字典双向差集；崩溃详情可复制；persona 4000 预览阈值；工具裁缝时间窗四档 |
+| 工具裁缝趋势（2.2.0） | `tailor-timeline` `tailor-tax-ui` `tailor-cache-line` | 真实下发税的时间维度与跨度归因（无线上数据必须为 null 而非 0）；裁缝新字段在界面上的接线（vm 真跑源码片段）；账本缓存行只剩读数（「清空缓存」按钮已删，钉住不许复活） |
+| 自定义套件（2.2.0） | `suites-registry` `suites-client` | 整集合覆盖 / 幂等 / 拒绝与截断两态；id 归属契约（保存后不分裂）、引用套件展开为多个 `/name`、三级写通道降级 |
+| 技能集合（2.2.0） | `skill-remove` `skill-refresh` | 卸载来源白名单与路径边界（根自身 / `..` 穿越 / 跨来源根 / 符号链接只删链接）；装 / 卸后角标与看板实时刷新、乱序回包守卫 |
 | 专家与团队 | `run-expert-manual` `session-persona` `team-bridge` `expert-card-actions` `recent-sort-regression` | 专家市场写链（真网目录 + 人设 + patch 往返，33 条断言）；会话级挂/换/摘；团队桥接；卡片按钮真值表；「最近使用」排序 |
 | 升级与安装真机 | `upgrade-plan` `verify-install-info` `verify-host-installinfo` `teardown-residue` | 一键升级判据（本地安装 / 来源未知一律不写）；真 profile 数据下的来源判定（profile 不存在自行 SKIP）；teardown 残留诊断 |
 | 市场与安装链（2.0.0） | `wb-registry` `wb-install-state` `wb-auth-rules` `wb-connector-meta` `wb-plugin-market` `wb-awesome-market` `wb-install-flow` `wb-update-hint` `auth-gate-regression` `install-toast` | 多市场注册表原子写；安装状态与来源锁；令牌槽扫描与注入规则；连接器 R1/R2/R3 投影；插件清单嵌套解析；awesome 过滤/瘦身/304/双源切换；令牌替换写链；R9 更新探测五枚举；装前 401 鉴权闸；顶部安装浮层跨卸载可见 |

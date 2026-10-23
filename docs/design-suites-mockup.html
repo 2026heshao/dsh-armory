@@ -1,0 +1,875 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dsh-armory · 自定义套件 · 局部高仿真</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   dsh-armory「自定义套件」局部高仿真
+   三处新增：① Skill 看板入口按钮  ② 召唤菜单「套件」分组  ③ 套件管理弹窗
+   类名对齐 lib/client.js 现有 BEM（dsh-mcp-*），令牌对齐宿主 --dsw-* 体系。
+   --dsw-* 在本稿中给近似值（宿主真实值在 DSH 主题里），映射见页脚说明。
+   ═══════════════════════════════════════════════════════════════════ */
+:root{
+  /* 宿主令牌近似 */
+  --dsw-alias-bg-layer-1:#ffffff;
+  --dsw-alias-bg-layer-2:#f6f8fc;
+  --dsw-alias-bg-layer-3:#eef2f8;
+  --dsw-alias-border-l2:#e2e8f1;
+  --dsw-alias-border-l3:#c9d4e3;
+  --dsw-alias-label-primary:#182338;
+  --dsw-alias-label-secondary:#5c6b82;
+  --dsw-alias-label-tertiary:#8d99ac;
+  --dsw-alias-label-primary-inverted:#ffffff;
+  --dsw-alias-brand-primary:#4d6bfe;
+  --dsw-alias-brand-text:#3452e8;
+  --dsw-alias-interactive-bg-hover:#f0f4fa;
+  --dsw-alias-interactive-bg-hover-accent:#e9efff;
+  --dsw-alias-interactive-bg-hover-danger:#fdecec;
+  --dsw-alias-button-elevated-fill:#ffffff;
+  --dsw-alias-button-primary-fill:#4d6bfe;
+  --dsw-alias-button-primary-hover:#3d5bf0;
+  --dsw-alias-state-success-primary:#16a34a;
+  --dsw-alias-state-error-primary:#dc2626;
+  --dsw-alias-state-warn-primary:#d97706;
+  --dsw-elevation-prominent:0 12px 32px rgba(16,32,48,.16),0 2px 8px rgba(16,32,48,.08);
+  --dsw-elevation-card:0 1px 2px rgba(16,32,48,.06),0 4px 16px rgba(16,32,48,.07);
+  --dsw-radius-xs:4px;--dsw-radius-sm:8px;--dsw-radius-md:10px;--dsw-radius-lg:12px;--dsw-radius-panel:16px;
+  /* armory 别名（同 MCP_CSS 首行） */
+  --mcp-accent:var(--dsw-alias-brand-primary);
+  --mcp-ok:var(--dsw-alias-state-success-primary);
+  --mcp-err:var(--dsw-alias-state-error-primary);
+  --mcp-warn:var(--dsw-alias-state-warn-primary);
+  --mcp-mut:var(--dsw-alias-label-secondary);
+  --mcp-bg-1:var(--dsw-alias-bg-layer-1);
+  --mcp-bg-2:var(--dsw-alias-bg-layer-2);
+  --mcp-bg-3:var(--dsw-alias-bg-layer-3);
+  --mcp-line:var(--dsw-alias-border-l2);
+  --mcp-r-xs:var(--dsw-radius-xs);--mcp-r-sm:var(--dsw-radius-sm);--mcp-r-md:var(--dsw-radius-md);
+  --mcp-r-lg:var(--dsw-radius-lg);--mcp-r-panel:var(--dsw-radius-panel);
+  /* 分类色（同 SKILL_CATS） */
+  --mcp-cat-all:var(--dsw-alias-label-primary);
+  --mcp-cat-uncat:#94a3b8;
+  --mcp-cat-dev:#4d6bfe;
+  --mcp-cat-design:#60a5fa;
+  --mcp-cat-office:#22c55e;
+  --mcp-cat-auto:#f59e0b;
+  --mcp-cat-ops:#6b7f9e;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+/* hidden 属性必须压过组件的 display 规则（chip/dirty/toast 都是 inline-flex/flex） */
+[hidden]{display:none!important}
+body{
+  font-family:var(--font);color:var(--dsw-alias-label-primary);
+  background:
+    radial-gradient(1200px 500px at 15% -10%,#dfe8fb 0%,transparent 60%),
+    radial-gradient(900px 420px at 90% 0%,#e6eefc 0%,transparent 55%),
+    #e8ecf3;
+  padding:28px 20px 72px;
+  -webkit-font-smoothing:antialiased;
+}
+/* ── 页首：标题 + 三处新增图例 ───────────────────────────────────── */
+.studio{max-width:1180px;margin:0 auto}
+.studio-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.studio-head h1{margin:0;font-size:21px;font-weight:700;letter-spacing:-.01em}
+.studio-head h1 small{font-weight:500;color:var(--mcp-mut);font-size:12.5px;margin-left:10px}
+.studio-head .meta{font-size:11.5px;color:var(--mcp-mut)}
+.legend{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 0 22px}
+.legend-item{position:relative;display:flex;gap:10px;padding:11px 13px;border:1px solid var(--mcp-line);border-radius:var(--mcp-r-lg);background:rgba(255,255,255,.82);backdrop-filter:blur(6px)}
+.legend-item b{display:block;font-size:12.5px;margin-bottom:3px}
+.legend-item p{margin:0;font-size:11.5px;line-height:1.55;color:var(--mcp-mut)}
+.legend-item .dec{margin-top:5px;font-size:10.5px;color:var(--dsw-alias-brand-text);background:var(--dsw-alias-interactive-bg-hover-accent);border-radius:var(--mcp-r-xs);padding:2px 6px;display:inline-block}
+/* 编号标记 */
+.mark{position:absolute;z-index:5;display:inline-flex;align-items:center;justify-content:center;
+  width:19px;height:19px;border-radius:50%;background:#ff5a3c;color:#fff;font-size:11px;font-weight:700;
+  box-shadow:0 0 0 3px rgba(255,90,60,.22);pointer-events:none;font-family:var(--font)}
+.mark.pulse{animation:markPulse 2.2s ease-out infinite}
+@keyframes markPulse{0%{box-shadow:0 0 0 3px rgba(255,90,60,.28)}70%{box-shadow:0 0 0 9px rgba(255,90,60,0)}100%{box-shadow:0 0 0 3px rgba(255,90,60,0)}}
+.scene-tag{display:flex;align-items:center;gap:8px;margin:26px 0 10px;font-size:12px;font-weight:650;color:var(--dsw-alias-label-secondary)}
+.scene-tag::after{content:"";flex:1;height:1px;background:var(--mcp-line)}
+.scene-tag .hint{font-weight:400;color:var(--dsw-alias-label-tertiary);font-size:11px}
+
+/* ── 模拟 DSH 窗口外壳 ─────────────────────────────────────────── */
+/* overflow 不能 hidden：召唤菜单子菜单是浮层，需要伸出窗口边（同真实 position:fixed 语义）；
+   圆角改由各首尾子块自己收。 */
+.win{position:relative;border:1px solid #d3dcea;border-radius:14px;overflow:visible;background:var(--mcp-bg-2);
+  box-shadow:0 24px 60px rgba(23,42,79,.16),0 2px 10px rgba(23,42,79,.08)}
+.win-bar{border-radius:13px 13px 0 0}
+.win-body{border-radius:0 0 13px 13px;overflow:hidden}
+.win>.session{border-radius:0 0 13px 13px}
+.win-bar{display:flex;align-items:center;gap:14px;height:38px;padding:0 14px;background:linear-gradient(#fbfcfe,#f4f7fc);border-bottom:1px solid var(--mcp-line);font-size:12.5px;color:var(--dsw-alias-label-secondary)}
+.win-bar .sp{flex:1}
+.win-bar .wc{display:inline-flex;gap:10px;color:var(--dsw-alias-label-tertiary);font-size:11px}
+.win-body{display:flex;min-height:520px}
+/* 侧栏 */
+.side{flex:none;width:212px;background:rgba(255,255,255,.6);border-right:1px solid var(--mcp-line);padding:12px 10px;display:flex;flex-direction:column;gap:4px}
+.side .logo{display:flex;align-items:center;gap:7px;font-weight:700;font-size:14.5px;padding:2px 6px 10px}
+.side .logo .tag{font-size:9px;font-weight:700;letter-spacing:.06em;background:#182338;color:#fff;border-radius:3px;padding:2px 4px}
+.side .newchat{display:flex;align-items:center;justify-content:center;gap:6px;height:34px;border:1px solid var(--mcp-line);border-radius:9px;background:#fff;font-size:12.5px;font-weight:600;color:var(--dsw-alias-label-primary);margin-bottom:8px}
+.side .item{display:flex;align-items:center;gap:8px;height:30px;padding:0 8px;border-radius:8px;font-size:12.5px;color:var(--dsw-alias-label-secondary)}
+.side .item.on{background:var(--dsw-alias-interactive-bg-hover-accent);color:var(--dsw-alias-brand-text);font-weight:600}
+.side .grp{margin:10px 6px 4px;font-size:10.5px;color:var(--dsw-alias-label-tertiary);letter-spacing:.04em}
+.side .ws{display:flex;align-items:center;gap:8px;height:28px;padding:0 8px;border-radius:8px;font-size:12px;color:var(--dsw-alias-label-secondary)}
+.side .ws .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side .ws .ago{font-size:10px;color:var(--dsw-alias-label-tertiary)}
+/* 主区 */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.tabs{display:flex;align-items:center;gap:4px;height:44px;padding:0 18px;border-bottom:1px solid var(--mcp-line)}
+.tabs .tab{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:8px;font-size:12.5px;color:var(--dsw-alias-label-secondary)}
+.tabs .tab .n{font-size:10.5px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
+.tabs .tab.on{background:var(--dsw-alias-interactive-bg-hover-accent);color:var(--dsw-alias-brand-text);font-weight:650}
+.tabs .tab.on .n{color:var(--dsw-alias-brand-text)}
+.board{flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.board-head{display:flex;align-items:center;gap:10px}
+.board-head h2{margin:0;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.board-head h2::before{content:"";width:4px;height:14px;border-radius:2px;background:var(--mcp-accent)}
+.board-head .sp{flex:1}
+/* 工具条（同 .dsh-mcp-skill-toolbar） */
+.dsh-mcp-skill-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dsh-mcp-skill-search{position:relative;display:flex;align-items:center;gap:7px;flex:1 1 220px;max-width:340px;height:32px;padding:0 10px;border:1px solid var(--mcp-line);border-radius:var(--mcp-r-md);background:var(--mcp-bg-1);color:var(--dsw-alias-label-tertiary)}
+.dsh-mcp-skill-search input{flex:1;min-width:0;border:0;outline:0;background:transparent;font:inherit;font-size:12.5px;color:var(--dsw-alias-label-primary)}
+.dsh-mcp-skill-search:focus-within{border-color:var(--mcp-accent);box-shadow:0 0 0 3px rgba(77,107,254,.12)}
+.dsh-mcp-skill-seg{display:inline-flex;align-items:stretch;gap:2px;padding:2px;border:1px solid var(--mcp-line);border-radius:var(--mcp-r-lg);background:var(--mcp-bg-2)}
+.dsh-mcp-skill-seg-btn{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border:0;border-radius:var(--mcp-r-md);background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;cursor:pointer}
+.dsh-mcp-skill-seg-btn[aria-pressed="true"]{background:var(--mcp-bg-1);color:var(--dsw-alias-label-primary);font-weight:600;box-shadow:0 1px 2px rgba(16,32,48,.08)}
+/* 按钮（同 .dsh-mcp-btn） */
+.dsh-mcp-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--mcp-line);border-radius:var(--mcp-r-sm);padding:6px 12px;background:var(--dsw-alias-button-elevated-fill);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer;transition:background .15s,border-color .15s,transform .12s}
+.dsh-mcp-btn:hover{background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l3)}
+.dsh-mcp-btn:active{transform:scale(.98)}
+.dsh-mcp-btn:focus-visible{outline:2px solid var(--mcp-accent);outline-offset:1px}
+.dsh-mcp-btn.primary{background:var(--dsw-alias-button-primary-fill);border-color:transparent;color:var(--dsw-alias-label-primary-inverted);font-weight:600}
+.dsh-mcp-btn.primary:hover{background:var(--dsw-alias-button-primary-hover)}
+.dsh-mcp-btn.danger{color:var(--mcp-err);border-color:var(--mcp-err)}
+.dsh-mcp-btn.danger:hover{background:var(--dsw-alias-interactive-bg-hover-danger)}
+.dsh-mcp-btn[disabled]{opacity:.45;cursor:not-allowed}
+/* ① 套件入口按钮：次级按钮 + 计数徽标，视觉权重低于主操作 */
+.dsh-mcp-btn.suite-entry{position:relative}
+.dsh-mcp-btn.suite-entry .cnt{padding:0 5px;border-radius:var(--mcp-r-xs);background:var(--dsw-alias-interactive-bg-hover-accent);color:var(--dsw-alias-brand-text);font-size:10.5px;line-height:15px;font-variant-numeric:tabular-nums}
+.dsh-mcp-btn.suite-entry:hover .cnt{background:var(--mcp-accent);color:#fff}
+/* 分类轨道（同 .dsh-mcp-skill-rail / -cat） */
+.dsh-mcp-skill-rail{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.dsh-mcp-skill-cat{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border:1px solid var(--mcp-line);border-radius:999px;background:var(--mcp-bg-1);color:var(--dsw-alias-label-secondary);font:inherit;font-size:11.5px;line-height:18px;white-space:nowrap;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+.dsh-mcp-skill-cat:hover{border-color:var(--dsw-alias-border-l3);color:var(--dsw-alias-label-primary)}
+.dsh-mcp-skill-cat.on{background:var(--dsw-alias-interactive-bg-hover-accent);color:var(--dsw-alias-label-primary);font-weight:600;border-color:color-mix(in srgb,var(--mcp-accent) 35%,var(--mcp-line))}
+.dsh-mcp-skill-cat-count{font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-tertiary)}
+.dsh-mcp-skill-cat.on .dsh-mcp-skill-cat-count{color:var(--dsw-alias-label-primary)}
+.dsh-mcp-skill-cat-dot{display:inline-block;width:7px;height:7px;border-radius:50%;flex:none}
+/* 结果行 + 只读提示 */
+.dsh-mcp-skill-result{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--mcp-mut)}
+.dsh-mcp-readonly-note{display:inline-flex;align-items:center;gap:5px;color:var(--dsw-alias-label-tertiary)}
+/* 过滤 chips（同 .dsh-mcp-chip-s） */
+.dsh-mcp-skill-filters{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.dsh-mcp-chip-s{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border:1px solid var(--mcp-line);border-radius:999px;background:var(--mcp-bg-1);color:var(--dsw-alias-label-secondary);font:inherit;font-size:10.5px;line-height:16px;white-space:nowrap;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
+button.dsh-mcp-chip-s:hover{border-color:var(--dsw-alias-border-l3);color:var(--dsw-alias-label-primary)}
+button.dsh-mcp-chip-s.on{border-color:var(--mcp-accent);background:var(--dsw-alias-interactive-bg-hover-accent);color:var(--dsw-alias-label-primary);font-weight:600}
+.dsh-mcp-chip-s-count{font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-tertiary)}
+/* 卡片网格（同 .dsh-mcp-skill-card） */
+.dsh-mcp-skill-canvas{flex:1;min-height:0;overflow:auto;padding-right:2px}
+.cluster-head{display:flex;align-items:center;gap:8px;margin:14px 0 8px;font-size:12px;font-weight:650;color:var(--dsw-alias-label-secondary)}
+.cluster-head:first-child{margin-top:2px}
+.cluster-head .tile{width:10px;height:10px;border-radius:3px}
+.cluster-head .n{font-weight:500;color:var(--dsw-alias-label-tertiary);font-size:11px}
+.cluster-head .blurb{font-weight:400;color:var(--dsw-alias-label-tertiary);font-size:11px}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:10px}
+.dsh-mcp-skill-card{position:relative;display:flex;flex-direction:column;text-align:left;border:0;padding:0;background:none;color:inherit;font:inherit;cursor:pointer;border-radius:var(--mcp-r-lg)}
+.dsh-mcp-skill-card-inner{display:flex;flex-direction:column;gap:8px;height:100%;padding:12px 13px;border:.5px solid var(--mcp-line);border-radius:var(--mcp-r-lg);background:var(--mcp-bg-1);transition:background .12s,border-color .12s,box-shadow .16s,transform .16s}
+.dsh-mcp-skill-card:hover .dsh-mcp-skill-card-inner{background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l3);box-shadow:var(--dsw-elevation-card);transform:translateY(-1px)}
+.dsh-mcp-skill-card:focus-visible{outline:2px solid var(--mcp-accent);outline-offset:2px}
+.dsh-mcp-skill-card-top{display:flex;align-items:center;gap:8px;min-width:0}
+.dsh-mcp-skill-cat-tile{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
+.dsh-mcp-skill-card-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;font-size:13px;line-height:18px}
+.dsh-mcp-skill-card-desc{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;margin:0;font-size:11.5px;line-height:1.55;color:var(--mcp-mut)}
+.dsh-mcp-skill-card-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;min-width:0}
+.dsh-mcp-skill-src{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;color:var(--dsw-alias-label-tertiary)}
+
+/* ── ② 会话输入框 + 召唤菜单 ───────────────────────────────────── */
+.session{padding:18px 20px 22px;display:flex;flex-direction:column;gap:12px;background:
+  radial-gradient(700px 260px at 70% -20%,rgba(214,228,250,.55),transparent 60%),var(--mcp-bg-2)}
+.msg{max-width:640px;font-size:12.5px;line-height:1.7;color:var(--dsw-alias-label-secondary)}
+.msg.user{align-self:flex-end;background:var(--dsw-alias-interactive-bg-hover-accent);color:var(--dsw-alias-label-primary);border-radius:12px 12px 3px 12px;padding:8px 12px}
+.msg.ai{align-self:flex-start;background:var(--mcp-bg-1);border:1px solid var(--mcp-line);border-radius:12px 12px 12px 3px;padding:8px 12px}
+.composer{position:relative;max-width:760px;width:100%;margin:6px auto 0;border:1px solid var(--mcp-line);border-radius:14px;background:var(--mcp-bg-1);box-shadow:0 2px 10px rgba(16,32,48,.06);transition:border-color .15s,box-shadow .15s}
+.composer:focus-within{border-color:var(--mcp-accent);box-shadow:0 0 0 3px rgba(77,107,254,.12)}
+.composer textarea{display:block;width:100%;min-height:64px;resize:none;border:0;outline:0;background:transparent;padding:11px 14px 4px;font:inherit;font-size:13px;line-height:1.6;color:var(--dsw-alias-label-primary)}
+.composer textarea::placeholder{color:var(--dsw-alias-label-tertiary)}
+.composer .slash{color:var(--dsw-alias-brand-text);background:var(--dsw-alias-interactive-bg-hover-accent);border-radius:4px;padding:0 2px}
+.composer-row{display:flex;align-items:center;gap:6px;padding:6px 8px 8px 12px}
+.composer-row .sp{flex:1}
+.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border:0;border-radius:var(--mcp-r-sm);background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer;transition:background .12s,color .12s}
+.icon-btn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}
+/* trigger 同 .dsh-mcp-quick-trigger：30×30、accent 12% 底 */
+.dsh-mcp-quick-trigger{position:relative;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;padding:0;border:0;border-radius:var(--mcp-r-sm);background:color-mix(in srgb,var(--mcp-accent) 12%,transparent);color:var(--mcp-accent);cursor:pointer;transition:background .15s}
+.dsh-mcp-quick-trigger:hover,.dsh-mcp-quick-trigger.sel{background:color-mix(in srgb,var(--mcp-accent) 20%,transparent)}
+.dsh-mcp-quick-trigger:focus-visible{outline:2px solid var(--mcp-accent);outline-offset:1px}
+.send-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:30px;padding:0 14px;border:0;border-radius:9px;background:var(--dsw-alias-button-primary-fill);color:#fff;font:inherit;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;flex:none}
+.send-btn:hover{background:var(--dsw-alias-button-primary-hover)}
+/* 主菜单 / 子菜单（度量同 client.js） */
+.dsh-mcp-quick-menu{position:absolute;z-index:60;left:0;bottom:calc(100% + 8px);min-width:158px;padding:5px;border:1px solid var(--mcp-line);border-radius:var(--mcp-r-lg);background:var(--mcp-bg-1);box-shadow:var(--dsw-elevation-prominent);animation:menuIn .14s ease-out}
+@keyframes menuIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.dsh-mcp-quick-row{position:relative}
+.dsh-mcp-quick-kind{display:flex;align-items:center;gap:7px;width:100%;height:30px;padding:0 9px;border:0;border-radius:var(--mcp-r-sm);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;cursor:pointer;transition:background .12s}
+.dsh-mcp-quick-kind:hover,.dsh-mcp-quick-kind.sel{background:var(--dsw-alias-interactive-bg-hover)}
+.dsh-mcp-quick-count{margin-left:auto;color:var(--mcp-accent);font-size:11px;font-variant-numeric:tabular-nums}
+.dsh-mcp-quick-arrow{margin-left:5px;color:var(--mcp-mut);font-size:11px}
+.dsh-mcp-quick-sub{position:absolute;top:50%;left:calc(100% + 6px);transform:translateY(-50%);z-index:61;display:flex;flex-direction:column;width:248px;max-height:min(268px,46vh);padding:5px;border:1px solid var(--mcp-line);border-radius:var(--mcp-r-lg);background:var(--mcp-bg-1);box-shadow:var(--dsw-elevation-prominent);animation:menuIn .12s ease-out}
+.dsh-mcp-quick-list{min-height:0;overflow-y:auto;overflow-x:hidden;border-radius:var(--mcp-r-sm);scrollbar-width:thin}
+/* 套件分组头：比条目更小更弱，但带 accent 图标，一眼可辨 */
+.dsh-mcp-quick-group{display:flex;align-items:center;gap:6px;padding:5px 9px 3px;color:var(--dsw-alias-label-tertiary);font-size:10.5px;letter-spacing:.05em}
+.dsh-mcp-quick-group svg{color:var(--mcp-accent)}
+.dsh-mcp-quick-sep{height:1px;margin:4px 6px;background:var(--mcp-line)}
+.dsh-mcp-quick-item{display:flex;align-items:center;gap:7px;width:100%;min-height:28px;padding:5px 9px;border:0;border-radius:var(--mcp-r-sm);background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:16px;text-align:left;cursor:pointer;transition:background .12s}
+.dsh-mcp-quick-item:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.dsh-mcp-quick-item:focus-visible{outline:2px solid var(--mcp-accent);outline-offset:-1px}
+.dsh-mcp-quick-item .ic{flex:none;color:var(--dsw-alias-label-tertiary)}
+.dsh-mcp-quick-item.suite .ic{color:var(--mcp-accent)}
+.dsh-mcp-quick-item-name{flex:none;max-width:132px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dsh-mcp-quick-item-badge{flex:none;padding:1px 5px;border-radius:var(--mcp-r-xs);background:color-mix(in srgb,var(--mcp-accent) 14%,transparent);color:var(--mcp-accent);font-size:10px;line-height:12px}
+.dsh-mcp-quick-item-badge.recent{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-secondary)}
+.dsh-mcp-quick-item-desc{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mcp-mut);font-size:11px}
+.dsh-mcp-quick-manage{display:flex;align-items:center;gap:6px;width:100%;margin-top:4px;padding:6px 9px;border:0;border-top:1px solid var(--mcp-line);background:transparent;color:var(--mcp-accent);font:inherit;font-size:11px;text-align:left;cursor:pointer}
+.dsh-mcp-quick-manage:hover{background:var(--dsw-alias-interactive-bg-hover)}
+/* 专家 chip（同 .dsh-mcp-quick-chip） */
+.dsh-mcp-quick-chip{display:inline-flex;align-items:center;gap:5px;max-width:170px;padding:3px 8px;border:1px solid color-mix(in srgb,var(--mcp-accent) 30%,transparent);border-radius:999px;background:color-mix(in srgb,var(--mcp-accent) 10%,transparent);font-size:11px;line-height:16px}
+.dsh-mcp-quick-chip-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:var(--mcp-accent)}
+
+/* ──  套件管理弹窗 ───────────────────────────────────────────── */
+.dsh-mcp-overlay{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;background:rgba(18,28,46,.42);backdrop-filter:blur(3px);animation:fadeIn .16s ease-out}
+.dsh-mcp-overlay[hidden]{display:none}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.dsh-mcp-modal.suites{width:min(980px,94vw);height:min(640px,88vh);max-height:88vh;display:flex;flex-direction:column;overflow:hidden;
+  background:var(--mcp-bg-2);border:0;border-radius:var(--mcp-r-panel);box-shadow:var(--dsw-elevation-prominent);animation:mcpPop .16s ease-out}
+@keyframes mcpPop{from{opacity:0;transform:scale(.97) translateY(6px)}to{opacity:1;transform:none}}
+.dsh-mcp-modal.suites header{display:flex;align-items:flex-start;gap:10px;padding:16px 18px 12px;border-bottom:1px solid var(--mcp-line);background:var(--mcp-bg-1)}
+.dsh-mcp-modal.suites h3{margin:0;font-size:15px;font-weight:650;display:flex;align-items:center;gap:8px}
+.dsh-mcp-modal.suites h3::before{content:"";width:4px;height:14px;border-radius:2px;background:var(--mcp-accent)}
+.dsh-mcp-modal.suites .sub{margin:5px 0 0 12px;font-size:11.5px;color:var(--mcp-mut)}
+.dsh-mcp-modal.suites .x{margin-left:auto;flex:none}
+.suite-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(320px,44%) 1fr;gap:0}
+/* 左：技能库选择器 */
+.suite-left{display:flex;flex-direction:column;gap:9px;min-height:0;padding:13px 14px;border-right:1px solid var(--mcp-line);background:var(--mcp-bg-2)}
+.suite-left .dsh-mcp-skill-search{max-width:none;flex:none;height:30px}
+.suite-left .dsh-mcp-skill-rail{gap:5px}
+.suite-left .dsh-mcp-skill-cat{padding:2px 9px;font-size:11px}
+.suite-pick-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:7px;padding:2px 2px 6px;scrollbar-width:thin}
+.pick-card{position:relative;display:flex;align-items:flex-start;gap:9px;padding:9px 10px;border:.5px solid var(--mcp-line);border-radius:var(--mcp-r-md);background:var(--mcp-bg-1);cursor:grab;transition:border-color .12s,background .12s,box-shadow .14s,opacity .12s}
+.pick-card:hover{border-color:var(--dsw-alias-border-l3);background:var(--dsw-alias-interactive-bg-hover);box-shadow:var(--dsw-elevation-card)}
+.pick-card:active{cursor:grabbing}
+.pick-card.dragging{opacity:.45;border-style:dashed}
+.pick-card.in-suite{border-color:color-mix(in srgb,var(--mcp-accent) 45%,var(--mcp-line));background:var(--dsw-alias-interactive-bg-hover-accent)}
+.pick-card .tile{margin-top:3px;width:10px;height:10px;border-radius:3px;flex:none}
+.pick-card .body{min-width:0;flex:1}
+.pick-card .nm{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:550;line-height:18px}
+.pick-card .nm .cat{font-weight:400;font-size:10.5px;color:var(--dsw-alias-label-tertiary)}
+.pick-card .ds{margin:2px 0 0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:11px;line-height:1.5;color:var(--mcp-mut)}
+.pick-card .grip{flex:none;margin-top:2px;color:var(--dsw-alias-label-tertiary);opacity:.55}
+.pick-card:hover .grip{opacity:1}
+.pick-card .add{position:absolute;right:7px;top:7px;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:1px solid var(--mcp-line);border-radius:7px;background:var(--mcp-bg-1);color:var(--dsw-alias-label-secondary);cursor:pointer;opacity:0;transition:opacity .12s,background .12s,color .12s}
+.pick-card:hover .add,.pick-card:focus-within .add{opacity:1}
+.pick-card .add:hover{background:var(--mcp-accent);border-color:var(--mcp-accent);color:#fff}
+.pick-card.in-suite .add{opacity:1;color:var(--mcp-accent);border-color:color-mix(in srgb,var(--mcp-accent) 40%,var(--mcp-line))}
+/* 右：套件列表 + 编辑器 */
+.suite-right{display:flex;flex-direction:column;min-height:0;background:var(--mcp-bg-1)}
+.suite-list-bar{display:flex;align-items:center;gap:8px;padding:11px 14px 9px;border-bottom:1px solid var(--mcp-line)}
+.suite-list-bar .t{font-size:12px;font-weight:650;color:var(--dsw-alias-label-secondary)}
+.suite-list-bar .sp{flex:1}
+.suite-list{flex:none;max-height:132px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:8px 10px;border-bottom:1px solid var(--mcp-line);background:var(--mcp-bg-2);scrollbar-width:thin}
+.suite-row{display:flex;align-items:center;gap:8px;width:100%;padding:7px 9px;border:1px solid transparent;border-radius:var(--mcp-r-md);background:transparent;font:inherit;text-align:left;cursor:pointer;transition:background .12s,border-color .12s}
+.suite-row:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.suite-row.on{background:var(--dsw-alias-interactive-bg-hover-accent);border-color:color-mix(in srgb,var(--mcp-accent) 40%,transparent)}
+.suite-row .ic{flex:none;color:var(--mcp-accent)}
+.suite-row .nm{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;font-weight:550}
+.suite-row .stack{display:inline-flex;flex:none}
+.suite-row .stack i{width:9px;height:9px;border-radius:3px;border:1.5px solid var(--mcp-bg-2);margin-left:-3px}
+.suite-row .stack i:first-child{margin-left:0}
+.suite-row .ct{flex:none;font-size:10.5px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
+.suite-row .del{flex:none;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border:0;border-radius:6px;background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer;opacity:0;transition:opacity .12s,background .12s,color .12s;font-size:10.5px;font-family:inherit}
+.suite-row:hover .del,.suite-row .del.arm{opacity:1}
+.suite-row .del:hover{background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--mcp-err)}
+.suite-row .del.arm{background:var(--mcp-err);color:#fff;width:auto;padding:0 7px;font-weight:600}
+/* 编辑器 */
+.suite-editor{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;padding:12px 14px 14px}
+.suite-editor .fields{display:grid;grid-template-columns:1fr;gap:8px}
+.field label{display:block;margin-bottom:4px;font-size:10.5px;color:var(--dsw-alias-label-tertiary);letter-spacing:.03em}
+.field input{width:100%;height:32px;padding:0 10px;border:1px solid var(--mcp-line);border-radius:var(--mcp-r-sm);background:var(--mcp-bg-1);font:inherit;font-size:12.5px;color:var(--dsw-alias-label-primary);outline:0;transition:border-color .15s,box-shadow .15s}
+.field input:focus{border-color:var(--mcp-accent);box-shadow:0 0 0 3px rgba(77,107,254,.12)}
+.member-zone{flex:1;min-height:0;display:flex;flex-direction:column;border:1.5px dashed var(--mcp-line);border-radius:var(--mcp-r-lg);background:var(--mcp-bg-2);transition:border-color .14s,background .14s;overflow:hidden}
+.member-zone.over{border-color:var(--mcp-accent);background:var(--dsw-alias-interactive-bg-hover-accent)}
+.member-zone .zh{display:flex;align-items:center;gap:7px;padding:8px 11px;font-size:11px;color:var(--dsw-alias-label-tertiary);border-bottom:1px dashed var(--mcp-line)}
+.member-zone .zh b{color:var(--dsw-alias-label-secondary);font-weight:600}
+.member-list{flex:1;min-height:0;overflow-y:auto;padding:7px;display:flex;flex-direction:column;gap:5px;scrollbar-width:thin}
+.member-row{display:flex;align-items:center;gap:8px;padding:7px 9px;border:.5px solid var(--mcp-line);border-radius:var(--mcp-r-md);background:var(--mcp-bg-1);cursor:grab;transition:border-color .12s,box-shadow .12s,opacity .12s}
+.member-row:hover{border-color:var(--dsw-alias-border-l3);box-shadow:var(--dsw-elevation-card)}
+.member-row.dragging{opacity:.4}
+.member-row .grip{color:var(--dsw-alias-label-tertiary);opacity:.6;flex:none}
+.member-row .tile{width:9px;height:9px;border-radius:3px;flex:none}
+.member-row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:550}
+.member-row .cat{flex:none;font-size:10px;color:var(--dsw-alias-label-tertiary)}
+.member-row .idx{flex:none;width:16px;text-align:center;font-size:10px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
+.member-row .rm{flex:none;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border:0;border-radius:6px;background:transparent;color:var(--dsw-alias-label-tertiary);cursor:pointer}
+.member-row .rm:hover{background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--mcp-err)}
+.drop-line{height:2px;border-radius:1px;background:var(--mcp-accent);margin:1px 4px;flex:none}
+.member-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:22px;color:var(--dsw-alias-label-tertiary);font-size:11.5px;text-align:center}
+.member-empty .big{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:14px;background:var(--dsw-alias-interactive-bg-hover-accent);color:var(--mcp-accent)}
+/* 弹窗底栏 */
+.suite-foot{display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid var(--mcp-line);background:var(--mcp-bg-1)}
+.suite-foot .hint{flex:1;min-width:0;font-size:11px;color:var(--dsw-alias-label-tertiary);display:flex;align-items:center;gap:6px}
+.suite-foot .dirty{display:inline-flex;align-items:center;gap:5px;color:var(--mcp-warn);font-size:11px}
+.suite-foot .dirty i{width:6px;height:6px;border-radius:50%;background:var(--mcp-warn)}
+/* toast */
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:300;display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:10px;background:#182338;color:#fff;font-size:12px;box-shadow:var(--dsw-elevation-prominent);animation:toastIn .18s ease-out}
+.toast[hidden]{display:none}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+.toast .ok{color:#7ee2a8}
+/* 页脚说明 */
+.foot-note{max-width:1180px;margin:26px auto 0;padding:14px 16px;border:1px solid var(--mcp-line);border-radius:var(--mcp-r-lg);background:rgba(255,255,255,.7);font-size:11.5px;line-height:1.75;color:var(--mcp-mut)}
+.foot-note b{color:var(--dsw-alias-label-primary)}
+.foot-note code{font-family:var(--mono);font-size:10.5px;background:var(--dsw-alias-interactive-bg-hover);border-radius:4px;padding:1px 4px}
+@media (max-width:900px){.legend{grid-template-columns:1fr}.suite-body{grid-template-columns:1fr}.suite-left{border-right:0;border-bottom:1px solid var(--mcp-line);max-height:260px}}
+</style>
+</head>
+<body>
+<div class="studio">
+  <div class="studio-head">
+    <h1>自定义套件 · 局部高仿真<small>dsh-armory v2.1 · Skill 看板 / 召唤菜单 / 套件管理窗口</small></h1>
+    <div class="meta">数据为演示样本 · 类名与度量对齐 lib/client.js · 令牌对齐宿主 --dsw-* 体系</div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="mark" style="position:static;flex:none">1</span>
+      <div><b>Skill 看板入口按钮</b><p>看板工具条右端次级按钮「套件」，带计数徽标；点击打开套件管理窗口。权重低于主操作，不抢搜索与视图切换。</p><span class="dec">位置：.dsh-mcp-skill-toolbar 右端</span></div>
+    </div>
+    <div class="legend-item"><span class="mark" style="position:static;flex:none">2</span>
+      <div><b>召唤菜单「套件」分组</b><p>技能子菜单顶部独立分组，行样式与单 skill 完全一致（28px 行、同名宽上限、描述省略），仅图标与计数徽标区分。</p><span class="dec">决策：引用 = 展开为多个 /name 插入草稿</span></div>
+    </div>
+    <div class="legend-item"><span class="mark" style="position:static;flex:none">3</span>
+      <div><b>套件管理窗口</b><p>980×640 模态：左=技能库选择器（分类轨道+搜索+可拖卡片），右=套件列表+成员编辑器；拖拽或点 + 添加，成员可拖拽排序。</p><span class="dec">形态：模态（左栏是新建选择器，非看板列表复用）</span></div>
+    </div>
+  </div>
+
+  <!-- ══ 局部 A：Skill 看板 ══ -->
+  <div class="scene-tag">局部 A · Skill 看板（含新增入口 ①）<span class="hint">点「套件」按钮打开管理窗口</span></div>
+  <div class="win">
+    <div class="win-bar"><span>应用</span><span>编辑</span><span class="sp"></span><span class="wc"><span>—</span><span>□</span><span>×</span></span></div>
+    <div class="win-body">
+      <aside class="side">
+        <div class="logo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" stroke="#182338" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5" stroke="#182338" stroke-width="1.4"/></svg>deepseek<span class="tag">HARNESS</span></div>
+        <div class="newchat"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>新会话</div>
+        <div class="item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3l3 3-3 3-3-3 3-3zM6 9l3 3-3 3-3-3 3-3zM18 9l3 3-3 3-3-3 3-3zM12 15l3 3-3 3-3-3 3-3z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>插件</div>
+        <div class="item on"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="8" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/></svg>技能 · MCP · 专家</div>
+        <div class="grp">工作区</div>
+        <div class="ws"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" stroke="currentColor" stroke-width="1.5"/></svg><span class="t">DSH plugins</span><span class="ago">10分钟</span></div>
+        <div class="ws"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" stroke="currentColor" stroke-width="1.5"/></svg><span class="t">FloatPulse</span><span class="ago">2天</span></div>
+      </aside>
+      <div class="main">
+        <div class="tabs">
+          <span class="tab"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M9 3v6l-5 9a2 2 0 002 3h12a2 2 0 002-3l-5-9V3" stroke="currentColor" stroke-width="1.6"/><path d="M8 3h8" stroke="currentColor" stroke-width="1.6"/></svg>MCP<span class="n">2</span></span>
+          <span class="tab on"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>Skill<span class="n">26</span></span>
+          <span class="tab"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.6"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4" stroke="currentColor" stroke-width="1.6"/></svg>专家<span class="n">2</span></span>
+          <span class="tab"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M6 4v6a3 3 0 003 3v7M18 4v6a3 3 0 01-3 3v7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>工具裁缝<span class="n">184</span></span>
+          <span class="tab"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M4 9h16M4 9l3-4h10l3 4M4 9v10a1 1 0 001 1h14a1 1 0 001-1V9" stroke="currentColor" stroke-width="1.5"/></svg>市场</span>
+        </div>
+        <div class="board">
+          <div class="board-head"><h2>Skill</h2><span class="sp"></span></div>
+          <div class="dsh-mcp-skill-toolbar">
+            <label class="dsh-mcp-skill-search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><input placeholder="搜索 skill…" aria-label="搜索 skill"></label>
+            <span class="sp" style="flex:1"></span>
+            <div class="dsh-mcp-skill-seg" role="group" aria-label="视图切换">
+              <button class="dsh-mcp-skill-seg-btn" aria-pressed="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="4" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="4" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="13" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/></svg>网格视图</button>
+              <button class="dsh-mcp-skill-seg-btn" aria-pressed="false"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>列表视图</button>
+            </div>
+            <!-- ① 新增：套件入口 -->
+            <button class="dsh-mcp-btn suite-entry" id="openSuites" title="管理自定义套件：把多个相关 skill 打包，引用一次全部生效">
+              <span class="mark pulse" style="top:-8px;right:-8px">1</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 3l9 5-9 5-9-5 9-5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3.6 12.6L12 17.2l8.4-4.6" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3.6 16.6L12 21.2l8.4-4.6" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+              套件<span class="cnt" id="suiteCountBadge">3</span>
+            </button>
+          </div>
+          <div class="dsh-mcp-skill-rail" id="boardRail" role="tablist" aria-label="按分类过滤 skill"></div>
+          <div class="dsh-mcp-skill-result"><span>显示 12 / 26 个 skill（共 26，已筛选）</span>
+            <span class="dsh-mcp-readonly-note"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="12" r="2.6" stroke="currentColor" stroke-width="1.5"/></svg>这个看板是只读的：要改内容请直接编辑 SKILL.md。</span>
+          </div>
+          <div class="dsh-mcp-skill-filters">
+            <button class="dsh-mcp-chip-s">模型可调用</button>
+            <button class="dsh-mcp-chip-s">用户可调用</button>
+            <button class="dsh-mcp-chip-s on">用户级 <span class="dsh-mcp-chip-s-count">9</span></button>
+            <button class="dsh-mcp-chip-s">项目级 <span class="dsh-mcp-chip-s-count">3</span></button>
+          </div>
+          <div class="dsh-mcp-skill-canvas" id="boardCanvas"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 局部 B：会话输入框 + 召唤菜单 ══ -->
+  <div class="scene-tag">局部 B · 会话输入框与引用菜单（含新增 ②）<span class="hint">悬停「技能」展开子菜单；点套件行 = 展开多个 /name 写入草稿</span></div>
+  <div class="win">
+    <div class="win-bar"><span>会话 · dsh-armory 套件设计</span><span class="sp"></span><span class="wc"><span>—</span><span>□</span><span>×</span></span></div>
+    <div class="session">
+      <div class="msg user">帮我把套件功能的 UI 高仿真做出来，风格跟现有看板一致。</div>
+      <div class="msg ai">好的。我先对齐了看板的分类轨道、召唤菜单的 28px 行高与 --dsw-* 令牌，下面是三处局部…</div>
+      <div class="composer" id="composer">
+        <textarea id="draft" placeholder="输入消息，/ 调用技能，@ 引用文件…"></textarea>
+        <div class="composer-row">
+          <button class="icon-btn" title="添加附件"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+          <button class="icon-btn" title="语音"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.6"/><path d="M5 11a7 7 0 0014 0M12 18v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+          <span class="dsh-mcp-quick-chip" hidden id="expertChip"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.8"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4" stroke="currentColor" stroke-width="1.8"/></svg><span class="dsh-mcp-quick-chip-name">dev-expert</span></span>
+          <span class="sp"></span>
+          <!-- ② 召唤菜单 trigger -->
+          <span style="position:relative;display:inline-flex">
+            <span class="mark pulse" style="top:-7px;right:-7px">2</span>
+            <button class="dsh-mcp-quick-trigger sel" id="quickTrigger" aria-haspopup="menu" aria-expanded="true" title="引用技能 / MCP / 专家">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+            </button>
+          </span>
+          <button class="send-btn">发送<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M4 12l16-8-6 8 6 8-16-8z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button>
+        </div>
+        <!-- 主菜单 + 技能子菜单（默认展开，便于评审） -->
+        <div class="dsh-mcp-quick-menu" id="quickMenu" role="menu" style="left:auto;right:44px">
+          <div class="dsh-mcp-quick-row" id="rowSkill">
+            <button class="dsh-mcp-quick-kind sel" role="menuitem"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>技能<span class="dsh-mcp-quick-count" id="menuSkillCount">12</span><span class="dsh-mcp-quick-arrow">▸</span></button>
+            <div class="dsh-mcp-quick-sub" id="skillSub" role="menu">
+              <div class="dsh-mcp-quick-list" id="skillSubList"></div>
+              <button class="dsh-mcp-quick-manage" id="manageFromMenu"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M12 3l9 5-9 5-9-5 9-5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3.6 12.6L12 17.2l8.4-4.6" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>管理套件…</button>
+            </div>
+          </div>
+          <div class="dsh-mcp-quick-row"><button class="dsh-mcp-quick-kind" role="menuitem"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 3v6l-5 9a2 2 0 002 3h12a2 2 0 002-3l-5-9V3" stroke="currentColor" stroke-width="1.5"/><path d="M8 3h8" stroke="currentColor" stroke-width="1.5"/></svg>MCP<span class="dsh-mcp-quick-count">2</span><span class="dsh-mcp-quick-arrow">▸</span></button></div>
+          <div class="dsh-mcp-quick-row"><button class="dsh-mcp-quick-kind" role="menuitem"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.5"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4" stroke="currentColor" stroke-width="1.5"/></svg>专家<span class="dsh-mcp-quick-count">2</span><span class="dsh-mcp-quick-arrow">▸</span></button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-tag">局部 C · 套件管理窗口 ③<span class="hint">点局部 A 的「套件」按钮打开；此处也可直接打开</span></div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <button class="dsh-mcp-btn" id="openSuites2"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 3l9 5-9 5-9-5 9-5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3.6 12.6L12 17.2l8.4-4.6" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3.6 16.6L12 21.2l8.4-4.6" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>打开套件管理窗口</button>
+    <span style="font-size:11.5px;color:var(--dsw-alias-label-tertiary)">模态 · Esc / 点外部关闭 · 未保存修改在关闭时放弃并提示</span>
+  </div>
+</div>
+
+<!-- ══ ③ 套件管理弹窗 ══ -->
+<div class="dsh-mcp-overlay" id="suiteOverlay" hidden>
+  <div class="dsh-mcp-modal suites" role="dialog" aria-modal="true" aria-label="套件管理" id="suiteModal">
+    <header>
+      <div style="min-width:0">
+        <h3>套件管理</h3>
+        <p class="sub">把多个相关 skill 打包成套件；在输入框引用菜单里点一次套件，等于同时引用全部成员。</p>
+      </div>
+      <button class="icon-btn x" id="suiteClose" title="关闭" aria-label="关闭"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+    </header>
+    <div class="suite-body">
+      <!-- 左：技能库选择器 -->
+      <div class="suite-left">
+        <label class="dsh-mcp-skill-search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><input id="pickQuery" placeholder="搜索 skill…" aria-label="搜索 skill"></label>
+        <div class="dsh-mcp-skill-rail" id="pickRail" role="tablist" aria-label="按分类过滤 skill"></div>
+        <div class="suite-pick-list" id="pickList"></div>
+      </div>
+      <!-- 右：套件列表 + 编辑器 -->
+      <div class="suite-right">
+        <div class="suite-list-bar">
+          <span class="t">我的套件</span><span class="sp"></span>
+          <button class="dsh-mcp-btn" id="newSuite" style="padding:4px 10px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>新建套件</button>
+        </div>
+        <div class="suite-list" id="suiteList"></div>
+        <div class="suite-editor" id="suiteEditor"></div>
+      </div>
+    </div>
+    <div class="suite-foot">
+      <span class="hint"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M7 5l5 5-5 5M13 15h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>拖拽左侧卡片到右侧成员区添加；成员可上下拖拽排序，点 + / × 为无拖拽替代路径。</span>
+      <span class="dirty" id="dirtyFlag" hidden><i></i>未保存</span>
+      <button class="dsh-mcp-btn" id="suiteCancel">取消</button>
+      <button class="dsh-mcp-btn primary" id="suiteSave">保存套件</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<div class="foot-note">
+  <b>设计说明</b> ·
+  ① 入口按钮为次级 <code>.dsh-mcp-btn</code> + 计数徽标，放在 <code>.dsh-mcp-skill-toolbar</code> 右端（搜索与视图切换之后），不与页面级主操作争权重；徽标在 hover 时反白提示可点。
+  ② 套件行与单 skill 行共用 <code>.dsh-mcp-quick-item</code> 度量（28px 行高、name 最大宽 + 省略、desc 11px 省略），差异仅三处：层叠图标取 accent 色、计数徽标显示成员数、分组头「套件」弱化为 10.5px 小标题；点击套件 = 依次插入成员 <code>/name</code>（宿主 skill lexicon 原生语义，零宿主改动），插入后菜单关闭、草稿可见反馈。
+  ③ 弹窗左栏是<b>新建的选择器组件</b>（紧凑卡片 + 拖拽源 + 复用同一条 <code>SKILL_CATS</code> 分类轨道与 <code>listSkills</code> 数据源），看板列表本体不进弹窗、不被复用第二遍；编辑走「工作副本 → 保存提交 / 取消放弃」语义，底栏常驻未保存标记；成员区空态给出拖拽示意，drop 时整区高亮 + 2px 插入指示线。
+  令牌映射（本稿近似 → 宿主）：<code>--mcp-accent #4d6bfe</code>、<code>--mcp-line #e2e8f1</code>、<code>bg-layer-2 #f6f8fc</code>、圆角 sm 8 / lg 12 / panel 16、阴影 <code>--dsw-elevation-prominent</code>。分类色与 <code>SKILL_CATS</code> 一致（dev #4d6bfe / design #60a5fa / office #22c55e / auto #f59e0b / ops #6b7f9e）。
+</div>
+
+<script>
+/* ═════════ 演示数据（样本，非真实注册表） ═════════ */
+const CATS = [
+  { key:'all',    name:'全部',       color:'var(--mcp-cat-all)' },
+  { key:'dev',    name:'编程开发',   color:'var(--mcp-cat-dev)' },
+  { key:'design', name:'设计与创作', color:'var(--mcp-cat-design)' },
+  { key:'office', name:'文档办公',   color:'var(--mcp-cat-office)' },
+  { key:'auto',   name:'效率与自动化', color:'var(--mcp-cat-auto)' },
+  { key:'ops',    name:'开发运维',   color:'var(--mcp-cat-ops)' },
+  { key:'uncat',  name:'未分类',     color:'var(--mcp-cat-uncat)' },
+];
+const catOf = (k) => CATS.find(c => c.key === k) || CATS[6];
+const SKILLS = [
+  { name:'dev-expert', cat:'dev', src:'用户级 ~/.dsh/skills', desc:'P8 级编程助手：全栈实现、根因调试、代码审查、重构与测试用例。' },
+  { name:'mnemosyne-os-memory', cat:'dev', src:'用户级', desc:'零依赖本地优先 AI 记忆引擎：CLI、HTTP API、MCP 服务器与 Web 管理界面。' },
+  { name:'github-publish-via-api', cat:'dev', src:'用户级', desc:'github.com 不可达时改走 Git Data / Contents API 发布提交与 Release。' },
+  { name:'ui-design-system', cat:'design', src:'用户级', desc:'大厂级高级简约 UI 生成与审查：Material 3 / Apple HIG / Pinterest 审美。' },
+  { name:'design-app-ui-prototype', cat:'design', src:'用户级', desc:'从产品视角拆解需求并产出 375×812 移动端高保真 HTML 原型。' },
+  { name:'remotion-best-practices', cat:'design', src:'用户级', desc:'Remotion 视频工程路由：创建、字幕、渲染、升级全套技能索引。' },
+  { name:'Presentations:pptx', cat:'office', src:'插件市场', desc:'创建、读取、检查与编辑 PPTX 演示文稿，支持可编辑 .pptx 产出。' },
+  { name:'wecom-unified', cat:'office', src:'插件市场', desc:'企业微信全能套件：文档、在线表格、日程、会议、待办、微盘、邮件。' },
+  { name:'tabbit:tabbit', cat:'auto', src:'插件市场', desc:'通过 Tabbit CLI 与浏览器自有 Playwright 运行时做导航、检查与截图。' },
+  { name:'demo-video-production', cat:'auto', src:'用户级', desc:'edge-tts 配音 + Playwright 分幕录屏 + ffmpeg 合成带旁白演示视频。' },
+  { name:'prompt-optimizer-zh', cat:'auto', src:'用户级', desc:'基于 EARS 方法论把模糊需求转成精确结构化提示词。' },
+  { name:'ci-compile-guard', cat:'ops', src:'用户级', desc:'本机无编译器时靠远端 CI 真编译验证的作战手册与静态检查盲区清单。' },
+];
+const skillOf = (n) => SKILLS.find(s => s.name === n);
+let SUITES = [
+  { id:'s1', name:'演示视频流水线', desc:'从分幕文稿到成片的一条龙', members:['demo-video-production','remotion-best-practices','prompt-optimizer-zh'] },
+  { id:'s2', name:'前端设计三件套', desc:'界面设计 → 原型 → 设计系统审查', members:['ui-design-system','design-app-ui-prototype','tabbit:tabbit'] },
+  { id:'s3', name:'GitHub 发布链', desc:'断网环境发布与 CI 兜底', members:['github-publish-via-api','ci-compile-guard'] },
+];
+const RECENT = new Set(['ui-design-system','dev-expert']);
+
+/* ═════════ 小工具 ═════════ */
+const $ = (s) => document.querySelector(s);
+const el = (tag, cls, html) => { const n = document.createElement(tag); if (cls) n.className = cls; if (html !== undefined) n.innerHTML = html; return n; };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ICON = {
+  layers:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 3l9 5-9 5-9-5 9-5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3.6 12.6L12 17.2l8.4-4.6" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M3.6 16.6L12 21.2l8.4-4.6" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+  skill:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+  grip:'<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
+  plus:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  x:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+};
+let toastTimer = null;
+function toast(msg, ok = true) {
+  const t = $('#toast');
+  t.innerHTML = (ok ? '<span class="ok">✓</span>' : '<span style="color:#ffb4b4">!</span>') + esc(msg);
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
+}
+
+/* ═════════ 局部 A：看板分类轨道 + 卡片网格 ═════════ */
+let boardCat = 'all';
+function renderBoardRail() {
+  const rail = $('#boardRail');
+  rail.innerHTML = '';
+  for (const c of CATS) {
+    const n = c.key === 'all' ? SKILLS.length : SKILLS.filter(s => s.cat === c.key).length;
+    const b = el('button', 'dsh-mcp-skill-cat' + (boardCat === c.key ? ' on' : ''));
+    b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', boardCat === c.key);
+    b.innerHTML = '<span class="dsh-mcp-skill-cat-dot" style="background:' + c.color + '"></span>' + esc(c.name) + '<span class="dsh-mcp-skill-cat-count">' + n + '</span>';
+    b.onclick = () => { boardCat = c.key; renderBoardRail(); renderBoardCanvas(); };
+    rail.appendChild(b);
+  }
+}
+function renderBoardCanvas() {
+  const cv = $('#boardCanvas');
+  cv.innerHTML = '';
+  const rows = SKILLS.filter(s => boardCat === 'all' || s.cat === boardCat);
+  const groups = boardCat === 'all' ? CATS.slice(1).map(c => c.key).filter(k => rows.some(s => s.cat === k)) : [boardCat];
+  for (const g of groups) {
+    const c = catOf(g);
+    const inGroup = rows.filter(s => s.cat === g);
+    cv.appendChild(el('div', 'cluster-head', '<span class="tile" style="background:' + c.color + '"></span>' + esc(c.name) + '<span class="n">' + inGroup.length + '</span>'));
+    const grid = el('div', 'card-grid');
+    for (const s of inGroup) {
+      const card = el('button', 'dsh-mcp-skill-card');
+      card.type = 'button';
+      card.innerHTML = '<span class="dsh-mcp-skill-card-inner">'
+        + '<span class="dsh-mcp-skill-card-top"><span class="dsh-mcp-skill-cat-tile" style="background:' + c.color + '"></span><span class="dsh-mcp-skill-card-name">' + esc(s.name) + '</span></span>'
+        + '<span class="dsh-mcp-skill-card-desc">' + esc(s.desc) + '</span>'
+        + '<span class="dsh-mcp-skill-card-foot"><span class="dsh-mcp-skill-src">' + esc(s.src) + '</span><span class="dsh-mcp-chip-s">模型可调用</span></span>'
+        + '</span>';
+      grid.appendChild(card);
+    }
+    cv.appendChild(grid);
+  }
+}
+
+/* ═════════ 局部 B：召唤菜单技能子菜单（套件分组置顶） ═════════ */
+function renderSkillSub() {
+  const list = $('#skillSubList');
+  list.innerHTML = '';
+  if (SUITES.length) {
+    list.appendChild(el('div', 'dsh-mcp-quick-group', ICON.layers.replace('width="13"', 'width="11"').replace('height="13"', 'height="11"') + '套件'));
+    for (const s of SUITES) {
+      const b = el('button', 'dsh-mcp-quick-item suite');
+      b.setAttribute('role', 'menuitem');
+      b.title = '引用套件：展开为 ' + s.members.length + ' 个 /name';
+      b.innerHTML = '<span class="ic">' + ICON.layers + '</span><span class="dsh-mcp-quick-item-name">' + esc(s.name) + '</span><span class="dsh-mcp-quick-item-badge">' + s.members.length + ' 技能</span><span class="dsh-mcp-quick-item-desc">' + esc(s.desc) + '</span>';
+      b.onclick = () => pickSuite(s);
+      list.appendChild(b);
+    }
+    list.appendChild(el('div', 'dsh-mcp-quick-sep'));
+  }
+  for (const s of SKILLS) {
+    const b = el('button', 'dsh-mcp-quick-item');
+    b.setAttribute('role', 'menuitem');
+    b.innerHTML = '<span class="ic">' + ICON.skill + '</span><span class="dsh-mcp-quick-item-name">' + esc(s.name) + '</span>'
+      + (RECENT.has(s.name) ? '<span class="dsh-mcp-quick-item-badge recent">最近</span>' : '')
+      + '<span class="dsh-mcp-quick-item-desc">' + esc(s.desc.slice(0, 26)) + '</span>';
+    b.onclick = () => insertRef('/' + s.name + ' ', '已引用技能 ' + s.name);
+    list.appendChild(b);
+  }
+}
+function insertRef(text, msg) {
+  const d = $('#draft');
+  const cur = d.value;
+  const needsSpace = cur !== '' && !/\s$/.test(cur);
+  d.value = cur + (needsSpace ? ' ' : '') + text;
+  d.focus();
+  d.scrollTop = d.scrollHeight;
+  // 与真实 pick() 一致：选用即关菜单，反馈落在草稿与 toast 上。
+  $('#quickMenu').hidden = true;
+  $('#quickTrigger').classList.remove('sel');
+  $('#quickTrigger').setAttribute('aria-expanded', 'false');
+  toast(msg);
+}
+function pickSuite(s) {
+  const text = s.members.map(m => '/' + m).join(' ') + ' ';
+  insertRef(text, '已引用套件「' + s.name + '」：展开 ' + s.members.length + ' 个技能');
+}
+$('#quickTrigger').onclick = (e) => {
+  e.stopPropagation();
+  const m = $('#quickMenu');
+  m.hidden = !m.hidden;
+  $('#quickTrigger').classList.toggle('sel', !m.hidden);
+  $('#quickTrigger').setAttribute('aria-expanded', String(!m.hidden));
+};
+$('#manageFromMenu').onclick = () => { $('#quickMenu').hidden = true; openSuites(); };
+document.addEventListener('click', (e) => {
+  const m = $('#quickMenu');
+  if (!m.hidden && !$('#composer').contains(e.target)) { m.hidden = true; $('#quickTrigger').classList.remove('sel'); }
+});
+
+/* ═════════ ③ 套件管理弹窗 ═════════ */
+let draft = null;          // 工作副本
+let selId = null;          // 选中的套件 id
+let pickCat = 'all';
+let pickQuery = '';
+let dirty = false;
+const clone = (v) => JSON.parse(JSON.stringify(v));
+
+function openSuites() {
+  draft = clone(SUITES);
+  selId = draft.length ? draft[0].id : null;
+  dirty = false;
+  pickCat = 'all'; pickQuery = '';
+  $('#pickQuery').value = '';
+  $('#suiteOverlay').hidden = false;
+  renderPickRail(); renderPickList(); renderSuiteList(); renderEditor(); syncDirty();
+  setTimeout(() => $('#suiteModal').querySelector('header .x').focus(), 30);
+}
+function closeSuites(commit) {
+  if (!commit && dirty) toast('已放弃未保存的修改', false);
+  if (commit) { SUITES = draft; syncSuiteRefs(); toast('套件已保存（' + SUITES.length + ' 个）'); }
+  $('#suiteOverlay').hidden = true;
+  dirty = false;
+}
+function syncSuiteRefs() {
+  $('#suiteCountBadge').textContent = SUITES.length;
+  $('#menuSkillCount').textContent = SKILLS.length;
+  renderSkillSub();
+}
+function syncDirty() { $('#dirtyFlag').hidden = !dirty; }
+const markDirty = () => { dirty = true; syncDirty(); };
+const curSuite = () => draft.find(s => s.id === selId) || null;
+
+/* 左栏：分类轨道 + 选择器卡片 */
+function renderPickRail() {
+  const rail = $('#pickRail');
+  rail.innerHTML = '';
+  for (const c of CATS) {
+    const n = c.key === 'all' ? SKILLS.length : SKILLS.filter(s => s.cat === c.key).length;
+    const b = el('button', 'dsh-mcp-skill-cat' + (pickCat === c.key ? ' on' : ''));
+    b.innerHTML = '<span class="dsh-mcp-skill-cat-dot" style="background:' + c.color + '"></span>' + esc(c.name) + '<span class="dsh-mcp-skill-cat-count">' + n + '</span>';
+    b.onclick = () => { pickCat = c.key; renderPickRail(); renderPickList(); };
+    rail.appendChild(b);
+  }
+}
+function renderPickList() {
+  const list = $('#pickList');
+  list.innerHTML = '';
+  const q = pickQuery.trim().toLowerCase();
+  const rows = SKILLS.filter(s => (pickCat === 'all' || s.cat === pickCat) && (!q || (s.name + ' ' + s.desc).toLowerCase().includes(q)));
+  if (!rows.length) { list.appendChild(el('div', 'member-empty', '没有符合筛选的 skill')); return; }
+  const members = curSuite() ? curSuite().members : [];
+  for (const s of rows) {
+    const inSuite = members.includes(s.name);
+    const c = catOf(s.cat);
+    const card = el('div', 'pick-card' + (inSuite ? ' in-suite' : ''));
+    card.draggable = true;
+    card.dataset.skill = s.name;
+    card.title = inSuite ? '已在当前套件中（拖拽可再次排序无意义，点 + 无效果）' : '拖到右侧成员区，或点 + 添加';
+    card.innerHTML = '<span class="tile" style="background:' + c.color + '"></span>'
+      + '<span class="body"><span class="nm">' + esc(s.name) + '<span class="cat">' + esc(c.name) + '</span></span><span class="ds">' + esc(s.desc) + '</span></span>'
+      + '<span class="grip">' + ICON.grip + '</span>'
+      + '<button class="add" title="' + (inSuite ? '已在套件中' : '添加到当前套件') + '" aria-label="添加到当前套件">' + (inSuite ? '✓' : ICON.plus) + '</button>';
+    card.querySelector('.add').onclick = (e) => { e.stopPropagation(); addMember(s.name); };
+    card.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', JSON.stringify({ kind:'skill', name:s.name }));
+      e.dataTransfer.effectAllowed = 'copy';
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', () => card.classList.remove('dragging'));
+    list.appendChild(card);
+  }
+}
+$('#pickQuery').addEventListener('input', (e) => { pickQuery = e.target.value; renderPickList(); });
+
+/* 无拖拽替代路径：点卡片上的 + 追加到当前套件成员尾部 */
+function addMember(name) {
+  const s = curSuite();
+  if (!s) { toast('先选择或新建一个套件', false); return; }
+  if (s.members.includes(name)) { toast('「' + name + '」已在当前套件中', false); return; }
+  s.members.push(name);
+  markDirty();
+  renderEditor(); renderPickList(); renderSuiteList();
+  toast('已加入「' + name + '」');
+}
+
+/* 右栏：套件列表 */
+function renderSuiteList() {
+  const box = $('#suiteList');
+  box.innerHTML = '';
+  if (!draft.length) { box.appendChild(el('div', 'member-empty', '还没有套件，点右上「新建套件」开始')); return; }
+  for (const s of draft) {
+    const row = el('button', 'suite-row' + (s.id === selId ? ' on' : ''));
+    row.type = 'button';
+    const stack = s.members.slice(0, 4).map(m => '<i style="background:' + catOf(skillOf(m) ? skillOf(m).cat : 'uncat').color + '"></i>').join('');
+    row.innerHTML = '<span class="ic">' + ICON.layers + '</span><span class="nm">' + esc(s.name || '未命名套件') + '</span>'
+      + '<span class="stack">' + stack + '</span><span class="ct">' + s.members.length + '</span>'
+      + '<span class="del" role="button" title="删除套件">删除</span>';
+    row.onclick = () => { selId = s.id; renderSuiteList(); renderEditor(); renderPickList(); };
+    const del = row.querySelector('.del');
+    del.onclick = (e) => {
+      e.stopPropagation();
+      if (!del.classList.contains('arm')) { del.classList.add('arm'); del.textContent = '确认?'; setTimeout(() => { del.classList.remove('arm'); del.textContent = '删除'; }, 2600); return; }
+      draft = draft.filter(x => x.id !== s.id);
+      if (selId === s.id) selId = draft.length ? draft[0].id : null;
+      markDirty(); renderSuiteList(); renderEditor(); renderPickList();
+      toast('已删除套件（保存后生效）', false);
+    };
+    box.appendChild(row);
+  }
+}
+$('#newSuite').onclick = () => {
+  const id = 'n' + Date.now();
+  draft.push({ id, name:'', desc:'', members:[] });
+  selId = id; markDirty();
+  renderSuiteList(); renderEditor(); renderPickList();
+  const inp = $('#suiteEditor').querySelector('input');
+  if (inp) inp.focus();
+};
+
+/* 右栏：编辑器（名称/描述 + 成员区） */
+function renderEditor() {
+  const box = $('#suiteEditor');
+  box.innerHTML = '';
+  const s = curSuite();
+  if (!s) {
+    box.appendChild(el('div', 'member-empty', '<span class="big">' + ICON.layers.replace('width="13"','width="20"').replace('height="13"','height="20"') + '</span>选择左侧一个套件，或点「新建套件」<br>套件 = 一组相关 skill 的引用打包'));
+    return;
+  }
+  const fields = el('div', 'fields');
+  fields.innerHTML = '<div class="field"><label>套件名称</label><input id="fName" placeholder="例如：演示视频流水线" value="' + esc(s.name) + '"></div>'
+    + '<div class="field"><label>说明（可选，显示在引用菜单条目右侧）</label><input id="fDesc" placeholder="一句话说明这套技能干什么" value="' + esc(s.desc) + '"></div>';
+  fields.querySelector('#fName').oninput = (e) => { s.name = e.target.value; markDirty(); renderSuiteList(); };
+  fields.querySelector('#fDesc').oninput = (e) => { s.desc = e.target.value; markDirty(); };
+  box.appendChild(fields);
+
+  const zone = el('div', 'member-zone');
+  zone.innerHTML = '<div class="zh">' + ICON.layers.replace('width="13"','width="12"').replace('height="13"','height="12"') + '<b>成员技能</b><span>' + s.members.length + ' 个 · 拖拽排序</span></div>';
+  const list = el('div', 'member-list');
+  zone.appendChild(list);
+  box.appendChild(zone);
+
+  const paint = () => {
+    list.innerHTML = '';
+    if (!s.members.length) {
+      list.appendChild(el('div', 'member-empty', '<span class="big"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M7 5l5 5-5 5M13 15h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>把左侧卡片拖到这里<br>或悬停卡片点 +'));
+      return;
+    }
+    s.members.forEach((name, i) => {
+      const sk = skillOf(name);
+      const c = catOf(sk ? sk.cat : 'uncat');
+      const row = el('div', 'member-row');
+      row.draggable = true;
+      row.dataset.index = i;
+      row.innerHTML = '<span class="idx">' + (i + 1) + '</span><span class="grip">' + ICON.grip + '</span><span class="tile" style="background:' + c.color + '"></span><span class="nm">' + esc(name) + '</span><span class="cat">' + esc(c.name) + '</span><button class="rm" title="移除" aria-label="移除 ' + esc(name) + '">' + ICON.x + '</button>';
+      row.querySelector('.rm').onclick = () => { s.members.splice(i, 1); markDirty(); paint(); renderPickList(); renderSuiteList(); };
+      row.addEventListener('dragstart', (e) => { e.dataTransfer.setData('text/plain', JSON.stringify({ kind:'member', index:i })); e.dataTransfer.effectAllowed = 'move'; row.classList.add('dragging'); });
+      row.addEventListener('dragend', () => { row.classList.remove('dragging'); clearLine(); });
+      row.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const r = row.getBoundingClientRect();
+        const before = e.clientY < r.top + r.height / 2;
+        showLine(list, row, before);
+      });
+      list.appendChild(row);
+    });
+  };
+  paint();
+
+  /* drop 逻辑：技能追加/插入，成员排序 */
+  let line = null;
+  function clearLine() { if (line) { line.remove(); line = null; } zone.classList.remove('over'); }
+  function showLine(parent, refRow, before) {
+    clearLine();
+    line = el('div', 'drop-line');
+    parent.insertBefore(line, before ? refRow : refRow.nextSibling);
+    zone.classList.add('over');
+  }
+  zone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    zone.classList.add('over');
+    if (!line && !list.querySelector('.member-row')) { /* 空态：整区高亮即可 */ }
+  });
+  zone.addEventListener('dragleave', (e) => { if (!zone.contains(e.relatedTarget)) clearLine(); });
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    let payload = null;
+    try { payload = JSON.parse(e.dataTransfer.getData('text/plain')); } catch { payload = null; }
+    const refRow = line ? (line.nextElementSibling && line.nextElementSibling.classList.contains('member-row') ? line.nextElementSibling : null) : null;
+    const atEnd = line ? !refRow : true;
+    const targetIndex = refRow ? Number(refRow.dataset.index) : s.members.length;
+    clearLine();
+    if (!payload) return;
+    if (payload.kind === 'skill') {
+      if (s.members.includes(payload.name)) { toast('「' + payload.name + '」已在套件中', false); return; }
+      s.members.splice(atEnd ? s.members.length : targetIndex, 0, payload.name);
+      markDirty(); paint(); renderPickList(); renderSuiteList();
+      toast('已加入「' + payload.name + '」');
+    } else if (payload.kind === 'member') {
+      const from = payload.index;
+      let to = targetIndex;
+      const moved = s.members.splice(from, 1)[0];
+      if (from < to) to -= 1;
+      s.members.splice(to, 0, moved);
+      markDirty(); paint();
+    }
+  });
+}
+
+/* 底栏 */
+$('#suiteSave').onclick = () => {
+  const bad = draft.find(s => !String(s.name).trim());
+  if (bad) { selId = bad.id; renderSuiteList(); renderEditor(); toast('有套件还没起名', false); const i = $('#suiteEditor').querySelector('input'); if (i) i.focus(); return; }
+  const empty = draft.find(s => !s.members.length);
+  if (empty) { selId = empty.id; renderSuiteList(); renderEditor(); toast('套件「' + empty.name + '」还没有成员', false); return; }
+  closeSuites(true);
+};
+$('#suiteCancel').onclick = () => closeSuites(false);
+$('#suiteClose').onclick = () => closeSuites(false);
+$('#suiteOverlay').addEventListener('mousedown', (e) => { if (e.target === $('#suiteOverlay')) closeSuites(false); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#suiteOverlay').hidden) closeSuites(false); });
+$('#openSuites').onclick = openSuites;
+$('#openSuites2').onclick = openSuites;
+
+/* 初始化 */
+renderBoardRail(); renderBoardCanvas(); renderSkillSub(); syncSuiteRefs();
+</script>
+</body>
+</html>
