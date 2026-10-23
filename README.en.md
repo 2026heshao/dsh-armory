@@ -9,6 +9,7 @@
 > **New in v2.0.0**: a Plugins page with three sources, one-click MCP OAuth authorization, credential prompts before install, an install-state ledger, and six categories for the skill board. See the [changelog](.github/release-notes/v2.0.0.md).
 > **New in v2.1.0**: community plugins now render their README in place (fetched on demand, cached to disk for 7 days, `javascript:` pseudo-links downgraded to plain text), and two long-standing traps are fixed — the instant-open snapshot no longer shadows the real list, and update probing no longer reports failures on machines where the primary source is unreachable. See the [changelog](.github/release-notes/v2.1.0.md).
 > **New in v2.2.0**: bundle skills into custom suites and expand the whole set as `/name` tokens from the composer menu; uninstall installed skills from the board (with source/path guards) and watch counts refresh live after market installs; the Tool Tailor gains a sampled "wire tax" trend so you can tell whether a registry change actually took effect; SkillHub's downloads sort falls back to in-page sorting because the upstream hangs. See the [changelog](.github/release-notes/v2.2.0.md).
+> **New in v2.2.1**: the panel now follows DSH's own language setting (Settings -> General -> Language). Switching the host to English updates the sidebar, tabs, toolbar, dialogs and update notices immediately - no restart, and no dependency on the OS locale; release notes and the built-in MCP catalog are translated as well, and non-Chinese locales fall back to English. See the [changelog](.github/release-notes/v2.2.1.md).
 
 <p align="center">
   <a href="https://github.com/2026heshao/dsh-armory/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-armory?style=social" alt="stars"></a>
@@ -222,6 +223,16 @@ No. Global edits only rewrite the entries declared by `@deepseek-ai/dsh-mcp-clie
 
 **Does uninstalling remove my configured MCPs?**
 No. Uninstalling the plugin leaves existing `@deepseek-ai/dsh-mcp-client` rows in the profile untouched.
+
+## Interface language
+
+The plugin ships Chinese (source language) and English:
+
+- **Precedence**: `localStorage['dsh-armory.locale']` (explicit override) -> DSH Settings -> General language -> `navigator.language` -> `zh-CN`.
+- **Fallback**: `zh*` renders Chinese, `en*` renders English. Other languages (`ja`, `de`, `fr`, ...) have no translation yet and fall back to English instead of showing Chinese to users who cannot read it.
+- **Covered**: panel UI, buttons / dialogs / empty states, the post-upgrade "What changed" body and where-to-find hints, and the built-in MCP catalog summaries / access notes / auth notes / category labels.
+- **Not translated**: third-party content such as connectors, skills, experts, and community READMEs stays in the publisher's original language.
+- **Force English**: run `localStorage['dsh-armory.locale'] = 'en-US'` in DevTools and reload; delete the key to follow the DSH language again. The host language is honored even on a Chinese OS (the panel no longer depends on the browser locale).
 
 ## Compatibility
 

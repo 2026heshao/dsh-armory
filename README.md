@@ -9,6 +9,7 @@
 > **v2.0.0 起**：新增「插件」页（三个来源）、MCP OAuth 一键授权、安装凭据引导、安装状态账本、技能看板六大分类。详见 [更新日志](.github/release-notes/v2.0.0.md)。
 > **v2.1.0 起**：社区插件点开即可就地读 README（按需拉取 + 7 天落盘缓存 + `javascript:` 伪协议链接降级），并修掉「秒开快照顶掉真实目录」「更新探测误报失败」两处。详见 [更新日志](.github/release-notes/v2.1.0.md)。
 > **v2.2.0 起**：技能可以打包成「自定义套件」，召唤菜单点一次即展开为整组 `/name`；Skill 看板支持卸载已安装技能，市场装 / 卸后角标与列表实时刷新；工具裁缝新增按天采样的「真实下发税」趋势，能直接看出改注册表有没有生效；SkillHub 下载量排序改为页内本地排序，修掉上游挂起导致的空白。详见 [更新日志](.github/release-notes/v2.2.0.md)。
+> **v2.2.1 起**：面板语言真正跟随 DSH「设置 → 通用 → 语言」——宿主切 English 后侧栏、分类、工具栏、弹窗与更新提示即时变英文，无需重启，也不再依赖系统语言；更新说明与内置 MCP 目录同步提供英文，非中文语言统一回落英文。详见 [更新日志](.github/release-notes/v2.2.1.md)。
 
 <p align="center">
   <a href="https://github.com/2026heshao/dsh-armory/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-armory?style=social" alt="stars"></a>
@@ -238,6 +239,16 @@ dsh plugin --profile web remove dsh-armory
 **卸载后我配置的 MCP 会消失吗？**
 卸载插件不会删除 profile 里已有的 `@deepseek-ai/dsh-mcp-client` 条目；项目的 `.dsh/mcp.json` 也留在原处（它本来就是普通 JSON 文件）。
 
+## 界面语言
+
+插件提供中文（源语言）与英文两种界面：
+
+- **优先级**：`localStorage['dsh-armory.locale']`（显式覆盖）→ DSH「设置 → 通用」里的语言 → 浏览器 `navigator.language` → `zh-CN`。
+- **回落规则**：`zh*` 显示中文，`en*` 显示英文；其他语言（`ja` / `de` / `fr` 等）目前没有译文，统一回落英文，而不是把中文丢给看不懂的用户。
+- **覆盖范围**：面板 UI、按钮 / 对话框 / 空状态、升级后的「本次更新」正文与功能指路，以及内置 MCP 目录的摘要 / 接入说明 / 认证说明 / 分类标签。
+- **不翻译**：连接器、技能、专家、社区 README 等第三方内容保持发布方原文。
+- **强制英文**：在 DevTools 执行 `localStorage['dsh-armory.locale'] = 'en-US'` 后刷新；删除该键即重新跟随 DSH 语言。宿主设置的英文在中文系统上同样生效（不再依赖浏览器语言）。
+
 ## 兼容性
 
 | 项目 | 已验证 |
@@ -252,20 +263,20 @@ dsh plugin --profile web remove dsh-armory
 
 ```sh
 npm install --no-save yaml@2 eslint@9   # 测试与风格检查的唯一裸依赖（运行依赖全部由宿主提供）
-npm test                                # 全 40 套件（与 CI / 发版门槛同一条）
+npm test                                # 全 42 套件（与 CI / 发版门槛同一条）
 npm run lint                            # ESLint：no-undef / no-unused-vars / no-empty 等
 npm run test:e2e                        # 可选：用宿主补丁算法验证专家预设进入组合树
 dsh --profile web --dump-config         # 看 profile 的有效配置
 dsh web                                 # 起 Web 做真实操作验证
 ```
 
-`npm test` 跑的是 `test/run-all.mjs`，依次执行 **40** 个独立套件（各自是独立 node 进程，任一非零退出即整体失败）。套件是显式白名单而非 `node --test` 自动发现——`test/` 下还有带副作用的迁移脚本与需要宿主模块的端到端脚本，自动发现会误跑。
+`npm test` 跑的是 `test/run-all.mjs`，依次执行 **42** 个独立套件（各自是独立 node 进程，任一非零退出即整体失败）。套件是显式白名单而非 `node --test` 自动发现——`test/` 下还有带副作用的迁移脚本与需要宿主模块的端到端脚本，自动发现会误跑。
 
 | 分组 | 套件 | 覆盖 |
 | --- | --- | --- |
 | 账本与配置层 | `tool-ledger` `mcp-config` | 工具账本的 zstd/缓存/尺寸闸门；MCP 配置归一化与 patch 往返 |
 | 契约与入口 | `contract-consistency` `client-entry` `host-import-sources` | 面板可调方法必须在 typert 声明 / client 契约数组 / 宿主方法集三处同时存在；三个入口「全关」不可表达；VS Code `${input:}` 降级 |
-| 客户端质量 | `client-i18n` `i18n-coverage` `error-boundary-copy` `persona-truncate` `tailor-window` | 中文皆包 `t()`；en-US 字典双向差集；崩溃详情可复制；persona 4000 预览阈值；工具裁缝时间窗四档 |
+| 客户端质量 | `client-i18n` `i18n-coverage` `whats-new-i18n` `mcp-catalog-i18n` `error-boundary-copy` `persona-truncate` `tailor-window` | 中文皆包 `t()`；en-US 字典双向差集与 zh/非 zh 回落；更新日志与内置目录英文覆盖逐条对齐（含缺译文回落）；崩溃详情可复制；persona 4000 预览阈值；工具裁缝时间窗四档 |
 | 工具裁缝趋势（2.2.0） | `tailor-timeline` `tailor-tax-ui` `tailor-cache-line` | 真实下发税的时间维度与跨度归因（无线上数据必须为 null 而非 0）；裁缝新字段在界面上的接线（vm 真跑源码片段）；账本缓存行只剩读数（「清空缓存」按钮已删，钉住不许复活） |
 | 自定义套件（2.2.0） | `suites-registry` `suites-client` | 整集合覆盖 / 幂等 / 拒绝与截断两态；id 归属契约（保存后不分裂）、引用套件展开为多个 `/name`、三级写通道降级 |
 | 技能集合（2.2.0） | `skill-remove` `skill-refresh` | 卸载来源白名单与路径边界（根自身 / `..` 穿越 / 跨来源根 / 符号链接只删链接）；装 / 卸后角标与看板实时刷新、乱序回包守卫 |

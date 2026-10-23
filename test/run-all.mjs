@@ -53,7 +53,12 @@ const SUITES = [
   // i18n 覆盖率：双向差集（源码 t() 键 ↔ en-US 字典键）。client-i18n 只保证「中文都包了
   // t()」，不保证「包了就有译文」—— 英文界面上蹦中文正是这个缺口。历史缺口用只许收缩的
   // 基线集合登记，任何**新增**漏键/死键立刻失败。
-  { name: "i18n-coverage（en-US 字典覆盖率与 locale 三级回落）", file: "i18n-coverage.mjs" },
+  { name: "i18n-coverage（en-US 字典覆盖率与 locale 四级回落）", file: "i18n-coverage.mjs" },
+  // P1 数据型英文覆盖：更新日志与内置 MCP 目录不是 client.js 的 t() 字面量，字典覆盖率
+  // 看不到它们。两个套件分别钉「版本/条目逐条对齐 + 客户端选择 + 缺译文回落」与
+  // 「47 个 id / 10 个分类一一对应 + 英文字段不污染安装配置」，都含反向自测。
+  { name: "whats-new-i18n（更新日志 en-US 覆盖与客户端选择）", file: "whats-new-i18n.mjs" },
+  { name: "mcp-catalog-i18n（内置 MCP 目录 en-US 覆盖与投影）", file: "mcp-catalog-i18n.mjs" },
   // persona 4000 预览阈值（清单 3.2）：两处详情弹层都走常量、无散落硬编码、展开/收起双向。
   { name: "persona-truncate（persona 预览截断阈值）", file: "persona-truncate.mjs" },
   // 工具裁缝时间窗（清单 4.1）：新增「今日」档不得改变默认 30 天 —— 改了会让报告数字骤降。

@@ -81,7 +81,12 @@ ok("setI18nMessages(null) 后表条目数不变", keysBeforeNull > 0 && Object.k
 const CJK = /[\u3400-\u4dbf\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]/;
 // 匹配标记豁免：与后端人设正文逐字比对的常量不是展示文案，绝不能包 t()——
 // en-US 表一旦翻译它们就永远匹配不上。显式列出（加新标记时同步）。
-const MATCH_MARKERS = new Set(["## DSH 运行时适配（团队协作桥接）"]);
+const MATCH_MARKERS = new Set([
+	"## DSH 运行时适配（团队协作桥接）",
+	// 专家预设名前缀：宿主 expert-market.js 写入 `WorkBuddy 专家 · <名>` 时永远用中文，
+	// 这里必须逐字匹配宿主标签，不能随 locale 翻译（否则英文环境下 stale 标签隐藏失灵）。
+	"WorkBuddy 专家 · ",
+]);
 function scanWraps(text) {
 	let i = 0;
 	const n = text.length;

@@ -1,4 +1,4 @@
-// en-US 字典覆盖率与 locale 三级回落的直测（OPT-14 · 1.1 / i18n 收口）。
+// en-US 字典覆盖率与 locale 四级回落的直测（OPT-14 · 1.1 / P1 收口）。
 //
 // 为什么需要这个套件：`client-i18n.mjs` 只守住「所有中文都包了 t()」，它**不检查字典
 // 里到底有没有对应的键**。两者是不同的失败模式：
@@ -15,8 +15,10 @@
 //   2. 用括号配平抽出 `EN_US_MESSAGES = { ... }` 的**原文**，在 vm 里求值得到真字典。
 //      这样字典里 `\n` 之类的转义会和源码侧一样被解码后再比较，不会因写法差异误报。
 //   3. 双向差集：漏键（源码有、字典无）+ 孤立键（字典有、源码无）。
-//   4. locale 三级回落：把 `const i18nMessages = {}` 到 `const t = ...` 之间的源码
-//      原样抽出来，在 vm 里配不同的 localStorage / navigator 组合**真跑**，断言顺序。
+//   4. locale 四级优先级：把 `const i18nMessages = {}` 到 `const t = ...` 之间的源码
+//      原样抽出来，在 vm 里配不同的 localStorage / 宿主 locale / navigator 组合**真跑**，
+//      断言顺序。宿主 locale 是 issue #1 的修复点：中文系统 + DSH 设英文时
+//      navigator 仍是 zh-CN，旧实现因此永远不装载英文表。
 //
 // 反向自测：往源码里注入一条带中文的 t()，覆盖断言必须抓到「漏键」；把 locale 判定
 // 的回落顺序改坏，行为断言必须抓到。否则这些断言等于空转。
@@ -371,7 +373,7 @@ for (const lit of computedCjk.slice(0, 10)) {
   console.log(`      client.js:${line}  ${JSON.stringify(lit.staticText).slice(0, 90)}`);
 }
 
-// ── 3. locale 三级回落：抽源码在 vm 里真跑 ──────────────────────────────────
+// ── 3. locale 四级回落：抽源码在 vm 里真跑 ──────────────────────────────────
 const START_MARKER = "// ── OPT-11：i18n 骨架";
 const END_MARKER = "// ── 旧插件名 → 新插件名的 localStorage 键迁移";
 const startAt = source.indexOf(START_MARKER);
@@ -391,11 +393,37 @@ function runSkeleton({ storage, language } = {}) {
   if (language !== undefined) context.navigator = { language };
   vm.createContext(context);
   vm.runInContext(
-    skeleton + "\nglobalThis.__probe = { I18N_LOCALE, i18nMessages, t, EN_US_MESSAGES };",
+    // I18N_LOCALE 用 getter：applyI18nLocale 会改它，快照值会读到旧结果。
+    skeleton + "\nglobalThis.__probe = { get I18N_LOCALE() { return I18N_LOCALE; }, i18nMessages, t, EN_US_MESSAGES, resolveI18nLocale, applyI18nLocale, subscribeI18nLocale, usesEnglish, isChineseLocale };",
     context,
     { filename: "i18n-skeleton.js" },
   );
   return context.__probe;
+}
+
+/** 最小宿主 locale 服务替身：与 DSH LocaleRuntime 的 getSnapshot/subscribe 形状一致。 */
+function fakeLocaleService(active) {
+  return {
+    getSnapshot: () => ({ active }),
+    subscribe: () => () => {},
+  };
+}
+
+/** 可变替身：setActive 模拟设置 → 通用里切语言，通知全部订阅者。 */
+function mutableLocaleService(initial) {
+  let active = initial;
+  const listeners = new Set();
+  return {
+    getSnapshot: () => ({ active }),
+    subscribe: (fn) => {
+      listeners.add(fn);
+      return () => { listeners.delete(fn); };
+    },
+    setActive(next) {
+      active = next;
+      for (const fn of [...listeners]) fn();
+    },
+  };
 }
 
 const memoryStorage = (initial = {}) => {
@@ -411,17 +439,18 @@ const asProxy = (storage) => new Proxy(storage, {
   get: (target, prop) => (typeof prop === "string" && !(prop in target) ? storage.getItem(prop) : target[prop]),
 });
 
-// 3a. 第一级：localStorage 偏好优先于 navigator.language。
+// 3a. 第一级：localStorage 偏好优先于宿主 locale 与 navigator.language。
 const prefersEn = runSkeleton({ storage: asProxy(memoryStorage({ "dsh-armory.locale": "en-US" })), language: "zh-CN" });
-ok("三级回落 · 第一级：localStorage 偏好压过 navigator.language", prefersEn.I18N_LOCALE === "en-US", `得到=${prefersEn.I18N_LOCALE}`);
+ok("四级优先级 · 第一级：localStorage 偏好压过宿主 locale 与 navigator.language",
+  prefersEn.I18N_LOCALE === "en-US", `得到=${prefersEn.I18N_LOCALE}`);
 
-// 3b. 第二级：localStorage 无偏好时用 navigator.language。
+// 3b. 第二级：无显式偏好时用宿主 locale。
 const browserEn = runSkeleton({ storage: asProxy(memoryStorage()), language: "en-GB" });
-ok("三级回落 · 第二级：存储无偏好时取 navigator.language", browserEn.I18N_LOCALE === "en-GB", `得到=${browserEn.I18N_LOCALE}`);
+ok("四级优先级 · 第三级：存储无偏好时取 navigator.language", browserEn.I18N_LOCALE === "en-GB", `得到=${browserEn.I18N_LOCALE}`);
 
-// 3c. 第三级：两者都没有 → zh-CN（源语言）。
+// 3c. 第四级：全部缺失 → zh-CN（源语言）。
 const noHost = runSkeleton({});
-ok("三级回落 · 第三级：无存储也无 navigator 时回落 zh-CN", noHost.I18N_LOCALE === "zh-CN", `得到=${noHost.I18N_LOCALE}`);
+ok("四级优先级 · 第四级：无存储、无宿主、无 navigator 时回落 zh-CN", noHost.I18N_LOCALE === "zh-CN", `得到=${noHost.I18N_LOCALE}`);
 
 // 3d. 存储抛错（Safari 无痕配额为 0）：不崩，继续往下回落。
 const throwingStorage = new Proxy({}, { get: () => { throw new Error("denied"); } });
@@ -435,21 +464,94 @@ if (throwingResult) {
   ok("localStorage 抛错时跳过偏好、回落 navigator.language", throwingResult.I18N_LOCALE === "en-AU", `得到=${throwingResult.I18N_LOCALE}`);
 }
 
-// ── 4. 只有 en* 前缀才装载 en-US 字典 ───────────────────────────────────────
-const englishLocales = ["en", "en-US", "en-GB", "EN-us", "en-AU"];
+// 3e. 第二级：宿主 locale 压过 navigator —— issue #1 的核心回归。
+// 中文系统（navigator=zh-CN）+ DSH 设英文（宿主 active=en）时必须是英文。
+const hostEn = runSkeleton({ storage: asProxy(memoryStorage()), language: "zh-CN" });
+hostEn.applyI18nLocale(hostEn.resolveI18nLocale(fakeLocaleService("en")));
+ok("四级优先级 · 第二级：宿主 locale=en 压过中文 navigator", hostEn.I18N_LOCALE === "en", `得到=${hostEn.I18N_LOCALE}`);
+ok("宿主 locale=en 时装载 en-US 字典（issue #1：中文系统也能出英文）",
+  hostEn.t("今日") === "Today", `得到=${JSON.stringify(hostEn.t("今日"))}`);
+
+// 反向：DSH 设中文 + 英文浏览器 → 必须保持中文（宿主优先，不让浏览器带偏）。
+const hostZh = runSkeleton({ storage: asProxy(memoryStorage()), language: "en-US" });
+hostZh.applyI18nLocale(hostZh.resolveI18nLocale(fakeLocaleService("zh")));
+ok("四级优先级 · 宿主 locale=zh 压过英文 navigator", hostZh.I18N_LOCALE === "zh", `得到=${hostZh.I18N_LOCALE}`);
+ok("从 en 切回 zh 时清空旧字典（源语言恒等直出，不残留英文）",
+  hostZh.t("今日") === "今日" && Object.keys(hostZh.i18nMessages).length === 0,
+  `t=${JSON.stringify(hostZh.t("今日"))} keys=${Object.keys(hostZh.i18nMessages).length}`);
+
+// 显式覆盖仍然最高：测试/高级用户手写的 localStorage 不被宿主语言覆盖。
+const overrideHost = runSkeleton({ storage: asProxy(memoryStorage({ "dsh-armory.locale": "en-GB" })), language: "zh-CN" });
+overrideHost.applyI18nLocale(overrideHost.resolveI18nLocale(fakeLocaleService("zh")));
+ok("显式 localStorage 覆盖压过宿主 locale", overrideHost.I18N_LOCALE === "en-GB", `得到=${overrideHost.I18N_LOCALE}`);
+
+// 宿主快照抛错（服务尚未就绪 / 实现异常）：不崩，回落 navigator。
+const brokenHostProbe = runSkeleton({ storage: asProxy(memoryStorage()), language: "en-AU" });
+brokenHostProbe.applyI18nLocale(brokenHostProbe.resolveI18nLocale({
+  getSnapshot() { throw new Error("not ready"); },
+}));
+ok("宿主 getSnapshot 抛错时回落 navigator.language", brokenHostProbe.I18N_LOCALE === "en-AU", `得到=${brokenHostProbe.I18N_LOCALE}`);
+
+// 3f. 运行期切语言：subscribe 回调必须让字典与 I18N_LOCALE 同步变化。
+const liveHost = mutableLocaleService("en");
+const liveProbe = runSkeleton({ storage: asProxy(memoryStorage()), language: "zh-CN" });
+liveProbe.applyI18nLocale(liveProbe.resolveI18nLocale(liveHost));
+let liveNotifications = 0;
+const offLive = liveProbe.subscribeI18nLocale(liveHost, () => {
+  liveNotifications += 1;
+  liveProbe.applyI18nLocale(liveProbe.resolveI18nLocale(liveHost));
+});
+ok("订阅前：宿主 en → 英文表已装载", liveProbe.I18N_LOCALE === "en" && liveProbe.t("今日") === "Today", `得到=${liveProbe.I18N_LOCALE}`);
+liveHost.setActive("zh");
+ok("宿主切到 zh 后订阅回调立即重算（无需重启面板）",
+  liveNotifications === 1 && liveProbe.I18N_LOCALE === "zh" && liveProbe.t("今日") === "今日",
+  `通知=${liveNotifications} locale=${liveProbe.I18N_LOCALE} t=${JSON.stringify(liveProbe.t("今日"))}`);
+offLive();
+liveHost.setActive("en");
+ok("取消订阅后不再触发，词典保持取消时的中文",
+  liveNotifications === 1 && liveProbe.I18N_LOCALE === "zh", `通知=${liveNotifications} locale=${liveProbe.I18N_LOCALE}`);
+
+// 3g. 宿主服务未实现 subscribe：订阅不崩，返回 null（启动时判定的语言仍有效）。
+const noSubProbe = runSkeleton({});
+let noSubResult;
+try {
+  noSubResult = noSubProbe.subscribeI18nLocale({ getSnapshot: () => ({ active: "en" }) }, () => {});
+} catch (error) {
+  ok("宿主 locale 无 subscribe 时订阅不抛错", false, String(error && error.message));
+}
+if (noSubResult !== undefined) {
+  ok("宿主 locale 无 subscribe 时返回 null（调用方据此跳过解绑）", noSubResult === null, `得到=${String(noSubResult)}`);
+}
+
+// ── 4. P1 语言选择：zh* → 中文；其余（含未支持语言）→ 英文 ──────────────────
+// 源语言只有中文、唯一译文是英文。ja / de / fr 这类没有译文的语言如果保留中文，
+// 对用户等于没本地化；宁可回落英文。zh-TW 仍是中文（简体源语言比英文更接近）。
+const englishLocales = ["en", "en-US", "en-GB", "EN-us", "en-AU", "ja-JP", "de-DE", "fr", "ko-KR"];
 const englishFailed = englishLocales.filter((locale) => {
   const probe = runSkeleton({ storage: asProxy(memoryStorage({ "dsh-armory.locale": locale })) });
-  return Object.keys(probe.i18nMessages).length === 0;
+  return Object.keys(probe.i18nMessages).length === 0 || probe.t("今日") !== "Today";
 });
-ok("en* 前缀的 locale 都会装载 en-US 字典", englishFailed.length === 0, englishFailed.length ? `未装载=${JSON.stringify(englishFailed)}` : "");
+ok("en* 与无译文的非 zh 语言都装载 en-US 字典（未支持语言回落英文）",
+  englishFailed.length === 0, englishFailed.length ? `未装载=${JSON.stringify(englishFailed)}` : "");
 
-const nonEnglishLocales = ["zh-CN", "zh-TW", "ja-JP", "de-DE", "fr", "ko-KR"];
-const nonEnglishLoaded = nonEnglishLocales.filter((locale) => {
+const chineseLocales = ["zh-CN", "zh-TW", "ZH-hant", "zh"];
+const chineseLoaded = chineseLocales.filter((locale) => {
   const probe = runSkeleton({ storage: asProxy(memoryStorage({ "dsh-armory.locale": locale })) });
-  return Object.keys(probe.i18nMessages).length !== 0;
+  return Object.keys(probe.i18nMessages).length !== 0 || probe.t("今日") !== "今日";
 });
-ok("非 en* 的 locale 不装载 en-US 字典（否则中文用户会看到英文）",
-  nonEnglishLoaded.length === 0, nonEnglishLoaded.length ? `误装载=${JSON.stringify(nonEnglishLoaded)}` : "");
+ok("zh* 的 locale 不装载英文表（否则中文用户会看到英文）",
+  chineseLoaded.length === 0, chineseLoaded.length ? `误装载=${JSON.stringify(chineseLoaded)}` : "");
+
+// usesEnglish 是数据型文案（更新日志 / 内置目录）选择的唯一判据：它必须与字典
+// 的实际装载保持一致，否则会出现「UI 英文、目录中文」的半截状态。
+const jaProbe = runSkeleton({ storage: asProxy(memoryStorage({ "dsh-armory.locale": "ja-JP" })) });
+ok("usesEnglish 对未支持语言为 true，且与字典装载一致",
+  jaProbe.usesEnglish() === true && Object.keys(jaProbe.i18nMessages).length > 0,
+  `usesEnglish=${jaProbe.usesEnglish()} keys=${Object.keys(jaProbe.i18nMessages).length}`);
+const zhTwProbe = runSkeleton({ storage: asProxy(memoryStorage({ "dsh-armory.locale": "zh-TW" })) });
+ok("usesEnglish 对 zh* 为 false，且不装载英文表",
+  zhTwProbe.usesEnglish() === false && Object.keys(zhTwProbe.i18nMessages).length === 0,
+  `usesEnglish=${zhTwProbe.usesEnglish()} keys=${Object.keys(zhTwProbe.i18nMessages).length}`);
 
 // 装载后 t() 真的会翻译，未装载时恒等直出 —— 这条把「装了表」与「表被用到」连起来。
 ok("en-US 环境：t('今日') 返回英文", prefersEn.t("今日") === "Today", `得到=${JSON.stringify(prefersEn.t("今日"))}`);
@@ -473,10 +575,10 @@ ok("en-US 环境：带插值的键按 {n} 下标替换后仍是英文",
     `新增漏键=${mutatedMissing.length - missingKeys.length}`);
 }
 {
-  // 自测 2：把 locale 判定改成「只要 navigator 有语言就用它」，第一级优先断言必须抓到。
+  // 自测 2：把 locale 判定改成「忽略 localStorage 偏好」，第一级优先断言必须抓到。
   const broken = skeleton.replace(
-    "const stored = localStorage['dsh-armory.locale'];\n    if (stored) return stored;",
-    "const stored = undefined;",
+    "return localStorage['dsh-armory.locale'] || null;",
+    "return null;",
   );
   ok("自测前置：成功改坏了 locale 判定的第一级", broken !== skeleton);
   if (broken !== skeleton) {

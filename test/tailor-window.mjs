@@ -185,7 +185,10 @@ ok("档位高亮用 windowKey === w.key 比较（key 对 key，不是 key 对 da
 // ── 4. 反向自测：证明上面的断言不是恒真 ────────────────────────────────────
 {
   // 把「今日」档的 days 改成 30（加档加错数据的典型 bug），第 1 节必须抓到。
-  const brokenArray = arraySource.replace(/\{\s*key:\s*'1',\s*label:\s*t\('今日'\),\s*days:\s*1\s*\}/, "{ key: '1', label: t('今日'), days: 30 }");
+  const brokenArray = arraySource.replace(
+    /\{\s*key:\s*'1',\s*get\s+label\(\)\s*\{\s*return\s+t\('今日'\);\s*\},\s*days:\s*1\s*\}/,
+    "{ key: '1', get label() { return t('今日'); }, days: 30 }",
+  );
   ok("自测前置：成功改坏了「今日」档的 days", brokenArray !== arraySource);
   if (brokenArray !== arraySource) {
     const context = { console, localStorage: { "dsh-armory.locale": "zh-CN" } };
