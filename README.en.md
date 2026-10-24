@@ -2,14 +2,10 @@
 
 [中文](README.md) | English
 
-> **The all-in-one control board for DeepSeek Harness**: MCP servers · Skills · Experts · Plugins · tool-usage ledger · four markets (WorkBuddy connectors ×316 / curated built-ins ×47 / SkillHub skills ×190k+ / WorkBuddy experts ×429, plus CodeBuddy official plugins and the DSH community list), with browsing, search, one-click install and one-click summon.
-> This project is a fork of [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui) (MIT, the original covered MCP only); this repo is [2026heshao/dsh-armory](https://github.com/2026heshao/dsh-armory),
-> upgraded from a pure MCP panel into a **MCP + Skills (with custom suites) + Experts + Plugins + Markets + Tool Tailor** board.
+> **The all-in-one control board for DeepSeek Harness**: MCP servers · skills · experts · plugins · tool-usage ledger · four markets — browse, search, install and summon in one place.
+> Forked from [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui) (MIT) and extended into a full armory.
 >
-> **New in v2.0.0**: a Plugins page with three sources, one-click MCP OAuth authorization, credential prompts before install, an install-state ledger, and six categories for the skill board. See the [changelog](.github/release-notes/v2.0.0.md).
-> **New in v2.1.0**: community plugins now render their README in place (fetched on demand, cached to disk for 7 days, `javascript:` pseudo-links downgraded to plain text), and two long-standing traps are fixed — the instant-open snapshot no longer shadows the real list, and update probing no longer reports failures on machines where the primary source is unreachable. See the [changelog](.github/release-notes/v2.1.0.md).
-> **New in v2.2.0**: bundle skills into custom suites and expand the whole set as `/name` tokens from the composer menu; uninstall installed skills from the board (with source/path guards) and watch counts refresh live after market installs; the Tool Tailor gains a sampled "wire tax" trend so you can tell whether a registry change actually took effect; SkillHub's downloads sort falls back to in-page sorting because the upstream hangs. See the [changelog](.github/release-notes/v2.2.0.md).
-> **New in v2.2.1**: the panel now follows DSH's own language setting (Settings -> General -> Language). Switching the host to English updates the sidebar, tabs, toolbar, dialogs and update notices immediately - no restart, and no dependency on the OS locale; release notes and the built-in MCP catalog are translated as well, and non-Chinese locales fall back to English. See the [changelog](.github/release-notes/v2.2.1.md).
+> **New in v2.3.0**: the Tool Tailor gains a skill ledger that shows which skills were actually used and which were registered but never called. See the [changelog](.github/release-notes/v2.3.0.md).
 
 <p align="center">
   <a href="https://github.com/2026heshao/dsh-armory/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-armory?style=social" alt="stars"></a>
@@ -38,7 +34,7 @@ Restart DSH, then open **Skills · MCP · Experts** from the global panel list a
 |---|---|
 | MCP config means hand-editing YAML with no feedback on whether it connects | Visual panel: status, tool schemas, enable/disable, reconnect — global & per-project scopes, project changes apply to live sessions instantly |
 | Installing skills means hunting for `SKILL.md` repos everywhere | **Direct markets**: SkillHub (190k+ skills), WorkBuddy connectors (316), 47 first-party-verified built-ins — search, filter, one-click install with per-file sha256 verification |
-| Every MCP's tool descriptions eat context tokens; zero-use tools sit there for free | **Tool Tailor**: scans local session logs for call counts / errors / latency per tool; prune dead tools with one click |
+| Every MCP's tool descriptions eat context tokens; zero-use tools sit there for free | **Tool Tailor**: scans local session logs for per-tool call counts / errors / latency, plus a skill-level usage ledger; prune dead tools with one click |
 | Migrating from Claude/Cursor/VS Code means copying config by hand | Detects local configs from 11 clients and imports them with a preview |
 | OAuth-protected or key-protected servers and plugins just fail, with no hint why | **Plugin market** (CodeBuddy official + DSH community list) with per-entry source and installability, **one-click MCP OAuth** (RFC 9728 → 8414 → 7591 → 7636 PKCE → 8707, three callback fallbacks ending at "paste a token"), and a **credential prompt before install** that fills `${...}` placeholders so the server works on first connect |
 
@@ -77,6 +73,8 @@ Transport, connection parameters, call timeout and config source at a glance; be
 ### Tool Tailor — tool-usage ledger
 
 Four metric cards for the 30-day window (total calls / tools seen / zero-call MCP tools / overall error rate), one row per tool with calls, errors, error rate, Schema context tax and last use, and a persistent tailor suggestion at the bottom. Shows all tools with real call counts by default; "zero-call only (N)" narrows the view. Below the cards sits a **second trend**: the tool list actually sent to the model in every request (`request/header`), sampled per day, together with "how many times that list changed inside the window" and the timestamp of the latest one. When local logs are shorter than the selected window, the note bar says so plainly ("window N days, calls I could read span only M days"), so "this number hasn't moved in days" is attributable on screen instead of looking like a broken ledger:
+
+Below the tool table is a new **skill ledger**: calls are grouped by the skill name in the `skill` tool's arguments, with calls / errors / last use per skill, and registered skills that were never invoked are added as zero-call rows — so it is obvious which skills are registered but unused. Calls whose arguments carry no skill name are counted separately on screen; when the registry is unavailable, the panel lists only skills seen in logs instead of faking a zero.
 
 ![Tool Tailor ledger](docs/images/tool-ledger.png)
 

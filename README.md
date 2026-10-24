@@ -2,14 +2,10 @@
 
 中文 | [English](README.en.md)
 
-> **DeepSeek Harness 的一体化管理看板**：MCP 服务器 · 技能 · 专家 · 插件 · 工具使用账本 · 四大市场（WorkBuddy 连接器 316 个 / 内置精选 47 个 / SkillHub 技能 19 万+ / WorkBuddy 专家 429 位 / CodeBuddy 官方插件 + DSH 社区清单），浏览、搜索、一键安装、一键召唤。
-> 本项目 fork 并改写自 [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui)（MIT，原项目仅 MCP 管理），现仓库为 [2026heshao/dsh-armory](https://github.com/2026heshao/dsh-armory)，
-> 从纯 MCP 管理面板升级为 **MCP + 技能（含自定义套件）+ 专家 + 插件 + 市场 + 工具账本** 看板。
+> **DeepSeek Harness 的一体化管理看板**：MCP · 技能 · 专家 · 插件 · 工具账本 · 四大市场，浏览、搜索、一键安装、一键召唤。
+> fork 自 [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui)（MIT），现已扩展为完整军械库。
 >
-> **v2.0.0 起**：新增「插件」页（三个来源）、MCP OAuth 一键授权、安装凭据引导、安装状态账本、技能看板六大分类。详见 [更新日志](.github/release-notes/v2.0.0.md)。
-> **v2.1.0 起**：社区插件点开即可就地读 README（按需拉取 + 7 天落盘缓存 + `javascript:` 伪协议链接降级），并修掉「秒开快照顶掉真实目录」「更新探测误报失败」两处。详见 [更新日志](.github/release-notes/v2.1.0.md)。
-> **v2.2.0 起**：技能可以打包成「自定义套件」，召唤菜单点一次即展开为整组 `/name`；Skill 看板支持卸载已安装技能，市场装 / 卸后角标与列表实时刷新；工具裁缝新增按天采样的「真实下发税」趋势，能直接看出改注册表有没有生效；SkillHub 下载量排序改为页内本地排序，修掉上游挂起导致的空白。详见 [更新日志](.github/release-notes/v2.2.0.md)。
-> **v2.2.1 起**：面板语言真正跟随 DSH「设置 → 通用 → 语言」——宿主切 English 后侧栏、分类、工具栏、弹窗与更新提示即时变英文，无需重启，也不再依赖系统语言；更新说明与内置 MCP 目录同步提供英文，非中文语言统一回落英文。详见 [更新日志](.github/release-notes/v2.2.1.md)。
+> **最新 v2.3.0**：工具裁缝新增「技能账本」，直接看出哪些技能真被用过、哪些注册了却一次没调用。详见 [更新日志](.github/release-notes/v2.3.0.md)。
 
 <p align="center">
   <a href="https://github.com/2026heshao/dsh-armory/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-armory?style=social" alt="stars"></a>
@@ -38,7 +34,7 @@ dsh plugin --profile web add github:2026heshao/dsh-armory
 |---|---|
 | MCP 配置要手改 YAML，改完不知道连没连上 | 可视化面板：状态、工具 Schema、启停、重连，全局与项目双作用域，项目级改完即对存活会话生效 |
 | 装技能要去各处翻 `SKILL.md` 仓库 | **市场直连**：SkillHub 19 万+ 技能、WorkBuddy 316 个连接器、47 个一手核实的内置服务，搜索/筛选/一键安装，逐文件 sha256 校验 |
-| 每个 MCP 的工具描述都在吃上下文 token，零调用的工具白白占位 | **工具裁缝**：扫描本机会话日志统计每个工具的调用/错误/延迟，死工具清单一键禁用 |
+| 每个 MCP 的工具描述都在吃上下文 token，零调用的工具白白占位 | **工具裁缝**：扫描本机会话日志统计每个工具的调用/错误/延迟，并给出技能维度的使用账本；死工具清单一键禁用 |
 | 从 Claude/Cursor/VS Code 迁移要逐条抄配置 | 自动检出 11 种客户端的本机配置，预览后一键导入 |
 | 插件散在宿主自带、CodeBuddy 官方、社区清单三处，格式与可装性各不相同 | **插件页**：三个来源并进一个可搜索目录并标明可装性，安装统一走宿主 `pluginManager`，装完明确提示需重启 |
 | 远端 MCP 要 OAuth，而官方 client 只认静态 headers，只能手搓 token | **一键授权**：按 RFC 9728/8414/7591/7636/8707 走完发现 → 注册 → PKCE → 回调 → 换 token，回调通道三级降级（loopback / 粘贴回调地址 / 手贴 token），到期自动刷新 |
@@ -63,6 +59,8 @@ dsh plugin --profile web add github:2026heshao/dsh-armory
 ### 工具裁缝 — 工具使用账本
 
 30 天窗口四张指标卡（调用总次数 / 出现过的工具 / 零调用 MCP 工具 / 整体错误率），逐工具列出调用、错误、错误率、Schema 上下文税与最后使用时间，底部常驻裁缝建议。默认显示全部工具与真实调用次数，需要时点「只看零调用（N）」收窄。指标卡下方是**第二条趋势**：按天采样日志里每次请求真实下发的工具清单（`request/header`）并算出它的税，同时给出「窗口内下发清单变过几次」和最近一次的时间；说明栏还会在本机日志短于所选窗口时直接印出「窗口 N 天，读到的调用记录只跨 M 天」，让「数字几天没变」这件事在屏幕上就能归因：
+
+工具表下方新增**技能账本**：按 `skill` 工具调用参数里的技能名统计调用 / 错误 / 最后使用，并把当前注册表中零调用的技能补成 0 行——哪些技能注册了却一次没被调用，一眼可见。参数里没有技能名的调用单独计数上屏；注册表不可用时只列出日志里出现过的技能，不伪造 0。
 
 ![工具裁缝账本](docs/images/tool-ledger.png)
 
