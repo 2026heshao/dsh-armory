@@ -1,0 +1,88 @@
+[
+ {
+  "name": "Co-Engram",
+  "repo": "Co-Engram/Co-Engram",
+  "npm": "@co-engram/dsh",
+  "desc": "Co-Engram team memory plugin for DeepSeek Harness (dsh): native Cordis tools + dynamic prompt-signals injection.",
+  "category": "plugin",
+  "tags": [
+   "memory",
+   "agents"
+  ],
+  "stars": 11,
+  "official": false,
+  "va": "0.1.0-rc.8",
+  "lv": "08-20"
+ },
+ {
+  "name": "deepseek-harness-tui-papachon",
+  "repo": "papachong/deepseek-harness-tui",
+  "npm": "@ruhooai/dsh-tui",
+  "desc": "The dsh terminal UI bundle: a multi-turn in-process TUI REPL over the agent spine with approval/ask-user answerers, no H",
+  "category": "plugin",
+  "tags": [
+   "terminal",
+   "agents"
+  ],
+  "stars": 6,
+  "official": false,
+  "va": "0.1.1-rc.2",
+  "lv": "08-26"
+ },
+ {
+  "name": "agent-instructions-plus",
+  "repo": "sidleo/agent-instructions-plus",
+  "npm": "@sidleo3/agent-instructions-plus",
+  "desc": "agent-instructions-plus: preset 选择性接管 AGENTS.md 注入，安装零改动，取消即恢复内置 agent-instructions。",
+  "category": "plugin",
+  "tags": [
+   "agents"
+  ],
+  "stars": 0,
+  "official": false,
+  "va": "0.1.0-rc.8",
+  "lv": "08-25"
+ },
+ {
+  "name": "adhdgofly-dsh-ext",
+  "repo": "zuoguyoupan2023/adhdgofly-dsh-ext",
+  "npm": "adhdgofly-dsh-ext",
+  "desc": "Part-of-speech highlighting for rendered Markdown: nouns green, verbs red, adjectives and adverbs purple.",
+  "category": "bundle",
+  "tags": [
+   "ui"
+  ],
+  "stars": 6,
+  "official": false,
+  "va": "0.1.0-rc.8",
+  "lv": "08-20"
+ },
+ {
+  "name": "dsh-base",
+  "repo": "deepseek-ai/deepseek-harness",
+  "npm": "@deepseek-ai/dsh-base",
+  "desc": "The shared dsh core as a profile bundle: every profile's first patch layer, inserting the base plugin rows over the empt",
+  "category": "bundle",
+  "tags": [
+   "devtools"
+  ],
+  "stars": 259790,
+  "official": true,
+  "va": "0.1.0-rc.5",
+  "lv": "08-13"
+ },
+ {
+  "name": "accurlex-dsh-legal",
+  "repo": "MrPunchLeonardo/accurlex-dsh-legal",
+  "npm": "@accurlex/dsh-legal",
+  "desc": "DeepSeek Harness plugin for accurLex Open Platform legal tools",
+  "category": "plugin",
+  "tags": [
+   "capabilities"
+  ],
+  "stars": 0,
+  "official": false,
+  "va": "0.1.0-rc.8",
+  "lv": "08-25"
+ }
+]

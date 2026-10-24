@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>插件市场 · 卡片信息排版方案</title>
+  <!--
+    目标：优化 dsh-armory「插件市场 → DSH 社区」卡片的信息排版。
+    说明：这是桌面面板（1180px、4 列）的组件方案，不是独立手机 App；
+    因此主画板按真实桌面宽度绘制，并额外补 250px 窄列与 375×812 手机视口校验。
+    所有静态页面只用于评审，不改动现有插件代码；确认后再落到 lib/client.js。
+  -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #0b1220;
+      --muted: rgba(11, 18, 32, 0.58);
+      --muted-2: rgba(11, 18, 32, 0.42);
+      --faint: rgba(11, 18, 32, 0.28);
+      --line: #dbe5f5;
+      --line-strong: #c9d8f2;
+      --softline: rgba(11, 18, 32, 0.06);
+      --accent: #2f6fed;
+      --accent-dark: #1d5bd8;
+      --accent-soft: #eaf1ff;
+      --ok: #1f9d61;
+      --ok-soft: #e9f8f0;
+      --warn: #b46a00;
+      --warn-soft: #fff4e5;
+      --card-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+      --panel-shadow: 0 30px 90px rgba(30, 64, 175, 0.13);
+      --radius-card: 10px;
+      --radius-panel: 22px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      background:
+        radial-gradient(1100px 560px at 8% -12%, #dce9ff 0%, rgba(220, 233, 255, 0) 62%),
+        radial-gradient(900px 520px at 102% 0%, #e9e4ff 0%, rgba(233, 228, 255, 0) 58%),
+        radial-gradient(900px 600px at 50% 110%, #dcecff 0%, rgba(220, 236, 255, 0) 62%),
+        linear-gradient(180deg, #f7faff 0%, #eef4ff 100%);
+      background-attachment: fixed;
+    }
+
+    .page { max-width: 1320px; margin: 0 auto; padding: 56px 32px 96px; }
+    .hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 36px; margin-bottom: 46px; }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 10.5px; font-weight: 750; letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--ink);
+    }
+    .eyebrow .bar { width: 22px; height: 2px; border-radius: 2px; background: var(--accent); }
+    .hero h1 {
+      margin: 16px 0 14px; max-width: 760px;
+      font-size: clamp(30px, 3.2vw, 40px); line-height: 1.16; letter-spacing: -0.028em; font-weight: 760;
+    }
+    .hero p { margin: 0; max-width: 680px; font-size: 14px; line-height: 1.78; color: var(--muted); }
+    .hero-meta { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding-bottom: 4px; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 7px 11px; border: 1px solid rgba(255, 255, 255, 0.9); border-radius: 999px;
+      background: rgba(255, 255, 255, 0.68); font-size: 11px; line-height: 1; color: var(--muted);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+    }
+    .pill b { color: var(--ink); font-weight: 650; }
+    .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+    .section { margin-top: 54px; }
+    .section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; margin-bottom: 18px; }
+    .kicker { font-size: 10.5px; font-weight: 750; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink); }
+    .kicker span { color: var(--accent); }
+    .section h2 { margin: 8px 0 0; font-size: 23px; line-height: 1.28; letter-spacing: -0.018em; font-weight: 730; }
+    .section-note { max-width: 510px; margin: 0; font-size: 12.5px; line-height: 1.7; color: var(--muted); }
+    .measure { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 11.5px; color: var(--muted); }
+    .measure b { font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .measure .mdot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+    .measure .mdot.before { background: #f0a35e; }
+    .measure .mdot.after { background: var(--ok); }
+    .measure .spacer { flex: 1 1 auto; }
+    .measure .unit { color: var(--muted-2); }
+
+    /* ── 现状：按当前 DOM / CSS 复刻 ───────────────────────────────────── */
+    .legacy-board {
+      max-width: 1180px; margin: 0 auto; padding: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.92); border-radius: 18px;
+      background: rgba(255, 255, 255, 0.74); box-shadow: 0 18px 52px rgba(30, 64, 175, 0.08);
+      backdrop-filter: blur(16px);
+    }
+    .legacy-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
+    .ccard {
+      display: flex; flex-direction: column; gap: 7px; min-width: 0;
+      padding: 11px 12px; border: 1px solid var(--line); border-radius: var(--radius-card);
+      background: #fff; box-shadow: var(--card-shadow); cursor: pointer;
+    }
+    .chead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .cperson { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+    .cperson > div { min-width: 0; }
+    .cavatar {
+      width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line);
+      background: #fff; flex: none; display: inline-flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: var(--accent);
+    }
+    .cavatar.blank { background: #fff; }
+    .cname { font-size: 14px; line-height: 1.35; font-weight: 650; overflow-wrap: anywhere; }
+    .cvendor { margin-top: 2px; font-size: 10.5px; line-height: 1.4; color: var(--muted); overflow-wrap: anywhere; }
+    .cbadges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; max-width: 55%; }
+    .cbadge {
+      display: inline-flex; align-items: center; min-width: 0;
+      padding: 1.5px 7px; border: 1px solid var(--line); border-radius: 999px;
+      font-size: 10.5px; line-height: 16px; color: var(--muted); background: #fff;
+    }
+    .cbadge.verified { max-width: 100%; white-space: normal; line-height: 1.35; text-align: left; }
+    .csummary {
+      min-height: 2.9em; font-size: 11.5px; line-height: 1.5; color: var(--muted);
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .cpresence { display: flex; align-items: center; gap: 6px; font-size: 10.5px; line-height: 1.4; color: var(--muted); }
+    .cpresence .cdot { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--line); background: #fff; flex: none; }
+    .cpresence b { color: var(--ink); font-weight: 650; }
+    .ctags { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+    .ctag {
+      display: inline-flex; align-items: center; padding: 1.5px 7px;
+      border: 1px solid var(--line); border-radius: 999px; background: #fff;
+      font-size: 10.5px; line-height: 16px; color: var(--muted);
+    }
+    .ctag.chip { padding: 3px 10px; font-size: 11.5px; line-height: 18px; }
+    .cactions { display: flex; align-items: center; margin-top: auto; padding-top: 1px; }
+    .cbtn {
+      display: inline-flex; align-items: center; justify-content: center;
+      height: 28px; padding: 0 12px; border: 1px solid var(--accent); border-radius: 7px;
+      background: var(--accent); color: #fff; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .chost { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--muted); }
+    .chost .warn-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--warn); }
+
+    .issue-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+    .issue {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 12px 14px; border: 1px solid rgba(255, 255, 255, 0.88); border-radius: 12px;
+      background: rgba(255, 255, 255, 0.62); font-size: 12px; line-height: 1.66; color: var(--muted);
+    }
+    .issue .num {
+      width: 20px; height: 20px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid #f0c9a8; border-radius: 50%; background: #fffaf4;
+      font-size: 10px; font-weight: 750; color: var(--ink); font-variant-numeric: tabular-nums;
+    }
+    .issue b { color: var(--ink); font-weight: 650; }
+    .issue code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10.5px; color: var(--ink); }
+
+    /* ── 建议：桌面市场面板 ───────────────────────────────────────────── */
+    .market {
+      max-width: 1180px; margin: 0 auto; padding: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.94); border-radius: var(--radius-panel);
+      background: rgba(255, 255, 255, 0.88); box-shadow: var(--panel-shadow);
+      backdrop-filter: blur(20px);
+    }
+    .market-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+    .market-title { margin: 0; font-size: 20px; line-height: 1.25; font-weight: 730; letter-spacing: -0.018em; }
+    .market-sub { margin-top: 5px; font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+    .market-sub b { color: var(--ink); font-weight: 650; }
+    .market-tabs { display: flex; gap: 6px; flex: none; }
+    .tab {
+      display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
+      border: 1px solid var(--line); border-radius: 999px; background: #fff;
+      font-size: 11.5px; font-weight: 550; color: var(--muted); cursor: pointer;
+    }
+    .tab.active { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); font-weight: 650; }
+    .tab .tdot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+    .searchbar {
+      display: flex; align-items: center; gap: 9px; height: 38px; margin-top: 14px; padding: 0 12px;
+      border: 1px solid var(--line); border-radius: 10px; background: #fff;
+      font-size: 12.5px; color: var(--muted-2);
+    }
+    .searchbar i { font-size: 15px; color: var(--muted-2); }
+    .searchbar .grow { flex: 1 1 auto; }
+    .searchbar kbd {
+      padding: 2px 6px; border: 1px solid var(--line); border-radius: 5px;
+      font-family: inherit; font-size: 10px; color: var(--muted-2); background: #fbfdff;
+    }
+    .filter-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin: 10px 0 14px; font-size: 11.5px; }
+    .filter {
+      display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px;
+      border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--muted); cursor: pointer;
+    }
+    .filter.active { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); font-weight: 650; }
+    .filter .fcount { font-size: 9.5px; color: var(--muted-2); font-variant-numeric: tabular-nums; }
+    .filter-row .sort { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; color: var(--muted-2); }
+    .pgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+
+    .pcard {
+      display: flex; flex-direction: column; gap: 7px; min-width: 0; min-height: 176px;
+      padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-card);
+      background: #fff; box-shadow: var(--card-shadow); cursor: pointer;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+    .pcard:hover { border-color: #a9c6ff; background: #fdfeff; box-shadow: 0 10px 28px rgba(47, 111, 237, 0.12); }
+    .pcard:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .phead { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 34px; }
+    .pavatar {
+      position: relative; width: 32px; height: 32px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid var(--line); border-radius: 50%; overflow: hidden;
+      background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 720;
+    }
+    .pavatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .piden { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+    .pname {
+      margin: 0; font-size: 14px; line-height: 1.3; font-weight: 650; letter-spacing: -0.006em;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .pmeta {
+      display: flex; align-items: center; gap: 5px; min-width: 0;
+      font-size: 10.5px; line-height: 1.4; color: var(--muted);
+      white-space: nowrap; overflow: hidden;
+    }
+    .pmeta .official { display: inline-flex; align-items: center; gap: 4px; flex: none; color: var(--ink); font-weight: 600; }
+    .pmeta .odot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+    .pmeta .pdot { color: var(--faint); }
+    .pmeta .prepo { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .pverified { width: 15px; height: 15px; justify-self: end; color: var(--ok); font-size: 15px; line-height: 1; }
+    .pdesc {
+      height: 38px; margin: 0; font-size: 12px; line-height: 1.55; color: var(--muted);
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .pchips { display: flex; align-items: center; gap: 5px; height: 18px; overflow: hidden; white-space: nowrap; }
+    .chip {
+      display: inline-flex; align-items: center; flex: none; padding: 0 7px;
+      border: 1px solid var(--line); border-radius: 999px; background: #fbfdff;
+      font-size: 10.5px; line-height: 16px; color: var(--muted);
+    }
+    .chip.more { border-style: dashed; color: var(--muted-2); }
+    .pfoot {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      min-height: 38px; margin-top: auto; padding-top: 9px; border-top: 1px solid var(--softline);
+    }
+    .pfacts {
+      display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden;
+      font-size: 10.5px; line-height: 1.4; color: var(--muted-2); white-space: nowrap;
+    }
+    .pfacts .star { display: inline-flex; align-items: center; gap: 3px; color: var(--ink); opacity: 0.72; font-variant-numeric: tabular-nums; }
+    .pfacts .star i { font-size: 11px; }
+    .pfacts .sep { color: var(--faint); }
+    .pbtn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px; flex: none;
+      height: 28px; padding: 0 13px; border: 1px solid var(--accent); border-radius: 8px;
+      background: var(--accent); color: #fff; font: inherit; font-size: 12px; font-weight: 650;
+      cursor: pointer; transition: background 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+    }
+    .pbtn:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+    .pbtn:active { transform: scale(0.98); }
+    .pbtn.installed { border-color: #bfe8d2; background: var(--ok-soft); color: var(--ink); }
+    .pbtn.installed:hover { border-color: #9dd9b8; background: #dff5e9; }
+    .pbtn.installed i { color: var(--ok); font-size: 13px; }
+    .host-note { display: inline-flex; align-items: center; gap: 5px; flex: none; font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+    .host-note i { color: var(--warn); font-size: 12px; }
+
+    /* ── 规格标注 ───────────────────────────────────────────────────── */
+    .spec-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 26px; align-items: start; }
+    .spec-stage {
+      padding: 22px; border: 1px solid rgba(255, 255, 255, 0.92); border-radius: 18px;
+      background: rgba(255, 255, 255, 0.66); box-shadow: 0 16px 44px rgba(30, 64, 175, 0.07);
+    }
+    .spec-stage .stage-label { margin-bottom: 12px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-2); }
+    .spec-stage .pcard { min-height: 176px; }
+    .spec-notes { margin-top: 16px; display: flex; flex-direction: column; gap: 7px; }
+    .spec-note { display: flex; gap: 8px; font-size: 11px; line-height: 1.55; color: var(--muted); }
+    .spec-note .n {
+      width: 17px; height: 17px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid var(--line-strong); border-radius: 50%; background: #fff;
+      font-size: 9px; font-weight: 750; color: var(--ink); font-variant-numeric: tabular-nums;
+    }
+    .spec-table { width: 100%; border-collapse: collapse; font-size: 12px; line-height: 1.58; }
+    .spec-table th {
+      padding: 0 10px 9px; border-bottom: 1px solid var(--line);
+      font-size: 10px; font-weight: 750; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--muted-2); text-align: left; white-space: nowrap;
+    }
+    .spec-table td { padding: 10px; border-bottom: 1px solid var(--softline); vertical-align: top; color: var(--muted); }
+    .spec-table td:first-child { width: 116px; font-weight: 650; color: var(--ink); white-space: nowrap; }
+    .spec-table .now { color: var(--muted-2); }
+    .spec-table .new { color: var(--ink); font-weight: 600; }
+    .spec-table .effect { color: var(--ink); }
+    .spec-table tr:last-child td { border-bottom: 0; }
+    .takeaway { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+    .takeaway .card {
+      padding: 14px 15px; border: 1px solid rgba(255, 255, 255, 0.9); border-radius: 12px;
+      background: rgba(255, 255, 255, 0.64); font-size: 11.5px; line-height: 1.65; color: var(--muted);
+    }
+    .takeaway .card b { display: block; margin-bottom: 3px; color: var(--ink); font-weight: 650; }
+    .takeaway .card .tag { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 6px; font-size: 9.5px; font-weight: 750; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-2); }
+    .takeaway .card .tag .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+    .takeaway .card .tag.warn .dot { background: var(--warn); }
+
+    /* ── 窄列与手机校验 ─────────────────────────────────────────────── */
+    .narrow-row { display: grid; grid-template-columns: repeat(3, 250px); justify-content: center; gap: 10px; padding: 18px; border: 1px dashed var(--line-strong); border-radius: 18px; background: rgba(255, 255, 255, 0.48); }
+    .narrow-row .pcard { min-height: 176px; }
+    .phone-wrap { display: flex; justify-content: center; margin-top: 26px; }
+    .phone {
+      position: relative; width: 375px; height: 812px; flex: none; overflow: hidden;
+      border: 8px solid var(--ink); border-radius: 40px; background: #fff; box-shadow: 0 30px 80px rgba(15, 23, 42, 0.22);
+    }
+    .phone-status {
+      display: flex; align-items: flex-end; justify-content: space-between; height: 48px; padding: 0 24px 8px;
+      font-size: 13px; font-weight: 650; color: var(--ink);
+    }
+    .phone-status .icons { display: flex; align-items: center; gap: 5px; font-size: 13px; }
+    .phone-main { height: calc(100% - 48px); overflow: hidden; padding: 10px 16px 28px; background: linear-gradient(180deg, #f7faff 0%, #eef4ff 100%); }
+    .phone-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+    .phone-head h3 { margin: 0; font-size: 18px; font-weight: 730; letter-spacing: -0.02em; }
+    .phone-head span { font-size: 10px; color: var(--muted-2); }
+    .phone-search { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; margin-bottom: 10px; border: 1px solid var(--line); border-radius: 9px; background: #fff; font-size: 11.5px; color: var(--muted-2); }
+    .phone-search i { font-size: 14px; }
+    .phone-grid { display: flex; flex-direction: column; gap: 9px; }
+    .phone-grid .pcard { min-height: 176px; }
+    .homebar { position: absolute; left: 50%; bottom: 7px; width: 128px; height: 4px; transform: translateX(-50%); border-radius: 999px; background: rgba(11, 18, 32, 0.22); }
+
+    .foot {
+      margin-top: 58px; padding-top: 22px; border-top: 1px solid rgba(11, 18, 32, 0.08);
+      display: flex; justify-content: space-between; gap: 24px; font-size: 11px; line-height: 1.7; color: var(--muted-2);
+    }
+    .foot b { color: var(--ink); font-weight: 650; }
+    .foot code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10.5px; color: var(--ink); }
+
+    @media (max-width: 1180px) {
+      .page { padding: 44px 24px 80px; }
+      .hero { flex-direction: column; align-items: flex-start; gap: 22px; }
+      .hero-meta { justify-content: flex-start; }
+      .spec-layout { grid-template-columns: 280px minmax(0, 1fr); }
+      .narrow-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 1100px) {
+      .legacy-grid, .pgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 860px) {
+      .section-head { flex-direction: column; align-items: flex-start; gap: 10px; }
+      .legacy-grid, .pgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .issue-list, .takeaway { grid-template-columns: 1fr; }
+      .spec-layout { grid-template-columns: 1fr; }
+      .spec-stage { max-width: 320px; }
+      .narrow-row { grid-template-columns: 1fr; max-width: 320px; margin: 0 auto; }
+    }
+    @media (max-width: 620px) {
+      .page { padding: 34px 16px 64px; }
+      .legacy-grid, .pgrid { grid-template-columns: 1fr; }
+      .market { padding: 16px; border-radius: 18px; }
+      .market-top { flex-direction: column; }
+      .market-tabs { margin-top: 4px; }
+      .foot { flex-direction: column; gap: 8px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div>
+        <div class="eyebrow"><span class="bar"></span>dsh-armory · plugin market</div>
+        <h1>插件卡片信息排版优化</h1>
+        <p>把「身份、事实、摘要、分类、操作」拆成五条稳定的水平线：标题不再被状态徽章挤断，作者信息不再重复，卡片等高，操作按钮落点可预期。</p>
+      </div>
+      <div class="hero-meta">
+        <span class="pill"><span class="dot"></span><b>桌面 1180px</b> · 4 列</span>
+        <span class="pill"><b>250–277px</b> 卡片宽度</span>
+        <span class="pill"><b>176px</b> 固定行高</span>
+      </div>
+    </header>
+
+    <!-- ── 01 现状 ─────────────────────────────────────────────────── -->
+    <section class="section" aria-labelledby="current-title">
+      <div class="section-head">
+        <div>
+          <div class="kicker"><span>01</span> · 现状</div>
+          <h2 id="current-title">现在的问题不是「字太多」，是四类信息在抢同一行</h2>
+        </div>
+        <p class="section-note">按当前 <code>lib/client.js</code> 的卡片 DOM 与 CSS 复刻（277px 列宽）。状态、标题、作者、标签互相挤压，行高由最长的一张决定。</p>
+      </div>
+
+      <div class="measure">
+        <span class="mdot before"></span>当前 · 行高随内容变化 <b>≈ 230–250px</b>
+        <span class="spacer"></span>
+        <span class="unit">同一行卡片被最高内容撑开</span>
+      </div>
+
+      <div class="legacy-board">
+        <div class="legacy-grid">
+          <!-- dsh-web-app -->
+          <div class="ccard">
+            <div class="chead">
+              <div class="cperson">
+                <span class="cavatar blank" aria-hidden="true"></span>
+                <div>
+                  <div class="cname">dsh-web-app</div>
+                  <div class="cvendor">deepseek-ai/deepseek-harness</div>
+                </div>
+              </div>
+              <div class="cbadges">
+                <span class="cbadge">官方</span>
+                <span class="cbadge verified">✓ verified (dsh 0.1.0-rc.5)</span>
+              </div>
+            </div>
+            <div class="csummary">The browser-surface bundle: the web patch layer over dsh-base plus the runtime glue plugin…</div>
+            <div class="cpresence"><span class="cdot"></span><b>deepseek-ai</b><span>上次核验 2026-08-13</span></div>
+            <div class="ctags"><span class="ctag">npm</span><span class="ctag">★ 259418</span><span class="ctag">bundle</span><span class="ctag chip">ui</span></div>
+            <div class="cactions"><span class="chost"><span class="warn-dot"></span>宿主组件</span></div>
+          </div>
+
+          <!-- archify -->
+          <div class="ccard">
+            <div class="chead">
+              <div class="cperson">
+                <span class="cavatar" aria-hidden="true">A</span>
+                <div>
+                  <div class="cname">archify</div>
+                  <div class="cvendor">tt-a1i/archify</div>
+                </div>
+              </div>
+              <div class="cbadges"><span class="cbadge verified">✓ verified (dsh 0.1.0-rc.8)</span></div>
+            </div>
+            <div class="csummary">Opt-in DeepSeek Harness Skill-only bundle for the Archify architecture-diagram skill.</div>
+            <div class="cpresence"><span class="cdot"></span><b>tt-a1i</b><span>上次核验 2026-08-20</span></div>
+            <div class="ctags"><span class="ctag">npm</span><span class="ctag">★ 88278</span><span class="ctag">vision</span></div>
+            <div class="cactions"><button class="cbtn" type="button">安装</button></div>
+          </div>
+
+          <!-- dsh-our-free-model -->
+          <div class="ccard">
+            <div class="chead">
+              <div class="cperson">
+                <span class="cavatar" aria-hidden="true">E</span>
+                <div>
+                  <div class="cname">dsh-our-free-model</div>
+                  <div class="cvendor">Ebony-Vinyl/dsh-our-free-model</div>
+                </div>
+              </div>
+              <div class="cbadges"><span class="cbadge verified">✓ verified (dsh 0.1.0-rc.2)</span></div>
+            </div>
+            <div class="csummary">Our Free Model — 在 dsh 里装上这个插件即可，无需登录、注册或填 API Key，就能使用包括 Muse…</div>
+            <div class="cpresence"><span class="cdot"></span><b>Ebony-Vinyl</b><span>上次核验 2026-09-29</span></div>
+            <div class="ctags"><span class="ctag">npm</span><span class="ctag">★ 39077</span><span class="ctag">models</span><span class="ctag chip">capabilities</span></div>
+            <div class="cactions"><button class="cbtn" type="button">安装</button></div>
+          </div>
+
+          <!-- WeKnora -->
+          <div class="ccard">
+            <div class="chead">
+              <div class="cperson">
+                <span class="cavatar" aria-hidden="true">W</span>
+                <div>
+                  <div class="cname">WeKnora</div>
+                  <div class="cvendor">Tencent/WeKnora</div>
+                </div>
+              </div>
+              <div class="cbadges"><span class="cbadge verified">✓ verified (dsh 0.1.0-rc.8)</span></div>
+            </div>
+            <div class="csummary">WeKnora knowledge retrieval tools for DeepSeek Harness: semantic search, document reading…</div>
+            <div class="cpresence"><span class="cdot"></span><b>Tencent</b><span>上次核验 2026-08-24</span></div>
+            <div class="ctags"><span class="ctag">npm</span><span class="ctag">★ 35227</span><span class="ctag">knowledge</span><span class="ctag chip">agents</span></div>
+            <div class="cactions"><button class="cbtn" type="button">安装</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="issue-list">
+        <div class="issue"><span class="num">1</span><div><b>标题被状态区压缩。</b>名称与 <code>✓ verified (dsh …)</code> 抢同一行，<code>dsh-web-app</code> 折成两行，长名称更碎。</div></div>
+        <div class="issue"><span class="num">2</span><div><b>验证版本常驻。</b>每张卡都带 <code>dsh 0.1.0-rc.x</code>，多占 1–2 行；版本号不是「装不装」的决定因素。</div></div>
+        <div class="issue"><span class="num">3</span><div><b>作者信息重复。</b><code>deepseek-ai/deepseek-harness</code> 与下方 <code>deepseek-ai · 上次核验…</code> 是同一来源。</div></div>
+        <div class="issue"><span class="num">4</span><div><b>热度混进标签。</b><code>npm</code>、<code>★ 259418</code>、分类与 tag 同一行，换行后标签行高度不可控。</div></div>
+        <div class="issue"><span class="num">5</span><div><b>按钮落点漂移。</b>操作行虽 <code>margin-top:auto</code>，但整行被最长卡片撑高，按钮与正文的距离不一致。</div></div>
+        <div class="issue"><span class="num">6</span><div><b>头像失败只剩空圈。</b><code>onError</code> 只隐藏 <code>&lt;img&gt;</code>，没有首字母兜底，加载失败时留一个空白圆。</div></div>
+      </div>
+    </section>
+
+    <!-- ── 02 建议 ─────────────────────────────────────────────────── -->
+    <section class="section" aria-labelledby="proposal-title">
+      <div class="section-head">
+        <div>
+          <div class="kicker"><span>02</span> · 建议方案</div>
+          <h2 id="proposal-title">一行标题、一行事实、两行摘要、一行标签、一行操作</h2>
+        </div>
+        <p class="section-note">同一个信息量，重新分组。版本号进 tooltip，星标与核验日期合并到底部，标签最多三个；所有卡片固定 176px，四列节奏一致。</p>
+      </div>
+
+      <div class="measure">
+        <span class="mdot after"></span>建议 · 固定行高 <b>176px</b>
+        <span class="spacer"></span>
+        <span class="unit">标题 1 行 · 摘要 2 行 · 标签 1 行 · 操作 28px</span>
+      </div>
+
+      <div class="market">
+        <div class="market-top">
+          <div>
+            <h3 class="market-title">插件市场</h3>
+            <div class="market-sub"><b>149</b> 个插件 · 目录更新于 10-24</div>
+          </div>
+          <div class="market-tabs">
+            <button class="tab active" type="button"><span class="tdot"></span>DSH 社区</button>
+          </div>
+        </div>
+        <div class="searchbar">
+          <i class="ri-search-line" aria-hidden="true"></i>
+          <span class="grow">搜索插件、作者或关键词</span>
+          <kbd>⌘ K</kbd>
+        </div>
+        <div class="filter-row">
+          <button class="filter active" type="button">全部 <span class="fcount">149</span></button>
+          <button class="filter" type="button">官方 <span class="fcount">12</span></button>
+          <button class="filter" type="button">已安装 <span class="fcount">8</span></button>
+          <button class="filter" type="button">可更新 <span class="fcount">3</span></button>
+          <span class="sort">按星标 <i class="ri-arrow-down-s-line" aria-hidden="true"></i></span>
+        </div>
+
+        <div class="pgrid">
+          <!-- dsh-web-app -->
+          <article class="pcard" tabindex="0" aria-label="查看 dsh-web-app 的 README">
+            <div class="phead">
+              <span class="pavatar"><span>D</span><img src="https://github.com/deepseek-ai.png?size=64" alt="deepseek-ai 的 GitHub 头像" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" /></span>
+              <div class="piden">
+                <h3 class="pname" title="dsh-web-app">dsh-web-app</h3>
+                <div class="pmeta"><span class="official"><span class="odot"></span>官方</span><span class="pdot">·</span><span class="prepo" title="deepseek-ai/deepseek-harness">deepseek-ai/deepseek-harness</span></div>
+              </div>
+              <i class="ri-verified-badge-fill pverified" role="img" aria-label="已验证，适配 dsh 0.1.0-rc.5" title="已验证 · dsh 0.1.0-rc.5"></i>
+            </div>
+            <p class="pdesc">The browser-surface bundle: the web patch layer over dsh-base plus the runtime glue plugin.</p>
+            <div class="pchips"><span class="chip">bundle</span><span class="chip">ui</span></div>
+            <div class="pfoot">
+              <div class="pfacts"><span class="star"><i class="ri-star-fill" aria-hidden="true"></i>259k</span><span class="sep">·</span><span>核验 08-13</span></div>
+              <span class="host-note"><i class="ri-information-line" aria-hidden="true"></i>宿主组件</span>
+            </div>
+          </article>
+
+          <!-- archify -->
+          <article class="pcard" tabindex="0" aria-label="查看 archify 的 README">
+            <div class="phead">
+              <span class="pavatar"><span>A</span><img src="https://github.com/tt-a1i.png?size=64" alt="tt-a1i 的 GitHub 头像" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" /></span>
+              <div class="piden">
+                <h3 class="pname" title="archify">archify</h3>
+                <div class="pmeta"><span class="prepo" title="tt-a1i/archify">tt-a1i/archify</span></div>
+              </div>
+              <i class="ri-verified-badge-fill pverified" role="img" aria-label="已验证，适配 dsh 0.1.0-rc.8" title="已验证 · dsh 0.1.0-rc.8"></i>
+            </div>
+            <p class="pdesc">Opt-in DeepSeek Harness Skill-only bundle for the Archify architecture-diagram skill.</p>
+            <div class="pchips"><span class="chip">vision</span></div>
+            <div class="pfoot">
+              <div class="pfacts"><span class="star"><i class="ri-star-fill" aria-hidden="true"></i>88k</span><span class="sep">·</span><span>核验 08-20</span></div>
+              <button class="pbtn" type="button">安装</button>
+            </div>
+          </article>
+
+          <!-- dsh-our-free-model -->
+          <article class="pcard" tabindex="0" aria-label="查看 dsh-our-free-model 的 README">
+            <div class="phead">
+              <span class="pavatar"><span>E</span><img src="https://github.com/Ebony-Vinyl.png?size=64" alt="Ebony-Vinyl 的 GitHub 头像" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" /></span>
+              <div class="piden">
+                <h3 class="pname" title="dsh-our-free-model">dsh-our-free-model</h3>
+                <div class="pmeta"><span class="prepo" title="Ebony-Vinyl/dsh-our-free-model">Ebony-Vinyl/dsh-our-free-model</span></div>
+              </div>
+              <i class="ri-verified-badge-fill pverified" role="img" aria-label="已验证，适配 dsh 0.1.0-rc.2" title="已验证 · dsh 0.1.0-rc.2"></i>
+            </div>
+            <p class="pdesc">Our Free Model — 在 dsh 里装上插件即可使用，无需登录、注册或填 API Key。</p>
+            <div class="pchips"><span class="chip">models</span><span class="chip">capabilities</span></div>
+            <div class="pfoot">
+              <div class="pfacts"><span class="star"><i class="ri-star-fill" aria-hidden="true"></i>39k</span><span class="sep">·</span><span>核验 09-29</span></div>
+              <button class="pbtn" type="button">安装</button>
+            </div>
+          </article>
+
+          <!-- WeKnora -->
+          <article class="pcard" tabindex="0" aria-label="查看 WeKnora 的 README">
+            <div class="phead">
+              <span class="pavatar"><span>W</span><img src="https://github.com/Tencent.png?size=64" alt="Tencent 的 GitHub 头像" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" /></span>
+              <div class="piden">
+                <h3 class="pname" title="WeKnora">WeKnora</h3>
+                <div class="pmeta"><span class="prepo" title="Tencent/WeKnora">Tencent/WeKnora</span></div>
+              </div>
+              <i class="ri-verified-badge-fill pverified" role="img" aria-label="已验证，适配 dsh 0.1.0-rc.8" title="已验证 · dsh 0.1.0-rc.8"></i>
+            </div>
+            <p class="pdesc">WeKnora knowledge retrieval tools for DeepSeek Harness: semantic search, document reading and RAG answers.</p>
+            <div class="pchips"><span class="chip">knowledge</span><span class="chip">agents</span></div>
+            <div class="pfoot">
+              <div class="pfacts"><span class="star"><i class="ri-star-fill" aria-hidden="true"></i>35k</span><span class="sep">·</span><span>核验 08-24</span></div>
+              <button class="pbtn" type="button">安装</button>
+            </div>
+          </article>
+
+          <!-- MemOS -->
+          <article class="pcard" tabindex="0" aria-label="查看 MemOS 的 README">
+            <div class="phead">
+              <span class="pavatar"><span>M</span><img src="https://github.com/MemTensor.png?size=64" alt="MemTensor 的 GitHub 头像" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" /></span>
+              <div class="piden">
+                <h3 class="pname" title="MemOS">MemOS</h3>
+                <div class="pmeta"><span class="prepo" title="MemTensor/MemOS">MemTensor/MemOS</span></div>
+              </div>
+              <i class="ri-verified-badge-fill pverified" role="img" aria-label="已验证，适配 dsh 0.1.0-rc.8" title="已验证 · dsh 0.1.0-rc.8"></i>
+            </div>
+            <p class="pdesc">Reflect2Evolve memory plugin: layered L1/L2/L3 memory and reflection-weighted value backprop.</p>
+            <div class="pchips"><span class="chip">memory</span><span class="chip">agents</span></div>
+            <div class="pfoot">
+              <div class="pfacts"><span class="star"><i class="ri-star-fill" aria-hidden="true"></i>12k</span><span class="sep">·</span><span>核验 08-20</span></div>
+              <button class="pbtn" type="button">安装</button>
+            </div>
+          </article>
+
+          <!-- BrowserSkill -->
+          <article class="pcard" tabindex="0" aria-label="查看 BrowserSkill 的 README">
+            <div class="phead">
+              <span class="pavatar"><span>B</span><img src="https://github.com/Tencent.png?size=64" alt="Tencent 的 GitHub 头像" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" /></span>
+              <div class="piden">
+                <h3 class="pname" title="BrowserSkill">BrowserSkill</h3>
+                <div class="pmeta"><span class="prepo" title="Tencent/BrowserSkill">Tencent/BrowserSkill</span></div>
+              </div>
+              <i class="ri-verified-badge-fill pverified" role="img" aria-label="已验证，适配 dsh 0.1.0-rc.2" title="已验证 · dsh 0.1.0-rc.2"></i>
+            </div>
+            <p class="pdesc">DeepSeek Harness tool plugin that exposes BrowserSkill browser automation to the model.</p>
+            <div class="pchips"><span class="chip">capabilities</span></div>
+            <div class="pfoot">
+              <div class="pfacts"><span class="star"><i class="ri-star-fill" aria-hidden="true"></i>9.4k</span><span class="sep">·</span><span>核验 09-09</span></div>
+              <button class="pbtn" type="button">安装</button>
+            </div>
+          </article>
+
+          <!-- dsh-web-ui -->
+          <article class="pcard" tabindex="0" aria-label="查看 dsh-web-ui 的 README">
+            <div class="phead">
+              <span class="pavatar"><span>Z</span><img src="https://github.com/zhu1090093659.png?size=64" alt="zhu1090093659 的 GitHub 头像" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" /></span>
+              <div class="piden">
+                <h3 class="pname" title="dsh-web-ui">dsh-web-ui</h3>
+                <div class="pmeta"><span class="prepo" title="zhu1090093659/dsh-web">zhu1090093659/dsh-web</span></div>
+              </div>
+              <i class="ri-verified-badge-fill pverified" role="img" aria-label="已验证，适配 dsh 0.1.0-rc.8" title="已验证 · dsh 0.1.0-rc.8"></i>
+            </div>
+            <p class="pdesc">Plugin and skin collection for the DSH Web UI: task board, Git graph and right-side panel.</p>
+            <div class="pchips"><span class="chip">ui</span><span class="chip">web</span></div>
+            <div class="pfoot">
+              <div class="pfacts"><span class="star"><i class="ri-star-fill" aria-hidden="true"></i>9.3k</span><span class="sep">·</span><span>核验 08-20</span></div>
+              <button class="pbtn" type="button">安装</button>
+            </div>
+          </article>
+
+          <!-- dsh-market -->
+          <article class="pcard" tabindex="0" aria-label="查看 dsh-market 的 README">
+            <div class="phead">
+              <span class="pavatar"><span>D</span><img src="https://github.com/dsh-market.png?size=64" alt="dsh-market 的 GitHub 头像" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" /></span>
+              <div class="piden">
+                <h3 class="pname" title="dsh-market">dsh-market</h3>
+                <div class="pmeta"><span class="prepo" title="dsh-market/dsh-market">dsh-market/dsh-market</span></div>
+              </div>
+              <i class="ri-verified-badge-fill pverified" role="img" aria-label="已验证，适配 dsh 0.1.0-rc.8" title="已验证 · dsh 0.1.0-rc.8"></i>
+            </div>
+            <p class="pdesc">Visual plugin market inside DeepSeek Harness — browse, search and install community plugins.</p>
+            <div class="pchips"><span class="chip">marketplace</span></div>
+            <div class="pfoot">
+              <div class="pfacts"><span class="star"><i class="ri-star-fill" aria-hidden="true"></i>8.4k</span><span class="sep">·</span><span>核验 08-20</span></div>
+              <button class="pbtn installed" type="button" title="点击重新安装"><i class="ri-check-line" aria-hidden="true"></i>已安装</button>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 03 规格 ─────────────────────────────────────────────────── -->
+    <section class="section" aria-labelledby="spec-title">
+      <div class="section-head">
+        <div>
+          <div class="kicker"><span>03</span> · 规格</div>
+          <h2 id="spec-title">具体到像素：头部 34、摘要 38、标签 18、操作 38</h2>
+        </div>
+        <p class="section-note">所有尺寸沿用现有主题令牌与字号体系，只重排层级；不新增接口，不改安装逻辑。</p>
+      </div>
+
+      <div class="spec-layout">
+        <div class="spec-stage">
+          <div class="stage-label">单卡标注</div>
+          <article class="pcard" tabindex="0" aria-label="查看 dsh-web-ui 的 README">
+            <div class="phead">
+              <span class="pavatar"><span>Z</span><img src="https://github.com/zhu1090093659.png?size=64" alt="zhu1090093659 的 GitHub 头像" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" /></span>
+              <div class="piden">
+                <h3 class="pname" title="dsh-web-ui">dsh-web-ui</h3>
+                <div class="pmeta"><span class="prepo" title="zhu1090093659/dsh-web">zhu1090093659/dsh-web</span></div>
+              </div>
+              <i class="ri-verified-badge-fill pverified" role="img" aria-label="已验证，适配 dsh 0.1.0-rc.8" title="已验证 · dsh 0.1.0-rc.8"></i>
+            </div>
+            <p class="pdesc">Plugin and skin collection for the DSH Web UI: task board, Git graph and right-side panel.</p>
+            <div class="pchips"><span class="chip">ui</span><span class="chip">web</span><span class="chip more">+1</span></div>
+            <div class="pfoot">
+              <div class="pfacts"><span class="star"><i class="ri-star-fill" aria-hidden="true"></i>9.3k</span><span class="sep">·</span><span>核验 08-20</span></div>
+              <button class="pbtn" type="button">安装</button>
+            </div>
+          </article>
+          <div class="spec-notes">
+            <div class="spec-note"><span class="n">1</span><span>头像 32px；失败时露出首字母，不再留空圈。</span></div>
+            <div class="spec-note"><span class="n">2</span><span>名称 14/1.3 单行省略，全名进 <code>title</code> 与 README。</span></div>
+            <div class="spec-note"><span class="n">3</span><span>验证只留 15px 徽章图标，版本号进 tooltip。</span></div>
+            <div class="spec-note"><span class="n">4</span><span>作者只出现一次：仓库行；<code>官方</code> 以 5px 蓝点前置。</span></div>
+            <div class="spec-note"><span class="n">5</span><span>摘要固定两行 38px，短描述也占满，保证等高。</span></div>
+            <div class="spec-note"><span class="n">6</span><span>标签最多 3 个 + <code>+N</code>，单行不换行。</span></div>
+            <div class="spec-note"><span class="n">7</span><span>底部 38px：星标与核验日期在左，操作在右。</span></div>
+          </div>
+        </div>
+
+        <div>
+          <table class="spec-table">
+            <thead>
+              <tr><th>元素</th><th>现状</th><th>建议</th><th>净效果</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>卡片内边距</td><td class="now">11 / 12px</td><td class="new">12px</td><td class="effect">四边等距，右缘与标签对齐</td></tr>
+              <tr><td>标题</td><td class="now">14/1.35，可换行 2–3 行</td><td class="new">14/1.3，单行省略</td><td class="effect">头部固定 34px，不再被徽章挤断</td></tr>
+              <tr><td>验证状态</td><td class="now">✓ verified (dsh …)，占 1–2 行</td><td class="new">15px 图标 + tooltip</td><td class="effect">释放约 100–130px 横向空间</td></tr>
+              <tr><td>作者</td><td class="now">仓库行 + 头像 + 核验时间，重复出现</td><td class="new">仓库一行；核验日期移到底部</td><td class="effect">少一行，约 −20px</td></tr>
+              <tr><td>摘要</td><td class="now">2–3 行，min-height 2.9em</td><td class="new">固定 2 行 / 38px</td><td class="effect">卡片等高，扫读基线一致</td></tr>
+              <tr><td>标签</td><td class="now">npm / star / 分类 / tag 混排换行</td><td class="new">分类 + tag 最多 3 个，+N</td><td class="effect">单行 18px，不再撑高卡片</td></tr>
+              <tr><td>操作</td><td class="now">按钮随内容漂移</td><td class="new">分隔线 + 28px 按钮，贴底</td><td class="effect">每张卡按钮位置一致</td></tr>
+              <tr><td>卡片高度</td><td class="now">≈ 230–250px（由内容决定）</td><td class="new">固定 176px</td><td class="effect">同屏多约 20% 卡片，四列节奏整齐</td></tr>
+            </tbody>
+          </table>
+
+          <div class="takeaway">
+            <div class="card">
+              <span class="tag"><span class="dot"></span>保留</span>
+              <b>不丢关键信息</b>版本号、全名、更多标签都能在 tooltip、详情或 README 里找到；卡片只做“第一眼决策”。
+            </div>
+            <div class="card">
+              <span class="tag warn"><span class="dot"></span>不建议</span>
+              <b>不在卡片里加第二个按钮</b>整卡已可打开 README，安装按钮继续 <code>stopPropagation</code>；再加“详情”只会让操作区更挤。
+            </div>
+            <div class="card">
+              <span class="tag"><span class="dot"></span>边界</span>
+              <b>不改安装与点击行为</b>只动排版；已安装卡仍可点击按钮重新安装，宿主组件仍只读。
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 04 窄列 ─────────────────────────────────────────────────── -->
+    <section class="section" aria-labelledby="narrow-title">
+      <div class="section-head">
+        <div>
+          <div class="kicker"><span>04</span> · 窄列校验</div>
+          <h2 id="narrow-title">250px 最小列宽：长名称省略，标签不换行</h2>
+        </div>
+        <p class="section-note">网格最小宽度仍是 250px。用长名称、无核验、宿主组件、标签溢出四种情况压测，卡片高度保持不变。</p>
+      </div>
+
+      <div class="narrow-row">
+        <article class="pcard" tabindex="0" aria-label="查看 DeepSeek-Balance-Whale-Widget 的 README">
+          <div class="phead">
+            <span class="pavatar"><span>M</span><img src="https://github.com/MeteorNOX.png?size=64" alt="MeteorNOX 的 GitHub 头像" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" /></span>
+            <div class="piden">
+              <h3 class="pname" title="DeepSeek-Balance-Whale-Widget">DeepSeek-Balance-Whale-Widget</h3>
+              <div class="pmeta"><span class="prepo" title="MeteorNOX/DeepSeek-Balance-Whale-Widget">MeteorNOX/DeepSeek-Balance-Whale-Widget</span></div>
+            </div>
+          </div>
+          <p class="pdesc">右下角小鲸鱼挂件：余额、峰谷定价、随机台词与音效。</p>
+          <div class="pchips"><span class="chip">desktop</span><span class="chip">widget</span><span class="chip more">+2</span></div>
+          <div class="pfoot">
+            <div class="pfacts"><span class="star"><i class="ri-star-fill" aria-hidden="true"></i>3.1k</span><span class="sep">·</span><span>核验 09-09</span></div>
+            <button class="pbtn" type="button">安装</button>
+          </div>
+        </article>
+
+        <article class="pcard" tabindex="0" aria-label="查看 WeKnora 的 README">
+          <div class="phead">
+            <span class="pavatar"><span>W</span><img src="https://github.com/Tencent.png?size=64" alt="Tencent 的 GitHub 头像" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" /></span>
+            <div class="piden">
+              <h3 class="pname" title="WeKnora">WeKnora</h3>
+              <div class="pmeta"><span class="prepo" title="Tencent/WeKnora">Tencent/WeKnora</span></div>
+            </div>
+            <i class="ri-verified-badge-fill pverified" role="img" aria-label="已验证，适配 dsh 0.1.0-rc.8" title="已验证 · dsh 0.1.0-rc.8"></i>
+          </div>
+          <p class="pdesc">面向 DSH 的知识库检索工具：语义搜索、文档阅读与 RAG 问答。</p>
+          <div class="pchips"><span class="chip">knowledge</span><span class="chip">agents</span></div>
+          <div class="pfoot">
+            <div class="pfacts"><span class="star"><i class="ri-star-fill" aria-hidden="true"></i>35k</span><span class="sep">·</span><span>核验 08-24</span></div>
+            <button class="pbtn" type="button">安装</button>
+          </div>
+        </article>
+
+        <article class="pcard" tabindex="0" aria-label="查看 dsh-web-app 的 README">
+          <div class="phead">
+            <span class="pavatar"><span>D</span><img src="https://github.com/deepseek-ai.png?size=64" alt="deepseek-ai 的 GitHub 头像" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" /></span>
+            <div class="piden">
+              <h3 class="pname" title="dsh-web-app">dsh-web-app</h3>
+              <div class="pmeta"><span class="official"><span class="odot"></span>官方</span><span class="pdot">·</span><span class="prepo" title="deepseek-ai/deepseek-harness">deepseek-ai/deepseek-harness</span></div>
+            </div>
+            <i class="ri-verified-badge-fill pverified" role="img" aria-label="已验证，适配 dsh 0.1.0-rc.5" title="已验证 · dsh 0.1.0-rc.5"></i>
+          </div>
+          <p class="pdesc">浏览器界面补丁层：在 dsh-base 之上提供 Web GUI 与运行时胶水插件。</p>
+          <div class="pchips"><span class="chip">bundle</span><span class="chip">ui</span></div>
+          <div class="pfoot">
+            <div class="pfacts"><span class="star"><i class="ri-star-fill" aria-hidden="true"></i>259k</span><span class="sep">·</span><span>核验 08-13</span></div>
+            <span class="host-note"><i class="ri-information-line" aria-hidden="true"></i>宿主组件</span>
+          </div>
+        </article>
+      </div>
+
+      <div class="phone-wrap">
+        <div class="phone" aria-label="375px 手机视口预览">
+          <div class="phone-status">
+            <span>9:41</span>
+            <span class="icons"><i class="ri-signal-wifi-fill" aria-hidden="true"></i><i class="ri-battery-charge-fill" aria-hidden="true"></i></span>
+          </div>
+          <div class="phone-main">
+            <div class="phone-head"><h3>插件市场</h3><span>149 个插件</span></div>
+            <div class="phone-search"><i class="ri-search-line" aria-hidden="true"></i><span>搜索插件、作者或关键词</span></div>
+            <div class="phone-grid">
+              <article class="pcard" tabindex="0" aria-label="查看 dsh-web-app 的 README">
+                <div class="phead">
+                  <span class="pavatar"><span>D</span><img src="https://github.com/deepseek-ai.png?size=64" alt="deepseek-ai 的 GitHub 头像" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" /></span>
+                  <div class="piden">
+                    <h3 class="pname" title="dsh-web-app">dsh-web-app</h3>
+                    <div class="pmeta"><span class="official"><span class="odot"></span>官方</span><span class="pdot">·</span><span class="prepo" title="deepseek-ai/deepseek-harness">deepseek-ai/deepseek-harness</span></div>
+                  </div>
+                  <i class="ri-verified-badge-fill pverified" role="img" aria-label="已验证，适配 dsh 0.1.0-rc.5" title="已验证 · dsh 0.1.0-rc.5"></i>
+                </div>
+                <p class="pdesc">The browser-surface bundle: the web patch layer over dsh-base plus the runtime glue plugin.</p>
+                <div class="pchips"><span class="chip">bundle</span><span class="chip">ui</span></div>
+                <div class="pfoot">
+                  <div class="pfacts"><span class="star"><i class="ri-star-fill" aria-hidden="true"></i>259k</span><span class="sep">·</span><span>核验 08-13</span></div>
+                  <span class="host-note"><i class="ri-information-line" aria-hidden="true"></i>宿主组件</span>
+                </div>
+              </article>
+
+              <article class="pcard" tabindex="0" aria-label="查看 dsh-our-free-model 的 README">
+                <div class="phead">
+                  <span class="pavatar"><span>E</span><img src="https://github.com/Ebony-Vinyl.png?size=64" alt="Ebony-Vinyl 的 GitHub 头像" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" /></span>
+                  <div class="piden">
+                    <h3 class="pname" title="dsh-our-free-model">dsh-our-free-model</h3>
+                    <div class="pmeta"><span class="prepo" title="Ebony-Vinyl/dsh-our-free-model">Ebony-Vinyl/dsh-our-free-model</span></div>
+                  </div>
+                  <i class="ri-verified-badge-fill pverified" role="img" aria-label="已验证，适配 dsh 0.1.0-rc.2" title="已验证 · dsh 0.1.0-rc.2"></i>
+                </div>
+                <p class="pdesc">Our Free Model — 在 dsh 里装上插件即可使用，无需登录、注册或填 API Key。</p>
+                <div class="pchips"><span class="chip">models</span><span class="chip">capabilities</span></div>
+                <div class="pfoot">
+                  <div class="pfacts"><span class="star"><i class="ri-star-fill" aria-hidden="true"></i>39k</span><span class="sep">·</span><span>核验 09-29</span></div>
+                  <button class="pbtn" type="button">安装</button>
+                </div>
+              </article>
+
+              <article class="pcard" tabindex="0" aria-label="查看 dsh-market 的 README">
+                <div class="phead">
+                  <span class="pavatar"><span>D</span><img src="https://github.com/dsh-market.png?size=64" alt="dsh-market 的 GitHub 头像" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" /></span>
+                  <div class="piden">
+                    <h3 class="pname" title="dsh-market">dsh-market</h3>
+                    <div class="pmeta"><span class="prepo" title="dsh-market/dsh-market">dsh-market/dsh-market</span></div>
+                  </div>
+                  <i class="ri-verified-badge-fill pverified" role="img" aria-label="已验证，适配 dsh 0.1.0-rc.8" title="已验证 · dsh 0.1.0-rc.8"></i>
+                </div>
+                <p class="pdesc">Visual plugin market inside DeepSeek Harness — browse, search and install community plugins.</p>
+                <div class="pchips"><span class="chip">marketplace</span></div>
+                <div class="pfoot">
+                  <div class="pfacts"><span class="star"><i class="ri-star-fill" aria-hidden="true"></i>8.4k</span><span class="sep">·</span><span>核验 08-20</span></div>
+                  <button class="pbtn installed" type="button" title="点击重新安装"><i class="ri-check-line" aria-hidden="true"></i>已安装</button>
+                </div>
+              </article>
+            </div>
+          </div>
+          <div class="homebar" aria-hidden="true"></div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <div><b>下一步：</b>确认后按这套规格改 <code>lib/client.js</code> 中 DSH 社区插件卡片（用独立 class 隔离，不影响连接器 / 技能 / 专家卡片），并补排版回归断言。</div>
+      <div>静态评审稿 · 不改现有代码 · 所有描述与作者信息来自当前市场数据</div>
+    </footer>
+  </div>
+</body>
+</html>

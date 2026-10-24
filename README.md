@@ -5,7 +5,7 @@
 > **DeepSeek Harness 的一体化管理看板**：MCP · 技能 · 专家 · 插件 · 工具账本 · 四大市场，浏览、搜索、一键安装、一键召唤。
 > fork 自 [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui)（MIT），现已扩展为完整军械库。
 >
-> **最新 v2.3.0**：工具裁缝新增「技能账本」，直接看出哪些技能真被用过、哪些注册了却一次没调用。详见 [更新日志](.github/release-notes/v2.3.0.md)。
+> **最新 v2.3.1**：修复市场缓存的两条死路（缓存损坏遇 304 崩溃循环、断网丢弃完好磁盘缓存），网络数据先校验再原子落盘，专家人设路径以市场清单为准。详见 [更新日志](.github/release-notes/v2.3.1.md)。
 
 <p align="center">
   <a href="https://github.com/2026heshao/dsh-armory/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-armory?style=social" alt="stars"></a>
@@ -33,10 +33,10 @@ dsh plugin --profile web add github:2026heshao/dsh-armory
 | 痛点 | 本插件的做法 |
 |---|---|
 | MCP 配置要手改 YAML，改完不知道连没连上 | 可视化面板：状态、工具 Schema、启停、重连，全局与项目双作用域，项目级改完即对存活会话生效 |
-| 装技能要去各处翻 `SKILL.md` 仓库 | **市场直连**：SkillHub 19 万+ 技能、WorkBuddy 316 个连接器、47 个一手核实的内置服务，搜索/筛选/一键安装，逐文件 sha256 校验 |
+| 装技能要去各处翻 `SKILL.md` 仓库 | **市场直连**：SkillHub 19 万+ 技能、WorkBuddy 316 个连接器，搜索/筛选/一键安装，逐文件 sha256 校验 |
 | 每个 MCP 的工具描述都在吃上下文 token，零调用的工具白白占位 | **工具裁缝**：扫描本机会话日志统计每个工具的调用/错误/延迟，并给出技能维度的使用账本；死工具清单一键禁用 |
 | 从 Claude/Cursor/VS Code 迁移要逐条抄配置 | 自动检出 11 种客户端的本机配置，预览后一键导入 |
-| 插件散在宿主自带、CodeBuddy 官方、社区清单三处，格式与可装性各不相同 | **插件页**：三个来源并进一个可搜索目录并标明可装性，安装统一走宿主 `pluginManager`，装完明确提示需重启 |
+| 插件散在宿主自带与社区清单两处，格式与可装性各不相同 | **插件页**：把 DSH 社区清单一并呈现并标明可装性（宿主自带组件单独标注），安装统一走宿主 `pluginManager`，装完明确提示需重启 |
 | 远端 MCP 要 OAuth，而官方 client 只认静态 headers，只能手搓 token | **一键授权**：按 RFC 9728/8414/7591/7636/8707 走完发现 → 注册 → PKCE → 回调 → 换 token，回调通道三级降级（loopback / 粘贴回调地址 / 手贴 token），到期自动刷新 |
 | 装过的连接器、插件，过几天忘了是从哪来的 | **安装状态账本**：`~/.dsh/armory/install-state.json` 记录每条的来源市场，市场页可跨页筛出已安装项，并把「本插件装的」与「别处手动配的」分开 |
 
@@ -91,7 +91,6 @@ dsh plugin --profile web add github:2026heshao/dsh-armory
 - 启用、禁用、重连、添加、编辑、移除；需要时用眼睛临时揭示被掩码的凭据并一键复制
 - **全局 + 项目双作用域**：全局写 Web profile，一次注册所有项目可用；项目写该项目 `.dsh/mcp.json`，只该项目会话可见；项目里还能「屏蔽」某个全局 MCP
 - **两个入口，同一个面板**：右下角悬浮按钮（可拖拽、记忆位置）与官方侧栏入口（展开态在「设置」上方显示「MCP」，收起成 56px 轨道时只剩图标）共享同一开关状态；面板右上角「入口」可以把两者只留一个（不能都关）
-- **MCP 市场**：47 个逐条一手核实过的服务，分 10 类（搜索、开发工具、安全与逆向、数据库与数据、AI 与知识、浏览器自动化、云与基础设施、效率协作、文件与本地、通讯）。搜索为主操作，配分类与「只要免密钥」筛选、排序、卡片直接安装；每条如实标注免费额度与需要准备什么（密钥 / 连接信息 / 装完还得改的参数）。已配置的只识别并跳过，不覆盖
 - 导入本机其他客户端的 MCP 配置：自动检测 Claude Code、Codex（`config.toml`）、OpenCode（含 `.jsonc`）、pi、Claude Desktop、Cursor、Windsurf、VS Code、Gemini CLI、Roo Code 与跨工具的共享配置，逐个列出，点一条即导入；也能粘贴 Claude/Cursor/Cline/Roo 的 `mcpServers` 或 VS Code 的 `servers` JSON。写入前预览，支持「合并（同名更新）」与「替换」
 - 跟随 DSH 深色/浅色主题，适配窄屏与移动宽度
 - 更新提示与**一键升级**：有新版时在面板顶部显示可关闭的提示条（每天最多查一次，可用 `DSH_ARMORY_DISABLE_UPDATE_CHECK` 关闭）。点了「升级」才动，**不会自动升级**；升级由 DSH 官方的 pluginManager 执行，装完提示重启宿主生效。用 `link:` / `file:` / `github:` 装的本地开发副本不给按钮（那会把链接换成 npm 包）
@@ -112,11 +111,11 @@ dsh plugin --profile web add github:2026heshao/dsh-armory
   - **最近使用置顶**：刚用过的条目自动排到最前并带「最近」标记，其余保持原有顺序；最近使用记录池 40 条
   - **专家随时挂 / 换 / 摘**：点一个专家即接管当前会话（包括已经聊了一半的），再点别的直接替换，点 chip 的 × 立刻取消；**只影响这一个会话**，不动工具目录、不写任何持久化配置
   - **显示与实效一致**：挂专家后，会话标题栏显示的始终是**当前真正生效**的专家（宿主那条「会话创建时的预设」标签在挂载期间自动让位）；三处显示（标题栏徽章、输入框 chip、菜单）挂/换/摘后同帧同步
-- **插件市场（2.0.0 新增）**：新增「插件」页，把三类来源并进一个可搜索、可筛选的目录，每条标明来源与可装性——
-  - **官方**：DSH 宿主自带组件，随宿主分发，不可单独安装（仅展示）
-  - **CodeBuddy 官方**：ZIP 分发，解析 `.codebuddy-plugin/marketplace.json` 与 `external_plugins/<name>/.codebuddy-plugin/plugin.json`（`MAX_ZIP_BYTES = 64MB`，ETag 命中不重下）
-  - **DSH 社区**：`awesome-dsh-plugins` 社区清单（单文件裸 JSON、五千余条，jsdelivr 主源 → fastly 备源），拉取后瘦身到 `SLIM_MAX_BYTES = 3MB` 再落缓存
-  - **安装**：统一走宿主 `pluginManager.installBundle` 拉取落盘，**装完需重启 DSH 宿主才生效**；宿主无 `pluginManager` / 条目无 npm 包名 / 无 repository 三种情况各自给出明确文案，不静默失败
+- **插件市场（2.0.0 新增；2.3.x 只保留 DSH 社区）**：新增「插件」页，直连 `awesome-dsh-plugins` 社区清单，可搜索、可筛选，每条标明可装性——
+  - **DSH 社区**：`awesome-dsh-plugins` 社区清单（单文件裸 JSON、五千余条，jsdelivr 主源 → fastly 备源），拉取后瘦身到 `SLIM_MAX_BYTES = 3MB` 再落缓存；更新检测先经 GitHub API 把 `main` 解析到最新提交 SHA、再按 `@<SHA>` 不可变地址取数（绕开 jsdelivr 对分支地址的 12h CDN 缓存，API 不可达时回落分支地址 + ETag 条件请求）
+  - **社区双源聚合（2.3.x）**：在 `awesome-dsh-plugins` 之上聚合第二社区注册表 `awesome-dsh-plugin.com`（CC0，经其 npm 包 `dsh-plugin-catalog` 分发，jsdelivr 主备镜像）——只并入其 **npm 可装** 条目（git-only 不进面板），按 npm 包名与主源去重、主源优先，面板目录 ~7.2k 条且全部可安装；取数走「registry 解析 latest 版本号 → jsDelivr `@<版本>` 不可变地址」（与主源 SHA 机制同构），两源并行拉取、各自独立容错，任一源挂掉只少一块、不拖垮面板
+  - **宿主组件**：清单内属于 DSH 宿主官方分发的条目（`@deepseek-ai/` 前缀）标注「宿主组件」，随宿主本体分发，不提供安装
+  - **安装**：统一走宿主 `pluginManager.installBundle` 拉取落盘，**装完需重启 DSH 宿主才生效**；宿主无 `pluginManager` / 条目无 npm 包名 / 宿主组件三种情况各自给出明确文案，不静默失败
 - **MCP OAuth 一键授权（2.0.0 新增）**：官方 `@deepseek-ai/dsh-mcp-client` 的 transport 只认 `requestInit.headers`、没有 authProvider，所以 OAuth 必须在**安装前**由本插件跑完，把 `authorization: Bearer <token>` 静态写进 patch 的 headers，此后由本模块负责刷新——
   - 按 **RFC 9728**（受保护资源元数据）→ **RFC 8414**（授权服务器元数据）→ **RFC 7591**（动态客户端注册）→ **RFC 7636 PKCE**（只发 S256）→ **RFC 8707**（`resource` 参数）逐条实现
   - 回调通道**三级降级**：本地 `127.0.0.1:<随机端口>/callback` 自动收 code（主流实现）→ DCR 只接受自定义 scheme 时提示「粘贴完整回调地址」→ 都不通则直接「粘贴访问令牌」
@@ -129,11 +128,20 @@ dsh plugin --profile web add github:2026heshao/dsh-armory
 - **自定义套件（2.2.0 新增）**：把常一起用的 skill 打包成「套件」——Skill 看板工具栏的「套件」打开管理窗，左侧挑技能、右侧编排（点 **+** 或拖入添加，拖拽排序，删除就地二次确认），一次保存即整集合覆盖落盘到 `~/.dsh/armory/suites.json`（staging + rename 原子写，坏数据拒绝且原文件不动）。输入框召唤菜单的「技能」子菜单顶部会出现套件分组，点一次就按成员顺序把多个 `/name` 一并插进草稿。上限 100 个套件 / 每套 40 个成员；成员按各自的技能名进「最近使用」，不会把套件名记成一条孤立记录
 - **多市场注册表（2.0.0 新增）**：市场源不再硬编码，落 `~/.dsh/armory/marketplaces.json`（`REGISTRY_VERSION = 1`），缺失或损坏回落内置默认项、首读即落盘，支持增删改；写盘一律 staging + rename 原子替换
 - **社区目录秒开（2.0.0 新增）**：上次成功的精简清单镜像进浏览器 `localStorage`（7 天 / 4MB 上限，超配额保留旧快照），首屏先渲染快照再被真实结果静默替换（0 网络 0 IPC）；源不可达时明说「显示的是本地缓存」而非给空列表
+- **插件市场加载提速（2.3.0 优化）**：社区目录预取 + 分层缓存，切到「插件」页不再等一次完整请求——
+  - **目录预取**：市场面板挂载 400ms 后后台读取社区目录；首屏命中浏览器快照（见上）时直接渲染，点进插件页通常已经就绪
+  - **可点击提示**：有打开 README 行为的插件卡片统一 `cursor:pointer`，hover 用强调色描边，键盘聚焦有 `:focus-visible` 轮廓，Enter / Space 可打开；卡片内「安装」按钮阻止冒泡，不会连带打开卡片
+  - **卡片排版（2.3.0 优化）**：DSH 社区插件卡片拆成五条固定水平线——32px 头像 + 单行标题、官方 / 仓库一行、两行摘要 38px、最多三个标签 18px、页脚 38px（星标 + 核验日期 + 安装）——整卡固定 **176px**，同一行按钮落在同一水平线。验证版本收进图标 tooltip，作者只出现一次；头像失败回落首字母；已安装与宿主组件在页脚标明。只作用于社区插件卡，连接器 / 技能 / 专家卡不变
 - **社区 README 预览（2.1.0 新增）**：点开「插件 → DSH 社区」任意卡片，即就地拉取并渲染该仓库 README（标题 / 段落 / 列表 / 表格 / 代码块 / 引用，含 `<p align="center"><img …>` 横幅）——
   - **按需、只取一次**：README 不进目录的瘦身缓存，点开才拉；按 `README.md` / `readme.md` / `Readme.md` / `README.MD` / `README.markdown` / `README_EN.md` 顺序试；仓库填的是 npm 包名时，先问 `registry.npmjs.org` 取 `repository`，拿到再去 GitHub 取原文
   - **限额与缓存**：单次 20s 超时、正文 16 万字符上限（超了截断并在界面标注）；取到后按「仓库或 npm 包名」落盘缓存 7 天，同一插件再点秒开，断网 / 限流 / 仓库被删回落缓存并标明「这是缓存」
   - **图片与安全**：`http(s)` 图片过 `wsrv.nl` 只读代理（`output=webp&q=72&w=880`，仅对白名单主机生效），相对路径按仓库地址还原成绝对 URL、还原不了就跳过；正文由自写解析器生成 React 元素，**不碰 `dangerouslySetInnerHTML`**，`javascript:` / `data:` / `vbscript:` 伪协议链接一律降级成纯文本
+  - **长文跳转**：弹层右下角常驻「跳到末尾」按钮（sticky 在弹层内，滚动时不消失，键盘可聚焦），点一下平滑滚到 README 底部；贴底时按钮排在「关闭 / 安装 / 重新读取」之后，不会盖住操作行
 - **社区目录与更新探测修正（2.1.0）**：秒开快照不再顶掉真实目录（此前快照一渲染真实结果就被丢弃，目录于是一直停在旧快照）；更新探测与目录改走同一条源链（先问这份缓存实际来自哪个源、再兜底其余源，首个拿到 ETag 的源胜出），修掉「主源不通的机器上目录能开、点检查更新却每次 `probe-failed`」
+- **谁在做、还在维护吗（2.3.0 新增）**：市场卡片先给一层不联网的「人」信号——发布方头像 / 名称与最近更新日期（技能看 SkillHub 发布方或 GitHub 仓库 owner，插件与社区条目看仓库 owner，专家看目录自带头像与更新时间）；打开详情再按需查一次 GitHub 公开接口，补上维护者主页、最近提交、开放 issue 数、Star、License、主语言，并用标签直说「近 30 天有提交 / 超过半年未更新 / 已归档」。请求按 6 小时缓存与 ETag 复用，单次最多 8 个仓库，未认证限流时回落旧缓存并标明；查不到只收起这一行，不阻塞详情正文
+- **最近动静（2.3.0 新增）**：市场页顶部有一条只属于这台机器的时间线——对比「上次成功读取目录」与「这一次」的新增、移除、版本或核验状态变化，并标出条目名与相对时间。它不联网、不埋点、不伪造在线人数或实时消息；没有变化就直说「暂无新变化」。事件 7 天过期、最多保留 8 条，可一键清除；技能只在默认页 / 无关键词 / 默认排序时记录，翻页与搜索不会制造假动静
+- **装备清单（2.3.0 新增）**：市场页右上「装备清单」把本机的 MCP、技能、专家与插件导出成一份可分享的 JSON——只含名称、类型、来源、版本与必要的身份字段，**绝不写入密钥、header、URL 查询参数或环境变量的值**，技能正文与专家人设也不进清单。朋友发来的清单可以粘贴或选文件导入，面板按 `已安装 / 可更新 / 本机没有` 三态逐项对比，`去市场` 只负责跳到对应市场并带上搜索词，**不自动安装、不自动写配置**。上限 200 条 / 256KB，超限截断并标注
+- **找到真实的人（2.3.0 新增）**：详情底部给出真实出口——能解析到仓库的，给出去仓库、看讨论 / 提 Issue；有来源主页的，给出源站；任何条目都可以「向军械库反馈」（预填 GitHub Issue），或先复制反馈模板（条目、类型、来源、版本、环境）自己改完再发。所有链接在新标签页打开，内容先由用户过目、确认后才提交。**刻意不做站内论坛、点赞或收藏**：社区在哪，就把人送到哪，而不是在插件里搭一个没有人的布景
 
 ## 安装
 
@@ -190,11 +198,10 @@ dsh plugin --profile web remove dsh-armory
 
 ### 添加 MCP
 
-三条路，都从面板顶部工具栏进：
+两条路，都从面板顶部工具栏进：
 
 1. **添加 MCP**：表单填 `command`/`args`/`env`/`cwd`（stdio）或 `url`/`headers`（HTTP），可设调用超时、启动失败策略与重连策略；常用服务器有预设模板可一键套用。
 2. **导入 JSON**：粘贴其他客户端的配置，先预览再写入。支持「合并（同名更新）」与「替换」，字段映射与限制见 [JSON 导入](docs/json-import.md)。
-3. **内置 MCP**：勾选未配置的项一次装好（Exa、Tavily、Firecrawl、Chrome DevTools、Playwright）。前三项有免密额度、不需要本地依赖；后两项是本地工具，需要 Node.js 与浏览器。已配置的项只识别并跳过，不会覆盖。
 
 ### 看工具与敏感值
 
@@ -243,7 +250,7 @@ dsh plugin --profile web remove dsh-armory
 
 - **优先级**：`localStorage['dsh-armory.locale']`（显式覆盖）→ DSH「设置 → 通用」里的语言 → 浏览器 `navigator.language` → `zh-CN`。
 - **回落规则**：`zh*` 显示中文，`en*` 显示英文；其他语言（`ja` / `de` / `fr` 等）目前没有译文，统一回落英文，而不是把中文丢给看不懂的用户。
-- **覆盖范围**：面板 UI、按钮 / 对话框 / 空状态、升级后的「本次更新」正文与功能指路，以及内置 MCP 目录的摘要 / 接入说明 / 认证说明 / 分类标签。
+- **覆盖范围**：面板 UI、按钮 / 对话框 / 空状态、升级后的「本次更新」正文与功能指路。
 - **不翻译**：连接器、技能、专家、社区 README 等第三方内容保持发布方原文。
 - **强制英文**：在 DevTools 执行 `localStorage['dsh-armory.locale'] = 'en-US'` 后刷新；删除该键即重新跟随 DSH 语言。宿主设置的英文在中文系统上同样生效（不再依赖浏览器语言）。
 
@@ -274,13 +281,16 @@ dsh web                                 # 起 Web 做真实操作验证
 | --- | --- | --- |
 | 账本与配置层 | `tool-ledger` `mcp-config` | 工具账本的 zstd/缓存/尺寸闸门；MCP 配置归一化与 patch 往返 |
 | 契约与入口 | `contract-consistency` `client-entry` `host-import-sources` | 面板可调方法必须在 typert 声明 / client 契约数组 / 宿主方法集三处同时存在；三个入口「全关」不可表达；VS Code `${input:}` 降级 |
-| 客户端质量 | `client-i18n` `i18n-coverage` `whats-new-i18n` `mcp-catalog-i18n` `error-boundary-copy` `persona-truncate` `tailor-window` | 中文皆包 `t()`；en-US 字典双向差集与 zh/非 zh 回落；更新日志与内置目录英文覆盖逐条对齐（含缺译文回落）；崩溃详情可复制；persona 4000 预览阈值；工具裁缝时间窗四档 |
+| 客户端质量 | `client-i18n` `i18n-coverage` `whats-new-i18n` `error-boundary-copy` `persona-truncate` `tailor-window` | 中文皆包 `t()`；en-US 字典双向差集与 zh/非 zh 回落；更新日志英文覆盖逐条对齐（含缺译文回落）；崩溃详情可复制；persona 4000 预览阈值；工具裁缝时间窗四档 |
 | 工具裁缝趋势（2.2.0） | `tailor-timeline` `tailor-tax-ui` `tailor-cache-line` | 真实下发税的时间维度与跨度归因（无线上数据必须为 null 而非 0）；裁缝新字段在界面上的接线（vm 真跑源码片段）；账本缓存行只剩读数（「清空缓存」按钮已删，钉住不许复活） |
 | 自定义套件（2.2.0） | `suites-registry` `suites-client` | 整集合覆盖 / 幂等 / 拒绝与截断两态；id 归属契约（保存后不分裂）、引用套件展开为多个 `/name`、三级写通道降级 |
 | 技能集合（2.2.0） | `skill-remove` `skill-refresh` | 卸载来源白名单与路径边界（根自身 / `..` 穿越 / 跨来源根 / 符号链接只删链接）；装 / 卸后角标与看板实时刷新、乱序回包守卫 |
 | 专家与团队 | `run-expert-manual` `session-persona` `team-bridge` `expert-card-actions` `recent-sort-regression` | 专家市场写链（真网目录 + 人设 + patch 往返，33 条断言）；会话级挂/换/摘；团队桥接；卡片按钮真值表；「最近使用」排序 |
 | 升级与安装真机 | `upgrade-plan` `verify-install-info` `verify-host-installinfo` `teardown-residue` | 一键升级判据（本地安装 / 来源未知一律不写）；真 profile 数据下的来源判定（profile 不存在自行 SKIP）；teardown 残留诊断 |
-| 市场与安装链（2.0.0） | `wb-registry` `wb-install-state` `wb-auth-rules` `wb-connector-meta` `wb-plugin-market` `wb-awesome-market` `wb-install-flow` `wb-update-hint` `auth-gate-regression` `install-toast` | 多市场注册表原子写；安装状态与来源锁；令牌槽扫描与注入规则；连接器 R1/R2/R3 投影；插件清单嵌套解析；awesome 过滤/瘦身/304/双源切换；令牌替换写链；R9 更新探测五枚举；装前 401 鉴权闸；顶部安装浮层跨卸载可见 |
+| 市场与安装链（2.0.0） | `wb-registry` `wb-install-state` `wb-auth-rules` `wb-connector-meta` `wb-awesome-market` `wb-install-flow` `auth-gate-regression` `install-toast` | 多市场注册表原子写（只剩连接器源，旧 plugins 条目读侧丢弃/写侧拒绝）；安装状态与来源锁；令牌槽扫描与注入规则；连接器 R1/R2/R3 投影；awesome 过滤/瘦身/304/双源切换与更新探测五枚举；令牌替换写链；装前 401 鉴权闸；顶部安装浮层跨卸载可见 |
+| 社区信号（2.3.0） | `community-meta` | GitHub 仓库写法解析、单次最多 8 条、6 小时缓存命中不联网、refresh + ETag 的 304 复用、404 文案、网络失败 stale 回落、403 限流跨调用生效、原子写（fetch 全替身 + mkdtemp 隔离） |
+| 社区插件卡片（2.3.0） | `market-card-affordance` `plugin-card-layout` | 卡片 pointer 指针 / 键盘可达 / 安装按钮不冒泡（CodeBuddy 卡片与来源切换不得复活）；社区卡片五段固定行高（176px）、标题单行、作者去重、标签最多三个 |
+| 装备清单（2.3.0） | `loadout` | 导出字段白名单（env / header / token / url 值、技能正文、专家人设一律丢弃）；导入差异三态 `installed / update / missing`；同名不同 kind 不误匹配、版本缺失不误判 update；200 条与 256KB 上限、截断标记、Windows 文件名净化 |
 | 社区与前端护栏（2.1.0） | `awesome-readme` `no-conditional-hooks` | README 仓库解析（npm / GitHub URL 归一）；解析器渲染结构与 `javascript:` / `data:` 伪链接拦截；组件内禁止条件调用 Hook（React #310） |
 | 回归护栏 | `readme-images` `bugfix-armory` | README 配图不回退（引用可解析 + `screenshots.json` 与 README 一致 + 旧图名不得复活）；市场入口强制选中与看板页重复让位 |
 

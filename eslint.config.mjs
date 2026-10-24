@@ -55,6 +55,8 @@ const BROWSER_GLOBALS = {
   structuredClone: 'readonly',
   URL: 'readonly',
   URLSearchParams: 'readonly',
+  // 装备清单「下载 .json」用它拼 Blob URL；浏览器专有，Node 全局里没有。
+  Blob: 'readonly',
   AbortController: 'readonly',
   AbortSignal: 'readonly',
   fetch: 'readonly',
@@ -62,6 +64,10 @@ const BROWSER_GLOBALS = {
   ResizeObserver: 'readonly',
   MutationObserver: 'readonly',
   IntersectionObserver: 'readonly',
+  // 头像的后台探测（lib/client.js 的 avatarRecord）用 `new Image()` 而不是往 DOM 里塞
+  // <img>：先拿到字节、再决定是否换成可见节点，这样"加载中"根本不会占住卡片首帧。
+  // 它是 window 上的构造器，Node 全局里没有，扁平配置下必须显式声明。
+  Image: 'readonly',
   // 这三个在浏览器里是 window 上的方法，扁平配置下仍需显式声明
   confirm: 'readonly',
   alert: 'readonly',

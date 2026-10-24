@@ -4,8 +4,8 @@
 // patch 条目的地方。它出错的表现不是崩溃，而是「静默少一条 server」「密钥字段被悄悄丢掉」
 // 「同名条目把整份配置卡死」——这些都不是 jsdom 或手测能稳定发现的。
 //
-// 依赖边界（有意为之）：本套件只 import mcp-config.js 及其两个零裸依赖的下游
-// （mcp-catalog.js、env-expression.js），所以只需要 `yaml`。**TOML 一侧不在本套件**：
+// 依赖边界（有意为之）：本套件只 import mcp-config.js 及其零裸依赖的下游
+// （env-expression.js），所以只需要 `yaml`。**TOML 一侧不在本套件**：
 // mcp-import-sources.js 顶层 import 'smol-toml'，而本仓库的 devDependencies 并不安装它
 // （它是宿主的 peer），装了也只会在 CI 上缺。那一侧由 upgrade-plan / 宿主侧用例覆盖。
 //
@@ -16,8 +16,6 @@ import {
   readManagedMcpServers,
   setManagedMcpDisabled,
   updateManagedMcpPatch,
-  appendSelectedBuiltinMcpServers,
-  BUILTIN_MCP_SERVERS,
 } from "../lib/mcp-config.js";
 
 let failures = 0;
@@ -241,23 +239,6 @@ ok("项目级字段在归一化时保留", projectOnly.idleTimeoutMs === 0 && pr
 ok("项目级字段不会落进全局 patch",
   JSON.stringify(readManagedMcpServers(updateManagedMcpPatch('', [projectOnly])).servers)
   === JSON.stringify([{ name: 'p', transport: 'stdio', command: 'x' }]));
-
-// ══════════════════════════════════════════════════════════════════════════════
-console.log("\n── 7. 内置目录追加：已经装过的不重复装 ──");
-// ══════════════════════════════════════════════════════════════════════════════
-const firstBuiltin = BUILTIN_MCP_SERVERS[0];
-const freshlyInstalled = appendSelectedBuiltinMcpServers('', [], [firstBuiltin.id]);
-ok("空配置下能装进一条内置 MCP",
-  JSON.stringify(freshlyInstalled.added) === JSON.stringify([firstBuiltin.id]) && freshlyInstalled.skipped.length === 0);
-ok("装入的内置条目能被读回", readManagedMcpServers(freshlyInstalled.content).servers.some((s) => s.name === firstBuiltin.name));
-// 换成别的名字装过一次后，靠 endpoint / 包名要能认出「已经装过」，不再插一条重复的。
-const renamed = updateManagedMcpPatch('', [{ ...firstBuiltin, name: 'my-own-name' }]);
-const again = appendSelectedBuiltinMcpServers(renamed, [{ name: 'my-own-name', ...firstBuiltin }], [firstBuiltin.id]);
-ok("已装过（即使改了名字）会被识别并跳过",
-  JSON.stringify(again.skipped) === JSON.stringify([firstBuiltin.id]) && again.added.length === 0);
-ok("跳过时内容原样返回", again.content === renamed);
-throws("未知的内置 id 报错", () => appendSelectedBuiltinMcpServers('', [], ['no-such-builtin']), /未知的内置 MCP/);
-throws("空 id 数组报错", () => appendSelectedBuiltinMcpServers('', [], []), /必须是非空字符串数组/);
 
 // ══════════════════════════════════════════════════════════════════════════════
 console.log("\n── 8. Codex TOML 来源：别家客户端的字段迁移 ──");

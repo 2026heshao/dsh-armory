@@ -201,6 +201,51 @@ const elapsedMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
 check("400 段渲染出节点", collect(bigTree).length > 400, collect(bigTree).length);
 check("400 段耗时 < 3000ms", elapsedMs < 3000, `${elapsedMs.toFixed(1)}ms`);
 
+// ── 8. 右下角「跳到末尾」──────────────────────────────────────────────────
+console.log("[8] README 跳到末尾");
+// sticky 而不是 absolute：前者不随正文滚走，后者会跟着内容移出视口；两者都留在弹层
+// 内部，因此仍在焦点陷阱里（Tab 可达），Esc 与点遮罩关闭逻辑也不用改。
+check(
+  "外层 sticky 且把鼠标事件透传给正文",
+  /\.dsh-mcp-readme-jump-wrap\{[^}]*position:sticky[^}]*pointer-events:none[^}]*\}/.test(source),
+);
+check(
+  "按钮靠右下角对齐",
+  /\.dsh-mcp-readme-jump-wrap\{[^}]*justify-content:flex-end[^}]*\}/.test(source),
+);
+check(
+  "按钮本身可点且用强调色反馈",
+  /\.dsh-mcp-readme-jump\{[^}]*cursor:pointer[^}]*pointer-events:auto[^}]*\}/.test(source) &&
+    /\.dsh-mcp-readme-jump:hover\{[^}]*border-color:var\(--mcp-accent\)/.test(source),
+);
+check(
+  "键盘聚焦有可见轮廓",
+  /\.dsh-mcp-readme-jump:focus-visible\{[^}]*outline:2px solid var\(--mcp-accent\)/.test(source),
+);
+check("向下箭头图标已定义", /down:\s*'M8 3v9\.4M4 8\.6l4 4 4-4'/.test(source));
+check(
+  "仅在 README 可读时渲染",
+  /readmeView\.ok\s*\?\s*h\('div',\s*\{\s*className:\s*'dsh-mcp-readme-jump-wrap'\s*\}/.test(source),
+);
+check(
+  "点击平滑滚动到弹层底部",
+  /readmeNodeRef\.current[\s\S]{0,300}?scrollTo\(\{\s*top:\s*node\.scrollHeight,\s*behavior:\s*'smooth'\s*\}\)/.test(source),
+);
+check("按钮可访问名称走 t()", /'aria-label':\s*t\('滑动到 README 末尾'\)/.test(source));
+check(
+  "英文文案已登记",
+  /"跳到末尾":\s*"Jump to end"/.test(source) &&
+    /"滑动到 README 末尾":\s*"Scroll to the end of README"/.test(source),
+);
+// 贴底时按钮排在操作行之后，不会盖住「关闭 / 安装 / 重新读取」。
+const jumpCssAt = source.indexOf(".dsh-mcp-readme-jump-wrap{");
+const jumpRenderAt = source.indexOf("className: 'dsh-mcp-readme-jump-wrap'", jumpCssAt);
+check(
+  "跳转按钮渲染在操作按钮之后",
+  jumpCssAt > 0 && jumpRenderAt > source.indexOf("children: t('重新读取')"),
+  { jumpCssAt, jumpRenderAt },
+);
+
 if (failed > 0) {
   console.log(`AWESOME-README FAILED: ${failed} 项`);
   process.exitCode = 1;

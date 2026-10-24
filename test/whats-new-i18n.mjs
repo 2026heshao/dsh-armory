@@ -93,7 +93,7 @@ ok("缺英文覆盖时逐条回落中文（不渲染 undefined/空串）",
 
 // ── 3. 客户端选择逻辑：抽源码真跑 ───────────────────────────────────────────
 const source = await readFile(CLIENT, "utf8");
-const START = "// ── P1：数据型英文覆盖（更新日志 / 内置 MCP 目录）";
+const START = "// ── P1：数据型英文覆盖（更新日志）";
 const END = "// ── 旧插件名 → 新插件名的 localStorage 键迁移";
 const startAt = source.indexOf(START);
 const endAt = source.indexOf(END, startAt + START.length);
@@ -108,7 +108,7 @@ function loadHelpers(code = helperSource) {
   const context = { console };
   context.globalThis = context;
   vm.createContext(context);
-  vm.runInContext(`${code}\nglobalThis.__probe = { localizeWhatsNewEntries, localizeBuiltinItem };`, context, { filename: "overlay-helpers.js" });
+  vm.runInContext(`${code}\nglobalThis.__probe = { localizeWhatsNewEntries };`, context, { filename: "overlay-helpers.js" });
   return context.__probe;
 }
 const helpers = loadHelpers();
@@ -128,25 +128,6 @@ ok("英文模式：缺译文的条目逐条回落中文",
 const chinese = helpers.localizeWhatsNewEntries(sample, false);
 ok("中文模式：始终使用中文（即使带了英文）",
   chinese[0].items[0].text === "中文正文" && chinese[0].items[0].where === "中文位置");
-
-const builtinSample = {
-  label: "中文名", labelEn: "English name",
-  summary: "中文摘要", summaryEn: "English summary",
-  access: "中文接入", accessEn: "English access",
-  authNote: "中文说明", authNoteEn: "English note",
-  categoryLabel: "中文分类", categoryLabelEn: "English category",
-};
-const builtinEn = helpers.localizeBuiltinItem(builtinSample, true);
-ok("内置目录英文模式：label/summary/access/authNote/categoryLabel 全部选英文",
-  builtinEn.label === "English name" && builtinEn.summary === "English summary"
-  && builtinEn.access === "English access" && builtinEn.authNote === "English note"
-  && builtinEn.categoryLabel === "English category");
-const builtinZh = helpers.localizeBuiltinItem(builtinSample, false);
-ok("内置目录中文模式：保持中文原字段", builtinZh === builtinSample);
-const partial = helpers.localizeBuiltinItem({ summary: "中文摘要", access: "中文接入" }, true);
-ok("内置目录缺英文字段时逐字段回落中文",
-  partial.summary === "中文摘要" && partial.access === "中文接入"
-  && !("authNote" in partial) && !("categoryLabel" in partial));
 
 // ── 4. 接线断言：helper 必须真的被弹窗调用 ─────────────────────────────────
 const modalStart = source.indexOf("const WhatsNewModal = ({ call }) => {");

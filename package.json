@@ -1,7 +1,7 @@
 {
   "name": "dsh-armory",
-  "version": "2.3.0",
-  "description": "Unified Skill + MCP + Expert + Plugin board for DeepSeek Harness (desktop app and Web GUI) — custom skill suites, skill install/uninstall with live refresh, global panel page, JSON import, WorkBuddy connector & SkillHub & Expert & CodeBuddy plugin & awesome-dsh-plugins market installs, MCP OAuth authorization, tool-usage tailor with wire-tax trends, and profile-backed Host Remote management.",
+  "version": "2.3.1",
+  "description": "Unified Skill + MCP + Expert + Plugin board for DeepSeek Harness (desktop app and Web GUI) — custom skill suites, skill install/uninstall with live refresh, global panel page, JSON import, WorkBuddy connector & SkillHub & Expert & DSH community plugin market installs, MCP OAuth authorization, tool-usage tailor with wire-tax trends, and profile-backed Host Remote management.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/2026heshao/dsh-armory.git"

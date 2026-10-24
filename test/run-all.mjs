@@ -54,11 +54,9 @@ const SUITES = [
   // t()」，不保证「包了就有译文」—— 英文界面上蹦中文正是这个缺口。历史缺口用只许收缩的
   // 基线集合登记，任何**新增**漏键/死键立刻失败。
   { name: "i18n-coverage（en-US 字典覆盖率与 locale 四级回落）", file: "i18n-coverage.mjs" },
-  // P1 数据型英文覆盖：更新日志与内置 MCP 目录不是 client.js 的 t() 字面量，字典覆盖率
-  // 看不到它们。两个套件分别钉「版本/条目逐条对齐 + 客户端选择 + 缺译文回落」与
-  // 「47 个 id / 10 个分类一一对应 + 英文字段不污染安装配置」，都含反向自测。
+  // P1 数据型英文覆盖：更新日志不是 client.js 的 t() 字面量，字典覆盖率看不到它。
+  // 这个套件钉「版本/条目逐条对齐 + 客户端选择 + 缺译文回落」，含反向自测。
   { name: "whats-new-i18n（更新日志 en-US 覆盖与客户端选择）", file: "whats-new-i18n.mjs" },
-  { name: "mcp-catalog-i18n（内置 MCP 目录 en-US 覆盖与投影）", file: "mcp-catalog-i18n.mjs" },
   // persona 4000 预览阈值（清单 3.2）：两处详情弹层都走常量、无散落硬编码、展开/收起双向。
   { name: "persona-truncate（persona 预览截断阈值）", file: "persona-truncate.mjs" },
   // 工具裁缝时间窗（清单 4.1）：新增「今日」档不得改变默认 30 天 —— 改了会让报告数字骤降。
@@ -112,6 +110,11 @@ const SUITES = [
   // 兜底（patch 被改坏回落 live=null，不炸整条链）；③ live 对账后过滤写回的原有语义
   // 未被顺手改掉。动态项真调 listExpertRecent（只读不断言条数）。
   { name: "recent-sort-regression（最近使用排序修复回归）", file: "recent-sort-regression.mjs" },
+  // 召唤菜单专家显示名回归（2026-10-24 用户报「专家二级菜单整列英文标识名」）：钉住
+  // readExpertPresets 从预设行剥出 `WorkBuddy 专家 · <名>` 的名字，以及 wbExpertInstalled
+  // 的三层回落（目录缓存 → 预设行自带名 → 标识名）。含前缀常量写读同源 + 与 client.js
+  // 匹配串逐字一致，另配 2 条反向自测。全程离线，不碰真实 ~/.dsh。
+  { name: "expert-display-name（召唤菜单专家显示名三层回落）", file: "expert-display-name.mjs" },
   // ── T01 共享数据层（多市场注册表 / 安装状态 / 认证注入规则）───────────────
   // 三个模块只用本机内置模块、零网络、零真实 ~/.dsh（隔离靠 mkdtemp + rootDir 注入），
   // 注册表还把「内置 connectors 源 URL 与 lib/wb-market.js 现值一致」钉进了用例。
@@ -137,12 +140,15 @@ const SUITES = [
   // 总线与角标重取函数抽进 vm 真跑（reason 透传 / 抛错隔离 / 退订 / 乱序守卫），并钉住
   // 三个变更入口（看板卸载、市场安装、市场卸载）都广播、两个消费方都订阅。
   { name: "skill-refresh（技能集合实时刷新：总线/角标重取/三入口广播）", file: "skill-refresh.mjs" },
-  // ── T02 连接器元数据投影 / T03 插件市场投影 ──────────────────────────────
-  // 两者都是纯解析层守护：零网络（T03 的 zip 用手工字节内存构造）、零真实 ~/.dsh。
-  // T02 钉 R1 注入规则标注 / R2 visible_in 标签筛选 / R3 examples 优先；
-  // T03 钉 marketplace.json 嵌套解析、plugin.json 提取、dependencies 防御。
+  // ── T02 连接器元数据投影 ─────────────────────────────────────────────────
+  // 纯解析层守护：零网络、零真实 ~/.dsh。钉 R1 注入规则标注 / R2 visible_in 标签筛选 /
+  // R3 examples 优先。（T03 的 CodeBuddy 插件市场已于 2026-10-24 整体移除，对应套件一并下线。）
   { name: "wb-connector-meta（连接器 R1/R2/R3 投影：注入规则/标签筛选/examples）", file: "wb-connector-meta.mjs" },
-  { name: "wb-plugin-market（插件市场 R5/R6：嵌套清单解析/依赖防御/投影）", file: "wb-plugin-market.mjs" },
+  // 卡片可点击性：pointer 指针 / 键盘可达 / 操作按钮不冒泡（DSH 社区插件卡片）。
+  { name: "market-card-affordance（插件卡片：指针/键盘/冒泡守卫）", file: "market-card-affordance.mjs" },
+  // DSH 社区插件卡片的五段式排版（2026-10-24）：固定 176px、标题单行、作者只出现一次、
+  // 验证态只留图标、标签最多三个、按钮落同一水平线。只读源码，含反向自测。
+  { name: "plugin-card-layout（社区插件卡片：五段固定行高与信息去重）", file: "plugin-card-layout.mjs" },
   // 市场安装鉴权闸 + 装前 401 探测回归（BugFix 第四单 QA）：被测对象是运行时副本
   // （~/.dsh/profiles/desktop/node_modules/dsh-armory/lib/，DSH 重启后实际加载的版本），
   // 开工先做 SHA256 哈希预检（不符即中止，防并行会话中间态）。钉住三件事：
@@ -157,13 +163,33 @@ const SUITES = [
   // (2) import 了却从未调用、(3) 上一个函数少闭合 } 导致下一个声明被嵌进它体内。
   // 这三类 node --check 与 contract-consistency 都抓不到，本期各出过一次真事故。
   { name: "wb-install-flow（T04：令牌替换写链 + 安装状态账本 + 三盲区静态守卫）", file: "wb-install-flow.mjs" },
-  // R9 更新探测五枚举（no-source/probe-failed/no-cache/up-to-date/update-available）
-  // + 「只探测不落盘」安全边界 + UI 侧 reason 映射与状态名不冲突。
-  { name: "wb-update-hint（T05：R9 ETag 更新探测五枚举 + UI reason 契约 + 无定时器）", file: "wb-update-hint.mjs" },
   // ── T01 awesome 市场数据层（纯新增零网络真实依赖：mock fetch 替换 + mkdtemp 隔离）──
   // 钉 R11 过滤口径（verified∧npm 交集）、瘦身字段形状、畸形行防御、原子写、
   // 304 复用不重写、双源切换、全源失败 stale 回落与体积 ≤3MB 断言。
   { name: "wb-awesome-market（T01：awesome 数据层过滤/瘦身/缓存/304/双源切换）", file: "wb-awesome-market.mjs" },
+  // ── T01 社区元信息（GitHub 公开接口：仓库活跃度/维护者）──
+  // 详情页「这个人还在维护吗」的唯一数据源。钉仓库写法解析、最多 8 条、6 小时缓存
+  // 命中不联网、refresh+ETag 的 304 复用、404 文案、网络失败 stale 回落、403 限流
+  // 跨调用生效、原子写。fetchImpl 全替身 + mkdtemp 隔离，零真实网络与真实 ~/.dsh。
+  { name: "community-meta（GitHub 仓库元信息：缓存/304/限流/stale 回落）", file: "community-meta.mjs" },
+  // ── 插件卡底栏「↓N」的数据层（npm 公开统计，唯一真源）──
+  // 钉的是诚实性而不是取数：404 / 响应无数字 → missing 且结果里根本没有 downloads
+  // （绝不用 0 冒充「没人下载」）；失败回落 stale 不许把数字打没；429 写冷却、冷却期内
+  // 零外网；7 天缓存命中不联网；并发封顶 4；原子写无 .staging 残留。含行为级反向自测。
+  { name: "npm-downloads（npm 近 30 天下载量：missing 不造 0/stale/冷却/并发封顶）", file: "npm-downloads.mjs" },
+  // ── 顶栏「点 Star」（community-meta 的客户端消费方）──
+  // 三条容易被顺手改坏的线：(1) 诚实性——GitHub 不支持匿名 star，界面里不许出现本地
+  // 「已 star」态，也不许在数字读不到时显示一个 ★ 0；(2) 数字只走既有 wbRepoMeta，
+  // 不为 star 新增契约方法、不在浏览器绕过宿主缓存直连 api.github.com；(3) ARIA——
+  // chip 必须是 role=tablist 的兄弟而不是子节点。做法同 client-i18n：抽 lib/client.js
+  // 的社区信号一节进 node:vm，配最小 hook 垫片**真渲染**，对元素树断言；锚点找不到即失败。
+  { name: "repo-star-chip（顶栏点 Star：诚实性/上游取数/tablist 兄弟位）", file: "repo-star-chip.mjs" },
+  // ── 装备清单（导出 / 导入对比）──
+  // 纯数据层，零网络零磁盘。核心不是 happy path，而是「什么**不能**进清单」：
+  // env / header / token / url 值与技能正文、专家人设必须被投影层丢掉；导入只算
+  // installed / update / missing 三态，不做任何写操作。另钉同名不同 kind 不得误匹配、
+  // 版本缺失不得误判 update、200 条上限与 Windows 文件名净化。
+  { name: "loadout（装备清单：字段白名单/差异三态/体积与条数上限）", file: "loadout.mjs" },
   // ── 安装浮层（顶部轻提示）──
   // 守两件事：(1) 浮层节点挂在 document.body 的模块级单例上，面板卸载/切标签页后
   // 进度仍然可见（挂回组件子树就退化成「切窗口就没了」）；(2) 结果态 4.2s 后自己
@@ -177,6 +203,41 @@ const SUITES = [
   // （new URL('javascript:x', base) 会解析成功，只校验 base 拼接就会放行），且全程不碰
   // dangerouslySetInnerHTML。渲染器同样从 lib/client.js 整节抽源码进 node:vm 真跑。
   { name: "awesome-readme（README 预览：仓库解析 + 渲染器结构 + 伪链接拦截）", file: "awesome-readme.mjs" },
+  // ── 市场「最近动静」快照对比 ──
+  // 用户报「切换页面重新进入时重复读取」：每次进市场，最近动静就多一对「SkillHub 新增 20 /
+  // 移除 20」。根因是技能侧把 SkillHub「下载量（本页排序）」首页当成了稳定目录——那一档不给
+  // 上游发 sortBy，无 ORDER BY 的 LIMIT 20 每次返回随机 20 条（实测重合 0/20）。修复分三层：
+  // basis（同一份清单才互比）+ 重合度闸门（全增全删一律静默换基线）+ 存储升 v2（丢弃 v1 脏数据）。
+  // 切片抽进 vm 真跑，第 5 节把 v1 语义注回同一份切片做反向自测。零网络零写盘。
+  { name: "market-pulse（最近动静：basis 可比性 / 重合度闸门 / v1 脏数据丢弃）", file: "market-pulse.mjs" },
+  // ── 市场页头像加载 ──
+  // 全部卡片头像的唯一来源是 github.com/<login>.png，本机整段不通（跟完整重定向链实测 14.7 秒、
+  // 单发 10.7 秒抛 fetch failed）；旧写法把 src 直接交给 <img>，于是首页 50 张卡发 100 个请求
+  // （41 个不同 owner，重复一半），而「报错之前一直算加载中」—— Chromium 单 host 约 6 条连接
+  // 被 10 秒级挂起占满，用户看到的是 CSS 给 <img> 画的空灰圈，onError 的 visibility:hidden 根本
+  // 没机会触发。修法四层：① 请求与显示拆开（首帧字母、后台 new Image() 探、同 URL 本次会话至多
+  // 一次且失败粘住、迟到的成功仍采纳）；② 取图走 wsrv.nl 代理 + images.weserv.nl 备胎的**有序
+  // 路由**，4 秒超时从真正发出那刻起算，主域挂了换备胎并重新起表；③ 在途闸门只放 3 条（README
+  // 插图走同一个域名，不能挤死），其余按挂载顺序排队；④ 视口门：离视口 200px 以外根本不进队列
+  // （照 dshmarket 的 useNearViewport / CardShot 的口径，比闸门更根本——闸门只是排队）。
+  // 手法同 repo-star-chip：抽 lib/client.js 社区信号一节进 node:vm，配**带依赖比较**的 hook
+  // 垫片真渲染；Image 与 IntersectionObserver 都是替身、时钟手动推进（超时这条路径要能确定性
+  // 复现，不能让测试睡 4 秒）。第 12 节把 21 条旧语义分别注回同一份切片做反向自测。零真实网络。
+  { name: "market-avatar（头像：首帧字母 / 代理有序路由 / 4s 超时从发出起算 / 在途闸门 / 视口门 / 封顶）", file: "market-avatar.mjs" },
+  // ── Skill 看板与已召唤专家页的头像位 ──
+  // 本地 skill 无图标字段：头像只能按名字哈希**生成**（SkillAvatar，零网络零登记）；
+  // 已召唤专家预设行自带 avatarUrl（readExpertDisplayNames 随 `...info` 展开）。
+  // 钉住：SkillAvatar 确定性 / 不触网 / 三处头像位；专家页四处头像位与数据链；
+  // CSS 配套。手法同 install-toast：SkillAvatar 抽源码进 vm 真渲染，其余源码针。零真实网络。
+  { name: "skill-expert-avatar（Skill/专家页头像位：生成头像与 avatarUrl 数据链）", file: "skill-expert-avatar.mjs" },
+  // ── 市场缓存回落路径（2026-10-24 修复组）──
+  // 专家目录（expert-market.loadManifest）与连接器 ZIP（wb-market.loadConnectorZip）：
+  // 旧实现在「磁盘缓存损坏 + 上游 304」时对 null 取 buffer 崩成死循环、断网时把已验证
+  // 可用的磁盘缓存一并丢弃（与头注承诺相反）、ETag 路径的 200 响应不做结构校验就覆盖
+  // 好缓存。修复后：只有磁盘缓存有效才带 If-None-Match；304 / 断网 / 坏结构都回落磁盘；
+  // 网络数据先校验再原子落盘；projectExpert 透出清单的 promptFile。隔离：
+  // DSH_ARMORY_MARKET_HOME + DSH_ARMORY_HOME 两个临时目录 + fetch 全替身，零真实网络。
+  { name: "market-cache-fallback（市场缓存回落：304 死路 / 断网回落 / 结构校验 / 原子写）", file: "market-cache-fallback.mjs" },
 ];
 
 let failed = 0;
