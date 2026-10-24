@@ -5,7 +5,7 @@
 > **DeepSeek Harness 的一体化管理看板**：MCP · 技能 · 专家 · 插件 · 工具账本 · 四大市场，浏览、搜索、一键安装、一键召唤。
 > fork 自 [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui)（MIT），现已扩展为完整军械库。
 >
-> **最新 v2.3.1**：修复市场缓存的两条死路（缓存损坏遇 304 崩溃循环、断网丢弃完好磁盘缓存），网络数据先校验再原子落盘，专家人设路径以市场清单为准。详见 [更新日志](.github/release-notes/v2.3.1.md)。
+> **最新 v2.3.2**：修复安装需 OAuth 连接器时的整面板崩溃（授权弹窗 style 字符串触发 React #62），浏览器打开失败会自动重试唤起。详见 [更新日志](.github/release-notes/v2.3.2.md)。
 
 <p align="center">
   <a href="https://github.com/2026heshao/dsh-armory/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-armory?style=social" alt="stars"></a>

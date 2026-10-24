@@ -1265,5 +1265,163 @@
         "sha256": "4E51C085F573254A0968B7265A0585F56F725613C50F6AEBCF9C9EB417697F66"
       }
     ]
+  },
+  {
+    "deployedAt": "2026-10-24T13:01:25.872Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "23AA51935E71E3E97138D945DDF659A3ABD4BF171FDBA12B9A98420D8064B00C"
+      },
+      {
+        "name": "index.js",
+        "kind": "更新",
+        "sha256": "6DD8A2FA283BD0EA9CA9EA5B9B3B6C192860A8BFC328DEEEC53B1BCE54A4C384"
+      },
+      {
+        "name": "mcp-oauth.js",
+        "kind": "更新",
+        "sha256": "D70C02ED6C01C5B6C53AB2DC1E758BD5B3F91548961EE53C6652C7BC2B144315"
+      },
+      {
+        "name": "wb-market.js",
+        "kind": "更新",
+        "sha256": "CC98F2ADEFC23CAFDE7023DC49F31EC5C4DC3571AB910E9DC3C7DB1810522692"
+      },
+      {
+        "name": "whats-new-en.js",
+        "kind": "更新",
+        "sha256": "643A9B15DDD45C6C96538C92E149AD993A145B6056AEEF3727714FBE7FDB98F3"
+      },
+      {
+        "name": "whats-new.js",
+        "kind": "更新",
+        "sha256": "6652333B60EEAFB616AE8BC206F04BB24EC2D6E45B5A621B4F19CD3EFE3320BE"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-10-24T13:15:14.389Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "9A05BECDA23ACF1228DB0FF5F2302B667A6479351CC9699FFB18B5C3FD3BE52F"
+      },
+      {
+        "name": "mcp-oauth.js",
+        "kind": "更新",
+        "sha256": "D85D4457BF935B708FA92B94366F0F45D7CB07BDF502AD13D5C10ACC55FBAE8D"
+      },
+      {
+        "name": "wb-market.js",
+        "kind": "更新",
+        "sha256": "D115E3E608F44419D025B879E597C65F5ECC67F3A064EA6029D1074ADD030889"
+      },
+      {
+        "name": "whats-new-en.js",
+        "kind": "更新",
+        "sha256": "D55B91B5208B953DD5D7B16CB12005BC4B86058EA6E2C47DF4A17803247D07A7"
+      },
+      {
+        "name": "whats-new.js",
+        "kind": "更新",
+        "sha256": "CF90F3FC86B64E67CFB50610655AE0852358283885ADEAA3A6D4F9591300FE3E"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-10-24T13:24:17.741Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "BC0BEEEF049FB287368DBDB66FE964E21D1265D4F33EF3CEE7FE5CD475A5E612"
+      },
+      {
+        "name": "wb-market.js",
+        "kind": "更新",
+        "sha256": "0396319FF2D8A158F1C3A72B3DA1E98B0EF9CCBDB2A1D951E467732C7F8CA514"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-10-24T13:41:38.704Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "F7C7657880BC2B655B5B4EB5ACFDAEC0CF2959706ECF46836BDB12FF96D28CDE"
+      },
+      {
+        "name": "index.js",
+        "kind": "更新",
+        "sha256": "1AC5E9B70A5771C9433CBE95FCE597E37D4F1716B2D83EFF62B86980D306E703"
+      },
+      {
+        "name": "skill-dir-times.js",
+        "kind": "新增",
+        "sha256": "CCDA204B86B87D5A4C6CC955D2C5AB5D2071D2D865A34E6764D0D37B8ACF1563"
+      },
+      {
+        "name": "typert.js",
+        "kind": "更新",
+        "sha256": "16218E02C2D5E9A4700D9512BF7674AC1CE9D1F561AD58C8469721385416E37C"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-10-24T13:50:05.314Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "EFCD07E729F42F7BE94C7B2B3BFC7F54D56083E05DAA740C42D0C29B77FE6E10"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-10-24T14:01:02.681Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "D72525CF148C0A106BA2741371E08B6349F451A8BE59E2ADC5C02BBD9DD47726"
+      },
+      {
+        "name": "index.js",
+        "kind": "更新",
+        "sha256": "2C87B0D21E3FEAB2426833370419C3E9EC19CB23EDECE58455237AAF98BE7C5D"
+      },
+      {
+        "name": "skill-dir-times.js",
+        "kind": "更新",
+        "sha256": "96F042C02F26153247779274E8444C2BF5FE4E906F27562DA23F3D138D3EF249"
+      },
+      {
+        "name": "typert.js",
+        "kind": "更新",
+        "sha256": "F6BDB10A1462564FB29D259FFC2482EE03E1F3C2971AE9C338558220F1E3978F"
+      }
+    ]
   }
 ]

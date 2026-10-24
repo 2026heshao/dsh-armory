@@ -15,6 +15,15 @@
 //      needsOAuth:true；server-side / mcp 仍是硬拒（那两种确实无法在插件侧自解）。
 //   ④ 安装链顺序：先注入已存 token → 再探测 → 探测报 needsAuth 就弹授权框、不再写配置。
 //
+// 【2026-10-24 追加：ima-mcp 事故】用户报「点安装 MCP 不跳授权页，安装也失败」，实测
+// 根因是 ① 的实现写错了类型（详见第 7 节抬头），连带暴露三处缺口：
+//   ⑤ ensureAccessToken 的对象返回值被整个字符串化 → `Bearer [object Object]` 落盘；
+//   ⑥ 探测只看 401/403，而坏 token 让服务器改回 400 + JSON-RPC 鉴权正文 → 漏判；
+//   ⑦ 服务器不做 OAuth 发现时（腾讯 ima 就不做）授权流程只能报错 → 面板把手填令牌
+//      那条兜底路开成弹层（manualTokenOnly），不再把用户堵在一行红字前。
+// 顺带修掉两条「装不上」：只写 url 不写 type 的远程条目一律撞「未知传输类型」（索引里
+// 实有 11 条），以及第 4 节把 catalog.rows 当返回键、导致整节在任何机器上静默 SKIP。
+//
 // 【被测对象】仓库内 lib/（与 test/mcp-config.mjs 等其它套件一致）。旧版钉死
 // ~/.dsh/profiles/desktop/node_modules/dsh-armory/lib 运行时副本并做哈希预检，效果是
 // 「改了源码还没部署」就整片 FAIL，把编辑中间态误报成回归。部署由 .deploy-apply.mjs
@@ -47,7 +56,7 @@ const ok = (name, condition, extra = "") => {
 const section = (title) => console.log(`\n── ${title} ──`);
 
 /** 起一个本地探针服务器：记录收到的请求，按 status 回复。零外网。 */
-async function withProbeServer(status, handler) {
+async function withProbeServer(status, handler, bodyText = null) {
   const seen = [];
   const server = createServer((req, res) => {
     const chunks = [];
@@ -65,7 +74,8 @@ async function withProbeServer(status, handler) {
           'Bearer resource_metadata="https://example.invalid/.well-known/oauth-protected-resource"';
       }
       res.writeHead(status, { "content-type": "application/json", ...extraHeaders });
-      res.end(JSON.stringify({ jsonrpc: "2.0", id: 1, result: {} }));
+      // bodyText 显式给出时用它：真实网关常在 400 的正文里才说清「这是鉴权问题」。
+      res.end(bodyText ?? JSON.stringify({ jsonrpc: "2.0", id: 1, result: {} }));
     });
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -277,10 +287,12 @@ try {
 } catch {
   catalog = null;
 }
-if (!catalog || !Array.isArray(catalog.rows) || catalog.rows.length === 0) {
+// 返回键是 connectors（不是 rows）：这里曾写成 catalog.rows，于是整节在任何机器上
+// 都直接 SKIP ——一条永不执行的断言比没有断言更糟，它会让人以为这条契约有护栏。
+if (!catalog || !Array.isArray(catalog.connectors) || catalog.connectors.length === 0) {
   console.log("SKIP  4. 目录不可用（无本地索引缓存），跳过投影断言");
 } else {
-  const rows = catalog.rows;
+  const rows = catalog.connectors;
   ok("4a  total 与 rows 长度一致", catalog.total === rows.length, `total=${catalog.total} rows=${rows.length}`);
 
   const oauthRows = rows.filter((r) => r.needsOAuth === true);
@@ -438,6 +450,147 @@ section("6. 静态不变式：lib/index.js 安装链接线顺序");
   // 必须走参数直传的 ShellExecute（rundll32 url.dll,FileProtocolHandler）。
   ok("6i  index.js 不再用 cmd /c start 打开授权页", !/["']cmd["']\s*,\s*\[\s*["']\/c["']\s*,\s*["']start["']/.test(indexSrc));
   ok("6j  index.js 的 Windows 兜底走 rundll32 参数直传", /rundll32"\s*,\s*\[\s*"url\.dll,FileProtocolHandler"/.test(indexSrc));
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 第 7 节 · 「Bearer [object Object]」事故回归（ima-mcp 装不上、授权页永不弹）
+// ════════════════════════════════════════════════════════════════════════════
+// 根因链（2026-10-24 一手复现于 https://ima.qq.com/mcp）：
+//   ① ensureAccessToken() 返回对象 {ok, accessToken, refreshed, error}，
+//      而注入处写成 `String(await oauthEnsureToken(url))` → "[object Object]"；
+//      对象恒真值 → 每个 HTTP 连接器都被注进 `authorization: Bearer [object Object]`。
+//   ② 该头一旦带上，ima 回的就不是 401「empty access token」而是 400「token parse failed」，
+//      而旧探测只认 401/403 → 判成「匿名可用」→ 配置照写、needsAuth 永不触发。
+//   ③ 于是 mcp-client 连接期拿到 400 + JSON-RPC error（面板显示「连接失败」），
+//      而用户点授权时 OAuth 发现又必然失败（ima 不挂任何 /.well-known）→ 一行红字，死路。
+section("7. 凭据形状 / 非 401 的鉴权失败 / 手填令牌回落");
+
+{
+  const garbage = ["[object Object]", "Bearer [object Object]", "", "   ", "Bearer", "Bearer  ", "undefined", "null", "NaN", "x".repeat(9000)];
+  ok(
+    "7a  isUsableBearerToken 拒掉序列化残骸/空值/超长",
+    garbage.every((v) => oauth.isUsableBearerToken(v) === false),
+    garbage.filter((v) => oauth.isUsableBearerToken(v)).map((v) => v.slice(0, 20)).join(","),
+  );
+  ok(
+    "7b  isUsableBearerToken 拒掉未替换占位符与控制符",
+    oauth.isUsableBearerToken("Bearer ${TOKEN}") === false &&
+      oauth.isUsableBearerToken("abc\r\nx-evil: 1") === false &&
+      oauth.isUsableBearerToken({ accessToken: "abc" }) === false,
+  );
+  ok(
+    "7c  isUsableBearerToken 接受正常令牌（带不带 Bearer 前缀都算）",
+    oauth.isUsableBearerToken("eyJhbGciOi.abc-_123") === true && oauth.isUsableBearerToken("Bearer eyJhbGciOi.abc") === true,
+  );
+  ok(
+    "7d  ${...} 占位符不算残骸（R7 要原样保留交给面板补填）",
+    oauth.isSerializedGarbageCredential("Bearer ${PICSET_AGENT_SK}") === false &&
+      oauth.isSerializedGarbageCredential("Bearer [object Object]") === true &&
+      oauth.isSerializedGarbageCredential("real-token") === false,
+  );
+  // 令牌库这一层也要认：过期时间再远，残骸也不是令牌。
+  ok(
+    "7e  tokenIsFresh 不把 [object Object] 当有效令牌",
+    oauth.tokenIsFresh({ accessToken: "[object Object]", expiresAt: Date.now() + 600_000 }) === false,
+  );
+}
+
+{
+  // mcpAuthFailure：状态码 + 正文一起判，且只收鉴权语义。
+  const cases = [
+    [401, "", true],
+    [403, "", true],
+    [400, '{"jsonrpc":"2.0","error":{"code":-32001,"message":"type:business, code:110042, msg:token parse failed"}}', true],
+    [400, '{"jsonrpc":"2.0","error":{"message":"empty access token"}}', true],
+    [400, '{"error":"invalid_token"}', true],
+    [400, "authorization failed", true],
+    [400, "not found", false],
+    // 正文点名鉴权才算，状态码本身不是挡箭牌：网关在路由前就查凭据时 404 也会带 token 报错。
+    [404, "empty access token", true],
+    [404, "Cannot GET /mcp", false],
+    [500, "token expired", false],
+    [200, "", false],
+    [0, "", false],
+  ];
+  const bad = cases.filter(([s, b, want]) => oauth.mcpAuthFailure(s, b) !== want).map(([s, b]) => `${s}:${b.slice(0, 24)}`);
+  ok("7f  mcpAuthFailure 判定表逐条符合预期", bad.length === 0, bad.join(" | "));
+}
+
+await withProbeServer(
+  400,
+  async ({ url }) => {
+    const result = await probeServerAuthorization("ima-mcp", { type: "streamableHttp", url });
+    ok("7g  400 + token 鉴权正文 → needsAuth（旧版在这里放行并写出坏配置）", result?.needsAuth === true, `authorized=${result?.authorized}`);
+    ok("7g-2 needsAuth 带上 status 与正文摘要", result?.status === 400 && String(result?.bodyHint || "").includes("token parse failed"), `hint=${result?.bodyHint}`);
+  },
+  '{"jsonrpc":"2.0","error":{"code":-32001,"message":"type:business, code:110042, msg:token parse failed"},"id":null}',
+);
+
+await withProbeServer(
+  400,
+  async ({ url }) => {
+    const result = await probeServerAuthorization("broken-one", { type: "streamableHttp", url });
+    ok("7h  400 但正文与鉴权无关 → 仍然放行（不把服务器故障判成要授权）", result?.authorized === true && !result?.needsAuth, `status=${result?.status}`);
+  },
+  '{"jsonrpc":"2.0","error":{"code":-32602,"message":"invalid params: unknown field"}}',
+);
+
+await withProbeServer(
+  503,
+  async ({ url }) => {
+    const result = await probeServerAuthorization("flaky-one", { type: "streamableHttp", url });
+    ok("7i  5xx 即使正文提到 token 也放行", result?.authorized === true && !result?.needsAuth, `status=${result?.status}`);
+  },
+  "service unavailable: token store down",
+);
+
+{
+  const indexSrc = readFileSync(join(LIB, "index.js"), "utf8");
+  const marketSrc = readFileSync(join(LIB, "wb-market.js"), "utf8");
+  const clientSrc = readFileSync(join(LIB, "client.js"), "utf8");
+
+  // 事故本体：对象被 String() 成了 "[object Object]"。这条写法一律不得复活。
+  ok("7j  index.js 不再把 ensureAccessToken 的返回值整个 String 化", !/String\(\s*\(?\s*await oauthEnsureToken/.test(indexSrc));
+  ok(
+    "7k  index.js 取的是 .accessToken 且过形状闸",
+    /result\?\.ok\s*&&\s*oauthIsUsableToken\(result\.accessToken\)/.test(indexSrc),
+  );
+  ok("7l  index.js 引入并使用凭据形状判定", /isUsableBearerToken as oauthIsUsableToken/.test(indexSrc) && /isSerializedGarbageCredential as oauthIsGarbageCredential/.test(indexSrc));
+  ok("7m  坏掉的 authorization 会被摘掉而不是原样装回", /function stripBearerHeader/.test(indexSrc) && /poisoned \? stripBearerHeader\(rawServer\)/.test(indexSrc));
+  ok("7n  授权靶点不带坏头去探测", /oauthIsGarbageCredential\(headers\.authorization\)/.test(indexSrc));
+  ok("7o  wb-market 探测按「状态码 + 正文」判鉴权", /mcpAuthFailure\(response\.status, bodyText\)/.test(marketSrc));
+  ok("7p  wb-market 不再只看 401/403", !/if\s*\(response\.status === 401 \|\| response\.status === 403\)\s*\{/.test(marketSrc));
+
+  // 死路变活路：发现失败时必须把手填令牌弹层开出来。
+  ok("7q  mcp-oauth 发现失败回传 manualTokenOnly", /manualTokenOnly: true/.test(readFileSync(join(LIB, "mcp-oauth.js"), "utf8")));
+  ok("7r  index.js 把 manualTokenOnly 透传给面板", /manualTokenOnly: started\?\.manualTokenOnly === true/.test(indexSrc));
+  ok("7s  面板对 manualTokenOnly 开弹层而非只报错", /res\?\.manualTokenOnly/.test(clientSrc) && /mode: 'manual-token'/.test(clientSrc));
+  ok(
+    "7t  弹层有 manual-token 专属说明，且已登记 en-US 译文",
+    /mode === 'manual-token'/.test(clientSrc) &&
+      clientSrc.includes('"该服务器没有提供标准 OAuth 授权发现，无法自动打开授权页。如果你已经从服务方拿到访问令牌，粘贴在下面即可安装。": "'),
+  );
+}
+
+{
+  // 同一轮的第二个「装不上」成因：只写 url 不写 type 的远程条目（索引里实有 11 条，
+  // 含 tencent-docs-oa / qq-mail / github / notion）曾被「未知传输类型（缺失）」一律拒装。
+  const bareUrl = { timeout: 600, url: "https://saas.docs.qq.com/api/v6/open/agent/mcp" };
+  const row = serverInstallability("tencent-docs-oa", bareUrl, "oneid-token");
+  ok("7u  只有 url、没有 type → 按 streamable-http 判定可装", row.ok === true && row.transport === "streamable-http", `ok=${row.ok} transport=${row.transport} reasons=${JSON.stringify(row.reasons)}`);
+  ok("7v  该形态仍要 OAuth 授权", row.needsOAuth === true);
+  const bareSse = { type: "sse", url: "https://example.invalid/sse" };
+  ok("7w  显式 sse 照旧拒装（缺省兜底不得把 sse 也放行）", serverInstallability("sse-one", bareSse, "").ok === false);
+  const bareCmd = { command: "npx", args: ["-y", "x"] };
+  ok("7x  command 缺 type 仍按 stdio（新兜底不得抢走 stdio 判定）", serverInstallability("cmd-one", bareCmd, "").transport === "stdio");
+  // 探测口径必须与准入闸一致，否则这 11 条恰好绕过 401 防线。
+  await withProbeServer(
+    401,
+    async ({ url }) => {
+      const probed = await probeServerAuthorization("typeless-one", { url });
+      ok("7y  无 type 的 url 条目确实被探测（与准入闸同口径）", probed?.needsAuth === true, `authorized=${probed?.authorized} skipped=${probed?.skipped}`);
+    },
+  );
 }
 
 console.log(`\n${failures === 0 ? "AUTH-GATE-REGRESSION PASS" : `${failures} CHECK(S) FAILED`}`);

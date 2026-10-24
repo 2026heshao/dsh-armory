@@ -5,7 +5,7 @@
 > **The all-in-one control board for DeepSeek Harness**: MCP servers · skills · experts · plugins · tool-usage ledger · four markets — browse, search, install and summon in one place.
 > Forked from [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui) (MIT) and extended into a full armory.
 >
-> **New in v2.3.1**: fixed two dead ends in the market caches (a 304 crash loop on corrupted caches, discarding a good disk cache when offline), network data is now validated and written atomically, and the expert persona path follows the marketplace manifest. See the [changelog](.github/release-notes/v2.3.1.md).
+> **New in v2.3.2**: fixed a whole-panel crash when installing an OAuth connector (a string style in the authorization dialog triggered React error #62); a failed browser open is now retried automatically. See the [changelog](.github/release-notes/v2.3.2.md).
 
 <p align="center">
   <a href="https://github.com/2026heshao/dsh-armory/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-armory?style=social" alt="stars"></a>

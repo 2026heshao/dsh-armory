@@ -140,6 +140,7 @@ const SUITES = [
   // 总线与角标重取函数抽进 vm 真跑（reason 透传 / 抛错隔离 / 退订 / 乱序守卫），并钉住
   // 三个变更入口（看板卸载、市场安装、市场卸载）都广播、两个消费方都订阅。
   { name: "skill-refresh（技能集合实时刷新：总线/角标重取/三入口广播）", file: "skill-refresh.mjs" },
+  { name: "skill-install-integrity（技能假安装：并发串行/落盘复核/已装双键/搜索框焦点）", file: "skill-install-integrity.mjs" },
   // ── T02 连接器元数据投影 ─────────────────────────────────────────────────
   // 纯解析层守护：零网络、零真实 ~/.dsh。钉 R1 注入规则标注 / R2 visible_in 标签筛选 /
   // R3 examples 优先。（T03 的 CodeBuddy 插件市场已于 2026-10-24 整体移除，对应套件一并下线。）
@@ -238,6 +239,10 @@ const SUITES = [
   // 网络数据先校验再原子落盘；projectExpert 透出清单的 promptFile。隔离：
   // DSH_ARMORY_MARKET_HOME + DSH_ARMORY_HOME 两个临时目录 + fetch 全替身，零真实网络。
   { name: "market-cache-fallback（市场缓存回落：304 死路 / 断网回落 / 结构校验 / 原子写）", file: "market-cache-fallback.mjs" },
+  // style 字符串 = Minified React error #62（渲染期炸整面板）：授权弹窗警示行在
+  // 「安装需 OAuth 的连接器 + 浏览器没自动打开」这条路上必崩（2026-10-24 实测）。
+  // 词法守卫 client.js 无字符串 style + 修复点对象形态 + opened=false 补发 wbOAuthOpen。
+  { name: "no-string-style（style 不得传字符串 / React #62）", file: "no-string-style.mjs" },
 ];
 
 let failed = 0;
