@@ -236,7 +236,7 @@ The detail pane lists the tools a server currently registers; expand one for its
 That server is disabled, so it registers no tools. Enable it in the panel.
 
 **I upgraded but the skill detail is still blank, or the floating button behaves as before.**
-Check two things. First, that the new package actually landed: after `dsh plugin --profile web update dsh-armory`, look at the version at the bottom of the panel. Second, **quit DSH completely and start it again** — the market field mapping lives in host-side modules (`lib/wb-market.js`, `lib/index.js`) that are loaded once at process start, so reloading the panel only refetches the UI bundle. If one specific skill still has no summary, post its slug in an issue and that response gets checked on its own.
+Check two things. First, that the new package actually landed: after `dsh plugin --profile web update dsh-armory`, the first panel you open shows a **"vX.Y.Z update"** card whose title is the version currently installed — or read the `version` field of `~/.dsh/profiles/<profile>/node_modules/dsh-armory/package.json`. Second, **quit DSH completely and start it again** — the market field mapping lives in host-side modules (`lib/wb-market.js`, `lib/index.js`) that are loaded once at process start, so reloading the panel only refetches the UI bundle. If one specific skill still has no summary, post its slug in an issue and that response gets checked on its own.
 
 **How do I upgrade? Why did the panel not notify me?**
 GitHub tag-pinned installs never cross versions — re-add with the new tag (`github:2026heshao/dsh-armory#v1.9.0`). The banner only queries this repo's GitHub Releases, at most once a day, is dismissible, and never acts on its own.

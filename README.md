@@ -249,7 +249,7 @@ dsh plugin --profile web remove dsh-armory
 它们把两件独立的事分开说：**连接在不在** —— `已连接 · 当前无会话使用（连接保留，下次直接用）`（最后一个会话结束了，连接按空闲策略留着）/ `已连接 · N 个会话在用 · M 工具` / `连接中…` / `连接失败` / `尚未建立连接（新会话自动挂载）`；**几个会话在用** —— 就是那句里的 `N 个会话在用`。旧版本的「待会话挂载」正是把这两件事压成一句，所以容易被读成"还没连上"。
 
 **升级后技能详情页还是空的，或者悬浮按钮的行为没变？**
-两步确认。先确认新包真装上去了：`dsh plugin --profile web update dsh-armory` 之后看面板底部的版本号。再**完全退出 DSH 重新启动**——市场的字段映射在宿主侧模块（`lib/wb-market.js`、`lib/index.js`）里，只在进程启动时加载一次，面板里刷新只会重取界面 JS，宿主那份映射仍是旧的。若只有某个具体技能的介绍仍然缺，欢迎把它的 slug 发到 issue 里，按那条响应单独对一次。
+两步确认。先确认新包真装上去了：`dsh plugin --profile web update dsh-armory` 之后，升级后第一次打开面板会弹出一张「vX.Y.Z 的更新」卡片，标题里的版本号就是当前安装的版本；也可以直接看本机 `~/.dsh/profiles/<profile>/node_modules/dsh-armory/package.json` 的 `version`。再**完全退出 DSH 重新启动**——市场的字段映射在宿主侧模块（`lib/wb-market.js`、`lib/index.js`）里，只在进程启动时加载一次，面板里刷新只会重取界面 JS，宿主那份映射仍是旧的。若只有某个具体技能的介绍仍然缺，欢迎把它的 slug 发到 issue 里，按那条响应单独对一次。
 
 **怎么升级？为什么面板没提示？**
 从 npm 装的直接 `dsh plugin --profile web update dsh-armory` 就会升小版本，也可以直接点面板提示条上的「升级」（同一件事，免去敲命令）。面板的提示条只查 GitHub Releases、每天最多一次、可关闭、不会自己动；固定 tag 安装的用户不会自动跨版本，需要用新 tag 重新 `add`（见 [安装与升级](docs/installation.md)）。
