@@ -5,7 +5,7 @@
 > **The all-in-one control board for DeepSeek Harness**: MCP servers · skills · experts · plugins · tool-usage ledger · four markets — browse, search, install and summon in one place.
 > Forked from [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui) (MIT) and extended into a full armory.
 >
-> **New in v2.4.1**: SkillHub skill details now show the real name and full summary, "Source homepage" opens the public skill page instead of the 405 API endpoint, and the floating button can be hidden (it also steps aside while the board is open) — issue #4. See the [changelog](.github/release-notes/v2.4.1.md).
+> **New in v2.4.2**: documentation release — the README (both languages) now matches what actually ships: the three entry seats with six modes, how to hide the floating button, and the v2.4.1 SkillHub detail fixes. The runtime code is byte-identical to v2.4.1. See the [changelog](.github/release-notes/v2.4.2.md).
 
 <p align="center">
   <a href="https://github.com/2026heshao/dsh-armory/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-armory?style=social" alt="stars"></a>
@@ -26,7 +26,7 @@ dsh plugin --profile web add dsh-armory
 dsh plugin --profile web add github:2026heshao/dsh-armory
 ```
 
-Restart DSH, then open **Skills · MCP · Experts** from the global panel list at the top of the sidebar (or the floating button bottom-right). Desktop users on the `desktop` profile: swap `--profile web` for `--profile desktop`.
+Restart DSH, then open **Big Fish Armory** from the global panel list at the top of the sidebar (next to "Plugins") — or use the floating button bottom-right, or the sidebar bottom entry. Desktop users on the `desktop` profile: swap `--profile web` for `--profile desktop`.
 
 ## What it solves
 
@@ -35,6 +35,9 @@ Restart DSH, then open **Skills · MCP · Experts** from the global panel list a
 | MCP config means hand-editing YAML with no feedback on whether it connects | Visual panel: status, tool schemas, enable/disable, reconnect — global & per-project scopes, project changes apply to live sessions instantly |
 | Installing skills means hunting for `SKILL.md` repos everywhere | **Direct markets**: SkillHub (190k+ skills), WorkBuddy connectors (316) — search, filter, one-click install with per-file sha256 verification |
 | You install a skill from the market, then cannot find it on the board or tell which one is new | **Recognisable installs**: cards show "installed …" with a 7-day highlight and relative time; the filter bar lays skills out newest-first as a "recently installed" timeline; when the board name differs from the market name, the original is shown |
+| The list card shows a summary, but opening the detail makes it blank and the title falls back to the slug | **Details read the right fields**: SkillHub puts the name and summary under the response's `skill` object (`displayName` / `summary_zh`); empty values from the detail endpoint never overwrite what is already on screen, and the list summary shows while loading |
+| The detail's "homepage" opens `api.skillhub.cn` — a JSON endpoint a browser cannot render (405) | **Links go where browsers can go**: API URLs are rewritten to the public page `https://skillhub.cn/<namespace>/<slug>`, and the button is not rendered at all when there is no browsable page |
+| The floating button sits on top of board content and offers no way to close it | **You own the entries**: right-click or long-press the button to hide it (with a hint on how to reopen), it steps aside while the board occupies the centre column, and the six entry modes guarantee you are never left with no way in |
 | Every MCP's tool descriptions eat context tokens; zero-use tools sit there for free | **Tool Tailor**: scans local session logs for per-tool call counts / errors / latency, plus a skill-level usage ledger; prune dead tools with one click |
 | Migrating from Claude/Cursor/VS Code means copying config by hand | Detects local configs from 11 clients and imports them with a preview |
 | OAuth-protected or key-protected servers and plugins just fail, with no hint why | **Plugin market** (the DSH community list) with per-entry installability, **one-click MCP OAuth** (RFC 9728 → 8414 → 7591 → 7636 PKCE → 8707, three callback fallbacks ending at "paste a token"), and a **credential prompt before install** that fills `${...}` placeholders so the server works on first connect |
@@ -105,7 +108,7 @@ Experts (WorkBuddy expert center, 429 experts / 15 industries; category filter +
 - Filter by transport (HTTP/stdio) and status, search by name/command/URL
 - Enable, disable, reconnect, add, edit, remove; reveal masked credentials temporarily with the eye button and copy with one click
 - **Global + project scopes**: global servers live in the Web profile and are available to every project; project servers live in that project's `.dsh/mcp.json` and are visible only to its sessions. A project can also hide any global MCP
-- **Two entry points, one panel**: the draggable floating button (position remembered) and the official sidebar entry share the same state; the "Entry" control in the panel header can keep just one of them (never neither)
+- **Three entry seats, six modes**: the **Big Fish Armory** row in the global panel list at the top of the sidebar (the host's own mechanism, next to "Plugins"), the draggable floating button (position remembered) and the sidebar bottom entry all open the same panel. The "Entries" menu in the panel header switches between six combinations (two / one / three seats); **all three can never be off**, and the floating button cannot be hidden while it is your only entry (since 2.4.1 you can also right-click or long-press the button itself to hide it)
 - **WB Market (direct installs)**: a third board tab with two markets in one place —
   - **Connectors (MCP)**: reads the official WorkBuddy distribution ZIP (`static.workbuddy.cn`, the same source the WorkBuddy desktop app uses) on demand — 316 connectors, 242 installable (mostly streamable-http), while 74 CLI-based or WorkBuddy-token-dependent ones are honestly labeled "view only" with the reason. Installing = merging the connector's `mcpServers` into your MCP config through the same pipeline as "Import JSON" (admission, duplicate skip, entry-id reservation), in either global or project scope. The ZIP is ETag-cached under `~/.dsh/wb-market/` and decompressed with Node's built-in zlib — **zero new runtime dependencies**
   - **Skills (SkillHub)**: reads the public SkillHub API (`api.skillhub.cn`, 190k+ skills) with keyword search, four sort orders, and pagination; details include publisher verification and security-scan status. Installing = downloading file-by-file, verifying each against the manifest's sha256, and writing into `~/.agents/skills/` (the same discovery scope as the official skill subsystem) — effective immediately. Installed skills show an "installed" badge, support one-click uninstall, and reinstalling updates them. After an install or uninstall the **Skill** tab's count badge and board list realign with the new set immediately — no tab switch or panel reopen needed. Downloads sorting is now done **within the current page** (the upstream `sortBy=downloads` hangs), while the other sorts still go remote; each request gives up after 15s and reports a localized error
@@ -136,6 +139,8 @@ Experts (WorkBuddy expert center, 429 experts / 15 industries; category filter +
 - **Skill uninstall (new in 2.2.0)**: skills in user-level / project-level directories can be deleted from the detail pane (inline second confirmation, **permanent, no undo**), while skills shipped with DSH, registered at runtime, or living in custom directories stay read-only and say so. The host only exposes read endpoints, so removal is handled by this plugin's `removeSkill`: source allowlist → strict root containment → parent-directory realpath → symlinks unlinked without touching their targets → the folder must contain `SKILL.md` and stay under the root
 - **Live skill-set refresh (new in 2.2.0)**: installing or uninstalling from the market, and uninstalling from the board, all broadcast on a module-level change bus. The top **Skill** badge and the board list subscribe to the same bus and re-read the truth, with a sequence guard on the badge fetch so rapid toggles cannot roll the number back. The new set is reflected immediately — no tab switch or panel reopen
 - **Recognisable skill installs (new in 2.4.0)**: every Skill card / list row shows an "installed …" badge — green with relative time within 7 days ("installed 3 hours ago"), "N days ago" within 30 days, an absolute date beyond. The timestamp prefers the first-install time recorded in the install-state ledger, then the directory creation time, then its mtime; skills shipped with DSH or registered at runtime have no install event and show no badge. The filter bar adds a **recently installed** timeline (newest first), and when a board name (from `SKILL.md`'s `name:`) differs from the market name recorded in the ledger, the card carries a "from market: original name" badge and the detail pane adds an original-name row. Data comes from the new `skillInstallInfo` RPC (the host scans the standard skill roots and reads only the first 4KB of each `SKILL.md`); the host must be restarted once to register it, and the board says so explicitly instead of showing nothing
+- **Skill details and market homepage fixed (new in 2.4.1)**: SkillHub's detail endpoint keeps the name and summary under the `skill` object (`displayName` / `summary_zh`), while the old mapping only read the root — so the detail dialog showed the slug as the title and an empty body. Values now fall back through `skill.displayName → root name → slug` and `skill.summary_zh → skill.summary → legacy fields`, icon / created date / category / source / publisher come from the same place, and merging the response into the list entry **never lets empty strings overwrite what is already shown** (`0` and `false` still win). The summary from the list is visible while the detail loads. A `homepage` pointing at `api.skillhub.cn` (a JSON API that returns 405 in a browser) is rewritten to `https://skillhub.cn/<namespace>/<slug>`, with a second guard at render time, and feedback links prefer the GitHub repository when one can be resolved (issue #4)
+- **The floating button can be hidden, and it steps aside for the board (new in 2.4.1)**: right-click or long-press (about half a second, works with touch and stylus) opens a menu with **Hide floating button**, followed by a 6-second hint saying where to reopen it. When the board occupies the centre column the button collapses automatically instead of covering list and detail text, and returns when you leave the board — without changing your chosen mode. If the button is your only remaining entry the item is disabled and explains why: pick another mode in the "Entries" menu before hiding it, so you can never end up with an armory that cannot be opened
 - **Custom suites (new in 2.2.0)**: bundle skills you use together. The **Suites** button in the Skill board toolbar opens a manager: pick skills on the left, arrange them on the right (click **+** or drag one in, drag to reorder, delete with an inline confirmation), and one save overwrites the whole set into `~/.dsh/armory/suites.json` (staging + atomic rename; invalid input is rejected without touching the file). The composer's Skills submenu shows a suite group at the top — one click expands the suite in member order into multiple `/name` tokens in the draft. Limits: 100 suites, 40 members each; members count individually toward "recently used" rather than the suite name
 - **Marketplace registry (new in 2.0.0)**: market sources are no longer hard-coded — they live in `~/.dsh/armory/marketplaces.json` (`REGISTRY_VERSION = 1`), fall back to the built-in defaults when missing or corrupt, persist on first read, and can be added / edited / removed. Writes are staging + atomic rename
 - **Instant community list (new in 2.0.0)**: the last successful slim list is mirrored into `localStorage` (7 days / 4MB cap, older snapshot kept on quota errors), so the first paint renders the snapshot before the real result silently replaces it (zero network, zero IPC). When no source is reachable it says "showing the local cache" instead of an empty list
@@ -188,12 +193,20 @@ Details, local development installs, and troubleshooting: [docs/installation.md]
 
 ### Opening the panel
 
-Two entry points, one panel:
+Three entry seats, one panel:
 
+- **The "Big Fish Armory" row in the global panel list** (top of the sidebar): the host's official panel list, right next to "Plugins" — the primary entry;
 - **Floating button (bottom-right)**: draggable, position remembered;
-- **Sidebar entry "Skills · MCP · Experts"**: above "Settings" when expanded, icon-only in the 56px rail.
+- **Sidebar bottom entry**: a 42px row (icon + label) when the sidebar is expanded, an icon button once it collapses into the rail.
 
 The panel floats above the session; closing it ("Close" or Esc) does not affect the conversation.
+
+Which seats stay is chosen in the panel header's **Entries** menu, six modes: `Global panel + floating button (recommended)` (default) / `Global panel only (top-left, next to "Plugins")` / `Global panel + sidebar bottom entry (no floating button)` / `Floating button only` / `Sidebar bottom entry only` / `All three entries`. **All three can never be off** — the panel opens only from those seats, so the menu is a "keep at least one" combination rather than three independent switches. The choice lives in `localStorage`, so a different browser or cleared storage means picking again.
+
+Two self-service rules for the floating button (since 2.4.1):
+
+- **Right-click or long-press it** (about half a second) for a menu with **Hide floating button** — no hunt for the Entries menu. A 6-second hint then says where to reopen it. If the button is the only entry left, that item is greyed out and points you to the Entries menu: keep another seat before losing this one.
+- **It auto-collapses while the board occupies the centre column**: the button is an overlay and would sit on the list and detail text; it comes back as soon as you leave the board, and your mode is untouched.
 
 ### Global vs project
 
@@ -221,6 +234,9 @@ The detail pane lists the tools a server currently registers; expand one for its
 
 **The panel says a server is "disabled", but the model reports `unknown tool "mcp__xxx__..."`.**
 That server is disabled, so it registers no tools. Enable it in the panel.
+
+**I upgraded but the skill detail is still blank, or the floating button behaves as before.**
+Check two things. First, that the new package actually landed: after `dsh plugin --profile web update dsh-armory`, look at the version at the bottom of the panel. Second, **quit DSH completely and start it again** — the market field mapping lives in host-side modules (`lib/wb-market.js`, `lib/index.js`) that are loaded once at process start, so reloading the panel only refetches the UI bundle. If one specific skill still has no summary, post its slug in an issue and that response gets checked on its own.
 
 **How do I upgrade? Why did the panel not notify me?**
 GitHub tag-pinned installs never cross versions — re-add with the new tag (`github:2026heshao/dsh-armory#v1.9.0`). The banner only queries this repo's GitHub Releases, at most once a day, is dismissible, and never acts on its own.
