@@ -211,6 +211,15 @@ const SUITES = [
   // basis（同一份清单才互比）+ 重合度闸门（全增全删一律静默换基线）+ 存储升 v2（丢弃 v1 脏数据）。
   // 切片抽进 vm 真跑，第 5 节把 v1 语义注回同一份切片做反向自测。零网络零写盘。
   { name: "market-pulse（最近动静：basis 可比性 / 重合度闸门 / v1 脏数据丢弃）", file: "market-pulse.mjs" },
+  // ── SkillHub 技能链路（issue #4，2026-10-26）──
+  // 数据层：详情接口把本体放在 skill 子对象（displayName / summary_zh），根层没有 name /
+  // description / homepage；列表 homepage 又是 api.skillhub.cn 的 JSON 地址（浏览器 405）。
+  // 这个套件真调 wbSkillCatalog / wbSkillDetail（fetch 替身），钉住映射、回退链与公开页归一。
+  { name: "skillhub-detail-fix（技能详情映射：skill 子对象 / 公开页 / 回退链）", file: "skillhub-detail-fix.mjs" },
+  // 面板侧：空字符串回包不得覆盖列表里已有的中文名与介绍；api.skillhub.cn 不得作为
+  // 「来源主页」直出；悬浮按钮可右键/长按隐藏（保留其它入口）且看板页打开时自动收起。
+  // 纯函数抽进 vm 真跑，另配接线源码针与反向自测。零网络零写盘。
+  { name: "skillhub-ux-fix（详情空值合并 / 主页过滤 / 悬浮按钮隐藏与自动收起）", file: "skillhub-ux-fix.mjs" },
   // ── 市场页头像加载 ──
   // 全部卡片头像的唯一来源是 github.com/<login>.png，本机整段不通（跟完整重定向链实测 14.7 秒、
   // 单发 10.7 秒抛 fetch failed）；旧写法把 src 直接交给 <img>，于是首页 50 张卡发 100 个请求

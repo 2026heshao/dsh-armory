@@ -5,7 +5,7 @@
 > **The all-in-one control board for DeepSeek Harness**: MCP servers · skills · experts · plugins · tool-usage ledger · four markets — browse, search, install and summon in one place.
 > Forked from [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui) (MIT) and extended into a full armory.
 >
-> **New in v2.4.0**: the Skill board now answers "when was this installed, which one did I just add, and is it the same skill I installed from the market?" — cards show an "installed …" badge (highlighted within 7 days), the filter bar gains a "recently installed" timeline, and skills whose board name differs from the market name are labelled with the original. See the [changelog](.github/release-notes/v2.4.0.md).
+> **New in v2.4.1**: SkillHub skill details now show the real name and full summary, "Source homepage" opens the public skill page instead of the 405 API endpoint, and the floating button can be hidden (it also steps aside while the board is open) — issue #4. See the [changelog](.github/release-notes/v2.4.1.md).
 
 <p align="center">
   <a href="https://github.com/2026heshao/dsh-armory/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-armory?style=social" alt="stars"></a>

@@ -5,7 +5,7 @@
 > **DeepSeek Harness 的一体化管理看板**：MCP · 技能 · 专家 · 插件 · 工具账本 · 四大市场，浏览、搜索、一键安装、一键召唤。
 > fork 自 [Imzl-zl/dsh-mcp-manager-ui](https://github.com/Imzl-zl/dsh-mcp-manager-ui)（MIT），现已扩展为完整军械库。
 >
-> **最新 v2.4.0**：Skill 看板回答「什么时候装的、哪个是刚装的、它就是市场里那个吗」——卡片显示安装时间（7 天内高亮），筛选条新增「最近安装」时间线，看板名与市场原名不一致时标出原名。详见 [更新日志](.github/release-notes/v2.4.0.md)。
+> **最新 v2.4.1**：修复 SkillHub 技能详情空白、标题退化成 slug、来源主页指向 405 接口，以及悬浮按钮无法隐藏并遮挡看板（issue #4）。详见 [更新日志](.github/release-notes/v2.4.1.md)。
 
 <p align="center">
   <a href="https://github.com/2026heshao/dsh-armory/stargazers"><img src="https://img.shields.io/github/stars/2026heshao/dsh-armory?style=social" alt="stars"></a>
