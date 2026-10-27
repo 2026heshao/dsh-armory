@@ -106,6 +106,7 @@ dsh plugin --profile web add github:2026heshao/dsh-armory
   - 技能版权归原作者所有；两个均为第三方接口，字段可能随上游改版变化（面板顶部有常驻说明）
 - **专家直连（1.9.0 新增，体验对齐 WorkBuddy 专家中心）**：看板独立分类「专家」（侧栏入口同步更名「技能 · MCP · 专家」）——
   - **目录**：直读 WorkBuddy 专家中心官方分发（`expert_center.json`，429 位专家 / 15 个行业分类，ETag 缓存在 `~/.dsh/wb-market/experts/`），分类筛选 + 关键词搜索 + 详情弹层（召唤前看人设正文、捆绑技能、试试这样问）
+  - **人设来源（2.4.3）**：详情与召唤按「本机覆盖 → 本机 WorkBuddy 缓存（`~/.workbuddy/plugins/cache/experts/<包>/<版本>/agents/`）→ 公开分发地址 → 兜底人设」取数。上游目录里约四成专家（429 位中的 185 位，例如「技能匠人」skill-smith）其实没有公开分发人设文件；本机 WorkBuddy 用过它就直接读缓存，三条正路都没有时会用专家中心公开的介绍、标签与示例问题生成一份**兜底人设**，正文第一段就写明「这份人设不是原文」，保证任何一位专家都能看详情、能召唤（issue #5）。
   - **召唤** = 往 profile 补丁写入一条**独立 Agent 预设**（`@deepseek-ai/dsh-agent-preset` 行，plugins 复刻内置 standard 预设、仅 persona 的 prefix 换成专家人设全文）——新建会话时选择「WorkBuddy 专家 · …」即专家接管该会话，标准工具/规划/压缩/委派原样保留；多个专家可共存，写入走既有 patch 写链（文件锁 + 版本校验 + 原子写），其余条目、注释与 `!!js` 表达式原样保留
   - **捆绑技能**：召唤时可勾选一并安装——本机 WorkBuddy 缓存（`~/.workbuddy/plugins/cache/experts/`）有完整技能树就整目录复制到 `~/.agents/skills/`（`wbexpert__` 前缀，即刻被技能注册表发现）；无缓存时按 CDN 的 SKILL.md 单文件兜底并如实标注来源
   - **团队型专家（1.9.4 可召唤）**：WorkBuddy 的 53 个「专家团」人设原本依赖 `TeamCreate` / `Agent(name=…)` 两个 DSH 没有的工具。召唤时除了写主理人预设，还会把每位成员的人设各自落成一份文件（`~/.dsh/wb-market/experts/teams/<专家>/`），并在主理人人设末尾追加一段**运行时适配**：建团队 → 无需调用（编制已在召唤时固定）；派活 → `subagent`（先把该成员人设 `read` 出来拼进 prompt），顺序 SOP 传 `run_in_background: false` 当场等结果；续聊用 `send_message`。原人设的铁律（不得代写成员产出、成员之间不直连、一切经主理人中转）原样保留。成员人设**不进系统提示**（否则每轮都要为 5 份人设白付上下文费），只在调度时按需读取
@@ -251,6 +252,9 @@ dsh plugin --profile web remove dsh-armory
 **升级后技能详情页还是空的，或者悬浮按钮的行为没变？**
 两步确认。先确认新包真装上去了：`dsh plugin --profile web update dsh-armory` 之后，升级后第一次打开面板会弹出一张「vX.Y.Z 的更新」卡片，标题里的版本号就是当前安装的版本；也可以直接看本机 `~/.dsh/profiles/<profile>/node_modules/dsh-armory/package.json` 的 `version`。再**完全退出 DSH 重新启动**——市场的字段映射在宿主侧模块（`lib/wb-market.js`、`lib/index.js`）里，只在进程启动时加载一次，面板里刷新只会重取界面 JS，宿主那份映射仍是旧的。若只有某个具体技能的介绍仍然缺，欢迎把它的 slug 发到 issue 里，按那条响应单独对一次。
 
+**点开专家，详情里写着「这份人设不是原文」？**
+这是兜底人设，不是错误。上游专家中心里约四成专家（429 位中的 185 位，「技能匠人」就在其中）只挂了目录条目，公开分发地址上没有它们的人设文件；本机 WorkBuddy 缓存里也没有时，军械库会用专家中心公开的介绍、标签与示例问题生成一份兜底人设，**保证这位专家仍能看详情、能召唤**，只是工作方法只能还原到「大致是谁、负责什么」。想要原文，把它存成 `~/.dsh/wb-market/experts/overrides/<包名>.md`（例如 `skill-smith.md`）即可，下次打开详情会自动改用原文，来源标注「本机覆盖」；删掉文件就回到缓存 / 分发 / 兜底。正文第一段也会给出这台机器上的确切路径。
+
 **怎么升级？为什么面板没提示？**
 从 npm 装的直接 `dsh plugin --profile web update dsh-armory` 就会升小版本，也可以直接点面板提示条上的「升级」（同一件事，免去敲命令）。面板的提示条只查 GitHub Releases、每天最多一次、可关闭、不会自己动；固定 tag 安装的用户不会自动跨版本，需要用新 tag 重新 `add`（见 [安装与升级](docs/installation.md)）。
 
@@ -284,14 +288,14 @@ dsh plugin --profile web remove dsh-armory
 
 ```sh
 npm install --no-save yaml@2 eslint@9   # 测试与风格检查的唯一裸依赖（运行依赖全部由宿主提供）
-npm test                                # 全 54 套件（与 CI / 发版门槛同一条）
+npm test                                # 全 55 套件（与 CI / 发版门槛同一条）
 npm run lint                            # ESLint：no-undef / no-unused-vars / no-empty 等
 npm run test:e2e                        # 可选：用宿主补丁算法验证专家预设进入组合树
 dsh --profile web --dump-config         # 看 profile 的有效配置
 dsh web                                 # 起 Web 做真实操作验证
 ```
 
-`npm test` 跑的是 `test/run-all.mjs`，依次执行 **54** 个独立套件（各自是独立 node 进程，任一非零退出即整体失败）。套件是显式白名单而非 `node --test` 自动发现——`test/` 下还有带副作用的迁移脚本与需要宿主模块的端到端脚本，自动发现会误跑。
+`npm test` 跑的是 `test/run-all.mjs`，依次执行 **55** 个独立套件（各自是独立 node 进程，任一非零退出即整体失败）。套件是显式白名单而非 `node --test` 自动发现——`test/` 下还有带副作用的迁移脚本与需要宿主模块的端到端脚本，自动发现会误跑。
 
 | 分组 | 套件 | 覆盖 |
 | --- | --- | --- |
@@ -302,7 +306,7 @@ dsh web                                 # 起 Web 做真实操作验证
 | SkillHub 修正（2.4.1） | `skillhub-detail-fix` `skillhub-ux-fix` | 详情字段回退链与目录 / 详情映射（fetch 全替身，逐条对上 issue #4 的响应形状）；`skillhubHomepage` 域名改写与缺字段兜底；合并时空值不得覆盖、`0`/`false` 必须保留；`browsableHomepageUrl` 拦住接口域名；悬浮按钮订阅 / 看板激活自动收起 / 右键与长按菜单 / 唯一入口置灰 / 卸载清理（hooks 替身真渲染） |
 | 自定义套件（2.2.0） | `suites-registry` `suites-client` | 整集合覆盖 / 幂等 / 拒绝与截断两态；id 归属契约（保存后不分裂）、引用套件展开为多个 `/name`、三级写通道降级 |
 | 技能集合（2.2.0） | `skill-remove` `skill-refresh` | 卸载来源白名单与路径边界（根自身 / `..` 穿越 / 跨来源根 / 符号链接只删链接）；装 / 卸后角标与看板实时刷新、乱序回包守卫 |
-| 专家与团队 | `run-expert-manual` `session-persona` `team-bridge` `expert-card-actions` `recent-sort-regression` | 专家市场写链（真网目录 + 人设 + patch 往返，33 条断言）；会话级挂/换/摘；团队桥接；卡片按钮真值表；「最近使用」排序 |
+| 专家与团队 | `run-expert-manual` `session-persona` `team-bridge` `expert-card-actions` `recent-sort-regression` `expert-persona-source` | 专家市场写链（真网目录 + 人设 + patch 往返，33 条断言）；会话级挂/换/摘；团队桥接；卡片按钮真值表；「最近使用」排序；人设取数链（覆盖优先且零人设请求、本机缓存命中不联网、CDN 兜底、404 / 网络故障 / 空缓存都落到标注过的兜底人设、包名不能穿越目录、召唤前先取人设） |
 | 升级与安装真机 | `upgrade-plan` `verify-install-info` `verify-host-installinfo` `teardown-residue` | 一键升级判据（本地安装 / 来源未知一律不写）；真 profile 数据下的来源判定（profile 不存在自行 SKIP）；teardown 残留诊断 |
 | 市场与安装链（2.0.0） | `wb-registry` `wb-install-state` `wb-auth-rules` `wb-connector-meta` `wb-awesome-market` `wb-install-flow` `auth-gate-regression` `install-toast` | 多市场注册表原子写（只剩连接器源，旧 plugins 条目读侧丢弃/写侧拒绝）；安装状态与来源锁；令牌槽扫描与注入规则；连接器 R1/R2/R3 投影；awesome 过滤/瘦身/304/双源切换与更新探测五枚举；令牌替换写链；装前 401 鉴权闸；顶部安装浮层跨卸载可见 |
 | 社区信号（2.3.0） | `community-meta` | GitHub 仓库写法解析、单次最多 8 条、6 小时缓存命中不联网、refresh + ETag 的 304 复用、404 文案、网络失败 stale 回落、403 限流跨调用生效、原子写（fetch 全替身 + mkdtemp 隔离） |

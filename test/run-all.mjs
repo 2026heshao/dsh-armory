@@ -42,6 +42,9 @@ const SUITES = [
   // 团队型专家桥接：成员人设落盘 + 桥接段注入 + 送还清理。用替身宿主跑，
   // 全程禁止联网（globalThis.fetch 被替换成必抛函数），不碰真实 profile。
   { name: "team-bridge（团队专家召唤桥接）", file: "team-bridge.mjs" },
+  // 专家人设取数链（issue #5）：上游 43% 的专家没有公开分发人设文件（404）。
+  // 覆盖优先 → 本机缓存 → CDN → 标注过的兜底人设，任何情况下都不静默产出空人设。
+  { name: "expert-persona-source（人设取数链：覆盖 / 本机缓存 / CDN / 兜底）", file: "expert-persona-source.mjs" },
   // 真机验证：读真实 profile manifest，证明判定对真数据成立。profile 不存在时
   // 该文件会自行 SKIP（其它机器 / CI 上跑不出结论，但不会误报失败）。
   { name: "verify-install-info（真 profile 数据）", file: "verify-install-info.mjs" },
