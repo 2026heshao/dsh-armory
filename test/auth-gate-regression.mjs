@@ -253,6 +253,18 @@ section("3. serverInstallability：OAuth 放行 / server-side 仍拒装");
   ok("3e  token + 有槽位 → 可安装 + needsTokens", tokenRow.ok === true && tokenRow.needsTokens === true, `slots=${tokenRow.tokenSlots?.length}`);
   ok("3e-2 槽位被扫出来", Array.isArray(tokenRow.tokenSlots) && tokenRow.tokenSlots.length >= 1);
 
+  // 回归针（MCP 市场点击安装不弹令牌窗）：有 12 条 token 连接器把凭据写在 url
+  // （tushare / 百度地图 / 快递100…）。只扫 env/headers 时它们被判「未声明可替换」，
+  // 卡片直接变成不可装、安装按钮消失——用户看到的就是「令牌窗口没了」。
+  const urlOnlyToken = {
+    type: "streamableHttp",
+    url: "https://api.tushare.pro/mcp/?token=${TUSHARE_TOKEN}",
+  };
+  const urlTokenRow = serverInstallability("tushare", urlOnlyToken, "token");
+  ok("3e-3 token + url 占位符 → 可安装 + needsTokens", urlTokenRow.ok === true && urlTokenRow.needsTokens === true,
+    `ok=${urlTokenRow.ok} reasons=${JSON.stringify(urlTokenRow.reasons)}`);
+  ok("3e-4 url 槽位带 container=url 供令牌窗渲染", urlTokenRow.tokenSlots?.some((slot) => slot.container === "url" && slot.placeholder === "TUSHARE_TOKEN"));
+
   const tokenNoSlot = serverInstallability("token-bare", httpServer, "token");
   ok("3f  token 但无槽位 → 拒装", tokenNoSlot.ok === false);
   ok(
@@ -449,7 +461,14 @@ section("6. 静态不变式：lib/index.js 安装链接线顺序");
   // `?response_type=code`，服务端回 invalid_request: client_id is required。
   // 必须走参数直传的 ShellExecute（rundll32 url.dll,FileProtocolHandler）。
   ok("6i  index.js 不再用 cmd /c start 打开授权页", !/["']cmd["']\s*,\s*\[\s*["']\/c["']\s*,\s*["']start["']/.test(indexSrc));
-  ok("6j  index.js 的 Windows 兜底走 rundll32 参数直传", /rundll32"\s*,\s*\[\s*"url\.dll,FileProtocolHandler"/.test(indexSrc));
+  // issue #7 起这条兜底搬进了 lib/system-open.js（spawn 必须挂 error 监听，否则 headless
+  // 主机缺 xdg-open 时 ENOENT 会带走宿主进程）。断言跟着实现走，参数直传的要求不变。
+  const systemOpenSrc = readFileSync(join(LIB, "system-open.js"), "utf8");
+  ok(
+    "6j  Windows 兜底走 rundll32 参数直传（lib/system-open.js）",
+    /["']rundll32["']\s*,\s*args:\s*\[\s*["']url\.dll,FileProtocolHandler["']/.test(systemOpenSrc) &&
+      !/["']cmd["']\s*,\s*\[\s*["']\/c["']\s*,\s*["']start["']/.test(systemOpenSrc),
+  );
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -569,6 +588,12 @@ await withProbeServer(
     "7t  弹层有 manual-token 专属说明，且已登记 en-US 译文",
     /mode === 'manual-token'/.test(clientSrc) &&
       clientSrc.includes('"该服务器没有提供标准 OAuth 授权发现，无法自动打开授权页。如果你已经从服务方拿到访问令牌，粘贴在下面即可安装。": "'),
+  );
+  // url 槽位（?token=${X}）也要能在令牌窗里显示：否则这类连接器即使恢复成可装，
+  // 弹窗字段标签仍会错写成「环境变量 url」。
+  ok(
+    "7t-2 令牌窗为 url 槽位渲染专用标签（URL 参数 + en-US）",
+    /slot\.container === 'url'/.test(clientSrc) && clientSrc.includes('"URL 参数": "URL parameter"'),
   );
 }
 

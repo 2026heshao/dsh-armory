@@ -1423,5 +1423,226 @@
         "sha256": "F6BDB10A1462564FB29D259FFC2482EE03E1F3C2971AE9C338558220F1E3978F"
       }
     ]
+  },
+  {
+    "deployedAt": "2026-10-24T14:30:56.874Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "5476BA11257E8D093E100BF64B32FA834D00A6BF4880772483D8817E726BFF21"
+      },
+      {
+        "name": "whats-new-en.js",
+        "kind": "更新",
+        "sha256": "B4BB186708DD8249EC3ECD61596DF49FB6A299F613CF91239D84B564D6D6EE01"
+      },
+      {
+        "name": "whats-new.js",
+        "kind": "更新",
+        "sha256": "B23F35C130C58176A3C5A0D889D6C032EAA070BEE2E40EF1E2615299B82A2D65"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-10-24T15:04:18.207Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "EEA4D08465E437276C1B4F730EB190D257B43E0DF3F8AA4DA1EFCA872AA5247A"
+      },
+      {
+        "name": "index.js",
+        "kind": "更新",
+        "sha256": "1A5EC292ADAE8195582612132782B73C0059150410E30F1E970B1474BA3A2786"
+      },
+      {
+        "name": "skill-disable.js",
+        "kind": "新增",
+        "sha256": "0D446C21E9C1C1536DC8DD79592FEF61B8C7ED1683A9DD3B030CF973F1E3AF4F"
+      },
+      {
+        "name": "typert.js",
+        "kind": "更新",
+        "sha256": "F5C4BD7C91239EA4270F8A2B8ABF47EDAE46E185E0D2408E7D7B4E6238D4AF0A"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-10-26T08:10:39.135Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:/Users/LENOVO/.dsh/profiles/desktop/node_modules/dsh-armory/lib",
+    "mode": "manual-patch (filtered hunks)",
+    "note": "issue #4：SkillHub 详情字段回退/公开主页归一化/FAB 右键隐藏与看板自动收起。只补丁本次范围，未包含并行会话的 connector localDeps 改动。",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "BC10D283367DE58779AAE90BD73C8D7D1535B37C0305F0015B4E0EC913E0D0E8"
+      },
+      {
+        "name": "wb-market.js",
+        "kind": "更新",
+        "sha256": "F083FC1CE319B93881AEFAEDE48E71CEC64A393E03782838C0B76759263C1C43"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-10-27T02:23:31.000Z",
+    "source": "C:/Users/LENOVO/AppData/Local/Temp/dsh-243/cand/lib/expert-market.js",
+    "target": "C:/Users/LENOVO/.dsh/profiles/desktop/node_modules/dsh-armory/lib",
+    "mode": "manual-patch (single file)",
+    "note": "issue #5：专家人设改为本机 WorkBuddy 缓存优先、404 与网络故障分开说明。只替换 expert-market.js 一个文件（运行时该文件原本与远端 2.4.2 逐字节一致），未触碰 client.js / index.js / typert.js 等并行会话改动；备份 .bak-deploy-2026-10-27T02-19-08-000Z/lib/expert-market.js",
+    "files": [
+      {
+        "name": "expert-market.js",
+        "kind": "替换",
+        "sha256": "871E4183D3E58FB8F2EA32010F41F563CB7887DB7DD53B0E656575AD033641CF"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-10-27T02:37:13.000Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib/expert-market.js",
+    "target": "C:/Users/LENOVO/.dsh/profiles/desktop/node_modules/dsh-armory/lib",
+    "mode": "manual-patch (single file)",
+    "note": "issue #5 方案 B：人设改为「本机覆盖 → WorkBuddy 缓存 → CDN → 标注过的兜底人设」，任何专家都可看可召唤（上游 185/429 没有公开分发人设）。只替换 expert-market.js 一个文件，未触碰并行会话改动；备份 .bak-deploy-2026-10-27T02-37-13-000Z/lib/expert-market.js；真网复验 skill-smith 生成兜底 716 字符、workspace-builder / ui-designer 走本机缓存",
+    "files": [
+      {
+        "name": "expert-market.js",
+        "kind": "替换",
+        "sha256": "135433A9ECAE7F90625B1D7A829CD7F08BC906C301EC72D4A0E160CC1FEDD5BC"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-10-29T14:39:35.380Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "A55B3BED116D38F499ABFB1600830FC31DE6CB8B29F42EB04A3120687EEA1FE4"
+      },
+      {
+        "name": "index.js",
+        "kind": "更新",
+        "sha256": "09D5CE09EF59E23FE9E99BDA87B211D05F2000646D0FDD108518BABB89C4C502"
+      },
+      {
+        "name": "typert.js",
+        "kind": "更新",
+        "sha256": "9A194780CAB82BE87AF7E83C1A846BBE6FD0AF8654C45225CD5CDE067689A2B6"
+      },
+      {
+        "name": "wb-market.js",
+        "kind": "更新",
+        "sha256": "D24B7A9B06013A608B7F6521749F2662FCC50150FFA0C4AB7CCF47D90173919F"
+      },
+      {
+        "name": "whats-new-en.js",
+        "kind": "更新",
+        "sha256": "DECC268D8BBAA14281B4428E83C2EC838D3F912EFC3D4A74AB4062E85631A2B7"
+      },
+      {
+        "name": "whats-new.js",
+        "kind": "更新",
+        "sha256": "314F1029E3869FF7807724A8FBB50AE4924EEC3503CCDC3DC7BA8A7DD405EFA1"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-10-30T01:14:25.000Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib/workspace-runtime.js",
+    "target": "C:/Users/LENOVO/.dsh/profiles/desktop/node_modules/dsh-armory/lib",
+    "mode": "manual-patch (single file)",
+    "note": "issue #6：项目还没有 .dsh/mcp.json 时会话也已登记；写盘对齐用 agents.list() 兜底并入存活但未登记的会话。只替换 workspace-runtime.js 一个文件，未带并行会话改动。备份 .bak-deploy-2026-10-30T01-14-25-000Z/lib/workspace-runtime.js。",
+    "files": [
+      {
+        "name": "workspace-runtime.js",
+        "kind": "替换",
+        "sha256": "40CB3A9B0BDC0585CFC4ACD32BE31FCC31CC141DF0FD449D42CE83F70FF3E8A1"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-10-30T01:23:11.000Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:/Users/LENOVO/.dsh/profiles/desktop/node_modules/dsh-armory/lib",
+    "mode": "manual-patch (2 files)",
+    "note": "抖音反馈「每个会话中专家容易掉、要重新勾选」：专家选择按会话落盘（~/.dsh/wb-market/experts/session-persona.json），agent/created（resume/clear/compact）自动补回人设，reconcile 只清失效注入不再删选择；session-persona.js 整文件替换，index.js 只加 import 与 installPersonaRuntime 调用（其余并行会话 WIP 不覆盖）。备份 .bak-deploy-2026-10-30T01-23-11-000Z/lib/。",
+    "files": [
+      {
+        "name": "session-persona.js",
+        "kind": "替换",
+        "sha256": "BD84EAE947BFCCBAAA69EF70C88ED08516A5FC9A516583E9281B6A2680E8A7CC"
+      },
+      {
+        "name": "index.js",
+        "kind": "补丁",
+        "sha256": "9727303C68B47190433A2FC30467B4A8A4319C1877A02A1EA416DA27CAB25974"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-10-30T02:31:20.000Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:/Users/LENOVO/.dsh/profiles/desktop/node_modules/dsh-armory/lib",
+    "mode": "manual-patch (2 files)",
+    "note": "还原 MCP 市场「点安装弹令牌窗」：市场有 12 条 auth_mode=token 的连接器把凭据占位符写在 url（tushare / 百度地图 / 快递100 / 喜牛…），此前 scanTokenSlots 只扫 env/headers，它们既无可填槽位又被判「未声明可替换」，卡片降级为不可装、安装按钮与令牌窗一起消失。现 url 与 env/headers 同等扫描与替换（container=url），11 条恢复可装并弹窗（tencent-map 仍是 sse 传输，保持拒装）；令牌窗为 url 槽位补「URL 参数」标签与 en-US 译文。wb-auth-rules.js 整文件替换；client.js 只打 2 处补丁（i18n + 标签），不含并行会话 WIP。备份 .bak-deploy-2026-10-30T02-31-20-000Z/lib/",
+    "files": [
+      {
+        "name": "wb-auth-rules.js",
+        "kind": "替换",
+        "sha256": "8A0403731976EA42139357FFE76E5F4C7DFEFFF2B8D486474C959E8D4CE1F9E9"
+      },
+      {
+        "name": "client.js",
+        "kind": "补丁",
+        "sha256": "33740778125A73B744DB5B649B8B7AA24D9F62C116E64257AD6048F1C0F892A4"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-10-30T03:40:00.000Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:/Users/LENOVO/.dsh/profiles/desktop/node_modules/dsh-armory/lib",
+    "mode": "manual-patch (1 file)",
+    "note": "第二轮修「点安装仍显示需 WorkBuddy 授权 / 手填令牌弹窗被详情盖住」：移除 accountAuthIds 降级（manualTokenOnly 一律直接开手填令牌弹层）；令牌与授权弹层的 overlay 加 dsh-mcp-front 抬到 z-index 210；详情里对 needsOAuth 连接器常驻「我已有令牌」入口；上层弹层打开时暂停详情焦点陷阱；新增一条 en-US 文案。client.js 原地 13 处补丁，未碰并行会话 WIP。备份 .bak-deploy-2026-10-30T03-40-00-000Z/lib/（client.js 由 2.3.0 基线 + 第一轮 2 处补丁重建，sha256 与第一轮记录 33740778… 一致）。",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "补丁",
+        "sha256": "064828334F5AC3B36BE70020D69076C88D0B3AB97A7F85E0346BCBD4241BF305"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-10-30T04:34:37.000Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:/Users/LENOVO/.dsh/profiles/desktop/node_modules/dsh-armory/lib",
+    "mode": "manual-patch (2 files)",
+    "note": "issue #7：headless 主机（FNNAS）点「安装」授权连接器，spawn(xdg-open).unref() 无 error 监听，ENOENT 升级为 uncaughtException 直接带走 dsh web（全 API 502）。新增 lib/system-open.js（launchDetached 等 spawn/error 落地、error 监听常驻、成功才 unref）；index.js 的 openExternalUrl / revealSkill 改走 helper，打不开时如实回 opened:false / 返回真实路径，不再谎报已打开，并顺带 await 宿主 shell.openExternal。部署前 diff 确认运行时与仓库仅有本次 3 个 hunk 差异（其余并行 WIP 一致），故整份替换 index.js；备份在 .bak-deploy-2026-10-30T04-34-37-000Z/lib/index.js。仅 2 个文件，未带测试与部署记录。宿主模块在进程启动时加载，需完全退出 DSH 再启动。",
+    "files": [
+      {
+        "name": "index.js",
+        "kind": "替换",
+        "sha256": "402FB0E7B13BD7DCF2D65E6E60B59D04AD83BBE159D7330901D66642EEBA37FB"
+      },
+      {
+        "name": "system-open.js",
+        "kind": "新增",
+        "sha256": "0A19B62279F9EE6EB6E3529EC6895E52D73A16CE82586B7EE6B131B09DE6074D"
+      }
+    ]
   }
 ]

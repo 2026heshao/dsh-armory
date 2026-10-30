@@ -90,6 +90,9 @@ const SUITES = [
   { name: "no-conditional-hooks（条件分支内不得出现 hook / React #310）", file: "no-conditional-hooks.mjs" },
   // teardown 残留诊断（清单 2.4）：live/final 两种读法 + 超龄不送 + 记录表裁剪，真跑函数。
   { name: "teardown-residue（teardown 残留诊断）", file: "teardown-residue.mjs" },
+  // issue #6：项目 MCP 第一次添加时项目还没有 .dsh/mcp.json，旧写法因此不登记会话，
+  // 写盘对齐找不到它 → 必须新开会话。真跑 mount 路径，只断言登记与兜底扫描。
+  { name: "workspace-runtime（项目 MCP 中途添加：会话登记与存活会话兜底）", file: "workspace-runtime.test.mjs" },
   // README 配图守护：v1.10.0 那次提交把「界面预览」整段覆盖回 1.8 时代的四张旧图，
   // 1.9.4 新增的五页实拍从仓库树里一并消失，而编译器/测试/CI 全绿 —— 因为没有一条断言
   // 关心 README 引用的是哪几张图。这里钉「引用可解析 + screenshots.json 与 README 一致 +
@@ -138,6 +141,11 @@ const SUITES = [
   // 根目录自身与 `..` 穿越、跨来源根、缺 SKILL.md、符号链接只删链接 / 祖先链接逃逸。
   // 全部落在 mkdtemp 下（home / cwd 注入），零网络、绝不碰真实 ~/.agents 或 ~/.dsh。
   { name: "skill-remove（已安装 skill 卸载：来源白名单与路径边界）", file: "skill-remove.mjs" },
+  // 技能禁用数据层（lib/skill-disable.js）：工具裁缝「禁用 / 释放」的落盘点，写的是用户
+  // 的 SKILL.md。用例重点同样是「不能写什么」——来源白名单、根目录边界、形态校验
+  // （缺 frontmatter / BOM / 非 .md）、符号链接（根外拒绝、根内写 realpath 不动链接），
+  // 外加纯函数的 frontmatter 手术（插入/收敛/移除、CRLF、幂等）与写入结果的 yaml 复核。
+  { name: "skill-disable（技能禁用/释放：frontmatter 标志与写盘闸门）", file: "skill-disable.mjs" },
   // Skill 集合变更的跨组件实时刷新（QA）：市场装/卸后顶部角标与看板列表必须立刻对齐。
   // 缺口来自「角标只在 McpBoardPage 首次挂载读一次」，普通静态断言看不见——这里把变更
   // 总线与角标重取函数抽进 vm 真跑（reason 透传 / 抛错隔离 / 退订 / 乱序守卫），并钉住
@@ -148,6 +156,10 @@ const SUITES = [
   // 纯解析层守护：零网络、零真实 ~/.dsh。钉 R1 注入规则标注 / R2 visible_in 标签筛选 /
   // R3 examples 优先。（T03 的 CodeBuddy 插件市场已于 2026-10-24 整体移除，对应套件一并下线。）
   { name: "wb-connector-meta（连接器 R1/R2/R3 投影：注入规则/标签筛选/examples）", file: "wb-connector-meta.mjs" },
+  // issue #3（NVIDIA App 本地助手连不上）回归：本地客户端型连接器把固定本机程序写死在
+  // `cmd /c <path>` 里，旧实现不做预检、装完才由宿主重连 10 次失败。这里钉路径识别
+  // （不误判 npx 包名/数据路径）、found/missing/platform 三态与按路径去重。零网络、不 spawn。
+  { name: "wb-connector-local（本地客户端型连接器的本机依赖预检）", file: "wb-connector-local.mjs" },
   // 卡片可点击性：pointer 指针 / 键盘可达 / 操作按钮不冒泡（DSH 社区插件卡片）。
   { name: "market-card-affordance（插件卡片：指针/键盘/冒泡守卫）", file: "market-card-affordance.mjs" },
   // DSH 社区插件卡片的五段式排版（2026-10-24）：固定 176px、标题单行、作者只出现一次、
@@ -167,6 +179,14 @@ const SUITES = [
   // (2) import 了却从未调用、(3) 上一个函数少闭合 } 导致下一个声明被嵌进它体内。
   // 这三类 node --check 与 contract-consistency 都抓不到，本期各出过一次真事故。
   { name: "wb-install-flow（T04：令牌替换写链 + 安装状态账本 + 三盲区静态守卫）", file: "wb-install-flow.mjs" },
+  // P0「装好了却用不了」（2026-10-29，用户报 ima / 腾讯自选股）：两条互相独立的说谎——
+  // ① 安装账本无条件登记，同名被跳过、一个 server 都没写进去也带「已安装」徽标；
+  // ② 401/403 被并进「连接失败」，用户反复重连也救不回来。
+  // 本套件从 client.js 抽出 connectorHealth/connectorBadge 真跑真值表（含「没搜到同名行
+  // 不得冒充未连接」这条反例），并钉宿主安装闸顺序（wrote → 0 判定 → 登记）、卡片重连/
+  // 重新授权出口、详情授权状态与刷新链路、账号授权型降级「仅展示」+ 手填令牌逃生口。
+  // 零网络零写盘；安装闸检查器配「旧写法必须变红」的反向自测。
+  { name: "connector-auth-health（P0：连接器真实连接态 / 安装闸 / 授权状态）", file: "connector-auth-health.mjs" },
   // ── T01 awesome 市场数据层（纯新增零网络真实依赖：mock fetch 替换 + mkdtemp 隔离）──
   // 钉 R11 过滤口径（verified∧npm 交集）、瘦身字段形状、畸形行防御、原子写、
   // 304 复用不重写、双源切换、全源失败 stale 回落与体积 ≤3MB 断言。
@@ -255,6 +275,10 @@ const SUITES = [
   // 「安装需 OAuth 的连接器 + 浏览器没自动打开」这条路上必崩（2026-10-24 实测）。
   // 词法守卫 client.js 无字符串 style + 修复点对象形态 + opened=false 补发 wbOAuthOpen。
   { name: "no-string-style（style 不得传字符串 / React #62）", file: "no-string-style.mjs" },
+  // 系统打开器（issue #7）：headless 主机没有 xdg-open，`spawn(...).unref()` 无 error 监听
+  // 会把 ENOENT 升级成 uncaughtException，点「安装」授权连接器即带走宿主进程（全 API 502）。
+  // 静态钉「index.js 不再裸 spawn」+ 真跑 launchDetached + 子进程反向自测（旧写法必须崩）。
+  { name: "system-open-spawn-guard（系统打开器：headless 缺 xdg-open 不得拖走进程）", file: "system-open-spawn-guard.mjs" },
 ];
 
 let failed = 0;
