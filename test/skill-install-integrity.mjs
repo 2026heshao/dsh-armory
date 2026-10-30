@@ -60,11 +60,17 @@ ok("看板：按 skill 名字查 skillInstallInfo（不依赖 listSkills 行的 
 ok("看板：卡片有「装于」时间徽标（近期相对时间）", /t\('装于 \{0\}', \[fmtLast\(at\)\]\)/.test(client));
 ok("看板：「最近安装」筛选存在且按时间倒序",
   client.includes("t('最近安装')") && /skillTimeOf\(b\) - skillTimeOf\(a\)/.test(client));
-ok("看板：市场原名对应（卡片徽标 + 详情行）",
-  /t\('来自市场 \{0\}', \[info\.marketName\]\)/.test(client) && client.includes("t('市场原名')"));
-ok("看板：「装于 / 最近安装 / 来自市场 / 市场原名」有 en-US 词条",
+ok("看板：市场原名对应（卡片备注行 + 详情行）",
+  /t\('市场原名：\{0\}', \[info\.marketName\]\)/.test(client) && client.includes("t('市场原名')"));
+ok("看板：无账本记录回落安装目录名备注（目录名 ≠ 看板名才显示）",
+  /t\('安装目录：\{0\}', \[dirName\]\)/.test(client) && !/来自市场 \{0\}/.test(client));
+ok("看板：时间徽标不换行（badge nowrap + foot 换行 + 备注行样式在场）",
+  /\.dsh-mcp-badge\{[^}]*white-space:nowrap\}/.test(client)
+  && /\.dsh-mcp-skill-card-foot\{[^}]*flex-wrap:wrap/.test(client)
+  && /\.dsh-mcp-skill-note\{[^}]*text-overflow:ellipsis/.test(client));
+ok("看板：「装于 / 最近安装 / 市场原名：/ 安装目录：」有 en-US 词条",
   /"装于 \{0\}": "/.test(client) && /"最近安装": "/.test(client)
-  && /"来自市场 \{0\}": "/.test(client) && /"市场原名": "/.test(client));
+  && /"市场原名：\{0\}": "/.test(client) && /"安装目录：\{0\}": "/.test(client));
 ok("看板：skillInstallInfo 失败不静默——提示重启",
   client.includes("安装时间与市场原名不可用：{0}。宿主侧接口在重启 DeepSeek Harness 后才会注册，重启后即可显示。"));
 ok("看板：失败提示有 en-US 词条", /"安装时间与市场原名不可用：\{0\}。/.test(client));
@@ -75,8 +81,10 @@ ok("搜索框：input 元素不再带 disabled（disabled 会收走焦点）", !
 ok("搜索框：加载态走 aria-busy + busy 类", /'aria-busy': busy \|\| undefined/.test(boxSource) && /className: 'dsh-mcp-wb-search' \+ \(busy \? ' busy' : ''\)/.test(boxSource));
 ok("搜索框：busy 有配套 CSS（放大镜呼吸）", /\.dsh-mcp-wb-search\.busy \.dsh-mcp-wb-search-ico\{[^}]*animation:/.test(client));
 const boxCallSites = client.match(/h\(WbSearchBox, \{[\s\S]{0,320}?\}\)/g) || [];
-ok("搜索框：四个调用点都在且无一传 disabled",
-  boxCallSites.length === 4 && boxCallSites.every((site) => !/disabled:/.test(site)), `count=${boxCallSites.length}`);
+// 调用点只增不减：原先 4 个（专家 / 连接器 / 技能 / 插件），社区 MCP 列表新增第 5 个。
+// 钉的语义是「每个搜索框都不许传 disabled」（传了就会在加载态收走焦点），不是「永远只有 4 个」。
+ok("搜索框：调用点齐全（≥4）且无一传 disabled",
+  boxCallSites.length >= 4 && boxCallSites.every((site) => !/disabled:/.test(site)), `count=${boxCallSites.length}`);
 ok("技能工具条：排序 select 与「只看已安装」不再 disabled（改排序不被收焦点）",
   !/value: skillSort, disabled: skillLoading/.test(client) && !/checked: skillOnlyInstalled, disabled: skillLoading/.test(client));
 

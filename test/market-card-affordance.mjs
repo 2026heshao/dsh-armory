@@ -33,8 +33,11 @@ ok("渲染层：卡片支持 Enter/Space 键盘触发",
   (client.match(/dsh-mcp-pcard',[\s\S]{0,480}?onKeyDown: \(e\) => \{ if \(e\.key === 'Enter' \|\| e\.key === ' '\)/g) || []).length === 1);
 
 // ── 卡片内按钮不冒泡到卡片点击 ───────────────────────────────────────────
+// 可点卡片现在有两族：插件卡（打开 README）与社区 MCP 卡（打开详情）。两族的操作行
+// 都必须阻止冒泡；WB / 技能卡不可点，操作行保持原样。所以这里只要求「至少一处」，
+// 各族的具体绑定由 plugin-card-layout / community-detail 分别钉住。
 const stoppedActionRows = client.match(/className: 'dsh-mcp-wb-card-actions', onClick: \(e\) => e\.stopPropagation\(\), onKeyDown: \(e\) => e\.stopPropagation\(\)/g) || [];
-ok("插件卡片的操作行阻止冒泡（点安装不会连带打开 README）", stoppedActionRows.length === 1, `count=${stoppedActionRows.length}`);
+ok("可点卡片的操作行阻止冒泡（点安装不会连带打开详情）", stoppedActionRows.length >= 1, `count=${stoppedActionRows.length}`);
 
 // ── 点击与键盘共用同一处理函数 ───────────────────────────────────────────
 ok("卡片点击与 Enter/Space 共用 loadAwesomeReadme",

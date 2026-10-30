@@ -1,5 +1,5 @@
 node_modules/
 .ai-memory/
-promo-video/
 *.log
-promo-douyin/
+# 宣传片制作素材（本地资产，不进仓库）
+promo-*/

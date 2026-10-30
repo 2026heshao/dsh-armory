@@ -8,8 +8,10 @@
 //   1. 本机覆盖 ~/.dsh/wb-market/experts/overrides/<包>.md 优先于一切，且不能借包名穿越目录；
 //   2. 本机 WorkBuddy 缓存优先于网络（本机明明有正文，不该被 404 挡掉）；
 //   3. 本机也没有时回落公开分发地址；
-//   4. 三条路都空时给「兜底人设」，且必须显式标注非原文（否则召唤出来的会话会以为自己就是原作者）；
-//   5. 任何情况下都不许静默产出空人设，也不许再抛裸 404 把专家变成不可用。
+//   4. 上游明确缺包（404 / 410）时给「兜底人设」，且必须显式标注非原文（否则召唤出来的会话会以为
+//      自己就是原作者）；断网 / 超时 / 5xx 是暂时故障，必须如实抛错让用户重试或放本机覆盖，
+//      不许静默换成替身——那会让用户以为专家原文就长这样（M6）；
+//   5. 任何情况下都不许静默产出空人设，也不许把裸 404 抛到界面上把专家变成不可用。
 //
 // 用法：node ./test/expert-persona-source.mjs
 
@@ -72,6 +74,11 @@ async function seedManifest() {
           tags: [],
           quickPrompts: [],
         }),
+        // 中文 agentName：WorkBuddy 的 agents 目录本来就允许非 ASCII 文件名，
+        // 用 [a-zA-Z0-9] 白名单重建会导致明明缓存里有正文却取不到（M7）。
+        entry("demo-unicode", "中文文件名的人设", { agentName: "中文专家" }),
+        // agentName 试图穿越 agents/ 目录：只该在 agents/ 内按文件名找。
+        entry("demo-agent-traversal", "agentName 穿越", { agentName: "../evil" }),
         // 穿越尝试：safeSegment 之后只该在 overrides/ 内找它。
         entry("../evil", "穿越尝试"),
       ],
@@ -103,6 +110,10 @@ async function seedOverride(fileName, text) {
 await seedManifest();
 await seedWorkbuddyExpert("demo-local", { persona: "# 本机人设\n\n你来自本机 WorkBuddy 缓存。\n" });
 await seedWorkbuddyExpert("demo-alt", { agentFileName: "the-only-one.md", persona: "# 唯一份人设\n" });
+await seedWorkbuddyExpert("demo-unicode", { agentFileName: "中文专家.md", persona: "# 中文人设\n" });
+await seedWorkbuddyExpert("demo-agent-traversal", { agentFileName: "evil.md", persona: "# agents 内的人设\n" });
+// agents/ 之外放一份同名字诱饵：agentName 若被当成路径拼接，就会读到它。
+await writeFile(join(WB_CACHE, "demo-agent-traversal", "1.2.0", "evil.md"), "# 穿越诱饵\n");
 await seedWorkbuddyExpert("demo-empty", { persona: "   \n\n" });
 // 覆盖与缓存同时存在：必须覆盖赢。
 await seedWorkbuddyExpert("demo-override", { persona: "# 缓存人设\n\n缓存里的旧版本。\n" });
@@ -210,12 +221,19 @@ try {
     }
   }
 
-  // ── 7. 网络故障：兜底人设里的原因必须与上游缺包不同 ──────────────────
+  // ── 7. 网络故障：不伪造人设，抛可操作的错误（只有上游 404/410 才兜底）──
   {
-    const detail = await wbExpertDetail({ plugin: "demo-down" });
-    ok("网络故障：同样给兜底人设", detail.personaSource === "generated");
-    ok("网络故障：原因写「拉取原文失败」", detail.personaNotice.startsWith("拉取原文失败"), detail.personaNotice.slice(0, 40));
-    ok("网络故障：不误报成上游缺包", !detail.personaNotice.includes("404"));
+    let detail = null;
+    let message = "";
+    try {
+      detail = await wbExpertDetail({ plugin: "demo-down" });
+    } catch (error) {
+      message = String(error?.message || error);
+    }
+    ok("网络故障：不再伪造替身人设（detail 必须为空）", detail === null);
+    ok("网络故障：错误说明拉取失败并要求检查网络", message.includes("拉取专家人设失败") && message.includes("请检查网络"), message.slice(0, 80));
+    ok("网络故障：不冒充上游缺包（错误里没有 404）", !message.includes("404"));
+    ok("网络故障：给出本机覆盖目录这一兜底路径", message.includes("覆盖目录"));
   }
 
   // ── 8. 人设文件名与 plugin 不一致时，接受 agents/ 下唯一那份 md ────────
@@ -224,6 +242,15 @@ try {
     const detail = await wbExpertDetail({ plugin: "demo-alt" });
     ok("文件名不一致：仍能从本机缓存取到", detail.persona.includes("唯一份人设"), detail.personaSource);
     ok("文件名不一致：同样不联网", calls.length === 0);
+  }
+
+  // ── 8b. 非 ASCII agentName / agentName 穿越 ─────────────────────────────
+  {
+    const uni = await wbExpertDetail({ plugin: "demo-unicode" });
+    ok("中文 agentName：能读到 agents/中文专家.md", uni.persona.includes("中文人设") && uni.personaSource === "workbuddy-cache", uni.personaSource);
+    const trav = await wbExpertDetail({ plugin: "demo-agent-traversal" });
+    ok("agentName 穿越：只读 agents/ 内的文件", trav.persona.includes("agents 内的人设"), trav.personaSource);
+    ok("agentName 穿越：不会读到 agents/ 之外的诱饵", !trav.persona.includes("穿越诱饵"));
   }
 
   // ── 9. 缓存里是空白文件 → 不算命中，最终落到兜底人设 ──────────────────
@@ -247,7 +274,8 @@ try {
     const { readFile } = await import("node:fs/promises");
     const indexSource = await readFile(new URL("../lib/index.js", import.meta.url), "utf8");
     const summonAt = indexSource.indexOf("async wbExpertSummon(payload)");
-    const detailAt = indexSource.indexOf("await wbExpertDetail({ plugin })", summonAt);
+    // P0-1 之后召唤链改经懒加载模块（expertApi.wbExpertDetail），针跟着改为方法名调用。
+    const detailAt = indexSource.indexOf(".wbExpertDetail({ plugin })", summonAt);
     const writeAt = indexSource.indexOf("withPatchWrite(this.ctx", summonAt);
     ok("wbExpertSummon 先取详情（人设失败即整体不动）", summonAt >= 0 && detailAt > summonAt && writeAt > detailAt, `summon=${summonAt} detail=${detailAt} write=${writeAt}`);
   }

@@ -55,7 +55,7 @@ const MARK = {
 	readFnEnd: "  return rows;\n}",
 	writeNameLine: "config.set(\"name\", `${EXPERT_PRESET_NAME_PREFIX}${spec.displayName}`);",
 	installedStart: "	async wbExpertInstalled() {",
-	installedEnd: "		skills: await listExpertSkills(),\n\t\t};",
+	installedEnd: "		skills: await expertApi.listExpertSkills(),\n\t\t};",
 	clientPrefix: "const EXPERT_PRESET_LABEL_PREFIX = 'WorkBuddy 专家 · ';",
 };
 const SOURCES = { "lib/expert-market.js": marketSrc, "lib/index.js": indexSrc, "lib/client.js": clientSrc };

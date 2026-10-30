@@ -259,13 +259,28 @@ const createOverlayHarness = () => {
   };
   const layout = { panelInfo: panel, selectPanel() {} };
   const ctx = { get: (name) => (name === "layout" ? layout : null) };
+  // 真实记账 addEventListener / removeEventListener：卸载断言不能只看「没抛错」，
+  // 必须证明挂上的监听确实被摘掉了。
+  const listeners = new Map(); // `${target}:${type}` -> Set<handler>
+  const trackAdd = (target, type, handler) => {
+    const key = `${target}:${type}`;
+    if (!listeners.has(key)) listeners.set(key, new Set());
+    listeners.get(key).add(handler);
+  };
+  const trackRemove = (target, type, handler) => {
+    listeners.get(`${target}:${type}`)?.delete(handler);
+  };
+  const listenerCount = () => [...listeners.values()].reduce((n, set) => n + set.size, 0);
   const windowStub = {
     innerWidth: 1280,
     innerHeight: 800,
-    addEventListener() {},
-    removeEventListener() {},
+    addEventListener(type, handler) { trackAdd("window", type, handler); },
+    removeEventListener(type, handler) { trackRemove("window", type, handler); },
   };
-  const documentStub = { addEventListener() {}, removeEventListener() {} };
+  const documentStub = {
+    addEventListener(type, handler) { trackAdd("document", type, handler); },
+    removeEventListener(type, handler) { trackRemove("document", type, handler); },
+  };
   const context = vm.createContext({
     console,
     localStorage,
@@ -361,7 +376,7 @@ const createOverlayHarness = () => {
       };
     };
   `, context, { filename: "skillhub-overlay-harness.js" });
-  return { probe: context.__probe, mount: (Comp, props) => context.__mount(Comp, props), panel, storage, context };
+  return { probe: context.__probe, mount: (Comp, props) => context.__mount(Comp, props), panel, storage, context, listenerCount };
 };
 
 const findAll = (el, predicate, out = []) => {
@@ -424,8 +439,11 @@ try {
     !!disabledItem && disabledItem.props.disabled === true
     && textOf(menuFabOnly).includes("唯一入口"));
 
+  const mountedListeners = harness.listenerCount();
   view.unmount();
-  ok("5.11 卸载时清理订阅与定时器不抛错", true);
+  ok("5.11 卸载时清理订阅与定时器（原本挂着的监听全部摘掉）",
+    mountedListeners > 0 && harness.listenerCount() === 0,
+    `before=${mountedListeners} after=${harness.listenerCount()}`);
 } catch (error) {
   ok("5.12 渲染链路不抛错", false, String(error && error.stack || error));
 }

@@ -346,5 +346,76 @@ section("5. 反向自测：去掉 basis 与重合度闸门（= v1 语义）必�
     eventsOf(real).length === 0, kindsOf(real));
 }
 
+// ── 6. 「最近动静」→ 全量市场 ───────────────────────────────────────────────
+// 条目的语义是「整个目录变了 N 条」，落进上一次留下的搜索词 / 只看已安装 / 分类 / 页码里
+// 就看不见那几条。跳转必须先把目标页签重置回全量，再切页签。口径抽成纯函数在这里真跑。
+section("6. 最近动静 → 全量市场（点击直达未过滤目录）");
+{
+  const SCOPE_SRC = slice(
+    "全量市场口径（marketFullScope）",
+    "const marketFullScope = (tabKey) => {",
+    "const WorkBuddyMarket = ({ call, pluginManager }) => {",
+  );
+  const APPLY_SRC = slice(
+    "跳转动作（applyFullMarket）",
+    "const applyFullMarket = (next) => {",
+    "const loadAwesomeCatalog = useCallback",
+  );
+  const JUMP_SRC = slice(
+    "MarketPulse 挂载处的 onJump",
+    "onJump: (meta) => {",
+    "// 连接器来源切换",
+  );
+
+  if (SCOPE_SRC && APPLY_SRC && JUMP_SRC) {
+    const ctx = vm.createContext({});
+    vm.runInContext(SCOPE_SRC, ctx, { filename: "client.full-scope-slice.js" });
+    const scope = vm.runInContext("(key) => marketFullScope(key)", ctx);
+
+    const connector = scope("connector");
+    ok("6a 连接器回到 WorkBuddy 源（动静只记录这份目录）", connector?.connectorFeed === "wb");
+    ok("6b 连接器清空搜索 / 取消两个筛选 / 排序回默认 / 回第 1 页",
+      connector?.connectorQuery === ""
+      && connector?.connectorOnlyReady === false
+      && connector?.connectorOnlyInstalled === false
+      && connector?.connectorSort === "default"
+      && connector?.connectorPage === 1);
+
+    const skill = scope("skill");
+    ok("6c 技能清空搜索与排序、回第 1 页（与记录口径一致）",
+      skill?.skillKeyword === "" && skill?.skillKeywordInput === ""
+      && skill?.skillSort === "downloads" && skill?.skillOnlyInstalled === false && skill?.skillPage === 1);
+
+    const plugin = scope("plugin");
+    ok("6d 插件清空搜索 / 分类 / 标签 / 只看已安装，排序回 stars、回第 1 页",
+      plugin?.awesomeQuery === "" && plugin?.awesomeCategory === "all"
+      && Array.isArray(plugin?.awesomeTags) && plugin.awesomeTags.length === 0
+      && plugin?.awesomeSort === "stars" && plugin?.awesomeOnlyInstalled === false && plugin?.awesomePage === 1);
+    const pluginAgain = scope("plugin");
+    ok("6e 标签数组每次都是新副本（两页签共用同一份 state 也不会被就地改掉）",
+      plugin.awesomeTags !== pluginAgain.awesomeTags);
+
+    ok("6f 专家页交回重挂信号（内部状态靠换 key 回到全量）", scope("expert")?.expertRemount === true);
+    ok("6g 未知页签不产生任何改写", scope("nope") === null);
+
+    const setters = [
+      "setConnectorFeed", "setConnectorQuery", "setConnectorOnlyReady", "setConnectorOnlyInstalled", "setConnectorSort", "setConnectorPage",
+      "setSkillKeyword", "setSkillKeywordInput", "setSkillSort", "setSkillOnlyInstalled", "setSkillPage",
+      "setAwesomeQuery", "setAwesomeCategory", "setAwesomeTags", "setAwesomeSort", "setAwesomeOnlyInstalled", "setAwesomePage",
+      "setExpertEpoch",
+    ];
+    const missingSetters = setters.filter((name) => !APPLY_SRC.includes(`${name}(`));
+    ok("6h 三套页签的 18 个状态全部真的写回（口径有值、组件没用上等于空转）",
+      missingSetters.length === 0, missingSetters.length ? `缺=${missingSetters.join(",")}` : "");
+
+    const applyAt = JUMP_SRC.indexOf("applyFullMarket(meta.tab)");
+    const switchAt = JUMP_SRC.indexOf("switchTab(meta.tab)");
+    ok("6i 先重置再切页签（顺序反了会先渲染一帧带着旧过滤的列表）",
+      applyAt >= 0 && switchAt > applyAt, `apply=${applyAt} switch=${switchAt}`);
+    ok("6j 反向自测：旧写法「只切页签」不再存在（不许绕过全量重置）",
+      !/onJump:\s*\(meta\)\s*=>\s*\{\s*if\s*\(meta\.tab\)\s*switchTab\(meta\.tab\);/.test(client));
+  }
+}
+
 console.log(`\n共 ${checks} 条断言：PASS ${checks - failures} / FAIL ${failures}`);
 if (failures > 0) process.exitCode = 1;

@@ -103,7 +103,9 @@ const RULES = {
 
 export default [
   {
-    ignores: ['node_modules/**', '.ai-memory/**', 'docs/**'],
+    // promo-* 是本地宣传片生成目录（.gitignore 已排除），不属于插件产物；
+    // 里面是临时渲染脚本，混进 lint 只会让 `npm run lint` 在干净仓库外恒红。
+    ignores: ['node_modules/**', '.ai-memory/**', 'docs/**', 'promo-*/**'],
   },
   {
     // 后端与测试：Node ESM

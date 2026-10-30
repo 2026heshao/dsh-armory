@@ -161,5 +161,46 @@ function sampleServers() {
   ok("applyTokens：tokens 为 null → 全部槽上报 missingSlots", noTokens.missingSlots.length === 3);
 }
 
+// ── 8. url 占位符：凭据写在连接地址里（tushare / 百度地图 / 快递100 这类）───────
+// 回归针：只扫 env/headers 时这 12 条 auth_mode=token 的连接器既无可填槽位、又被判
+// 「未声明可替换」→ 安装入口消失、令牌窗口永远不弹。url 必须与 env/headers 同等对待。
+{
+  const servers = {
+    "url-direct": { type: "streamableHttp", url: "https://api.example/mcp/?token=${TUSHARE_TOKEN}&format=0" },
+    "url-nested": { transport: { type: "http", url: "https://nested.example/mcp/${NESTED_KEY}" } },
+    "url-plain": { url: "https://plain.example/mcp" },
+  };
+  const slots = scanTokenSlots(servers);
+  const urlSlots = slots.filter((slot) => slot.container === "url");
+  ok("url 槽位：扫到 2 个（顶层 url + 嵌套 transport.url）", urlSlots.length === 2, `n=${urlSlots.length}`);
+  const direct = urlSlots.find((slot) => slot.server === "url-direct");
+  ok("url 槽位形状：container=url、key=url、template 为整串地址",
+    direct?.container === "url" && direct?.key === "url"
+    && direct?.template === "https://api.example/mcp/?token=${TUSHARE_TOKEN}&format=0"
+    && direct?.placeholder === "TUSHARE_TOKEN",
+    JSON.stringify(direct));
+  ok("url 槽位：无占位符的地址不产生槽位", !urlSlots.some((slot) => slot.server === "url-plain"));
+
+  const snapshot = JSON.stringify(servers);
+  const filled = applyTokens(servers, { TUSHARE_TOKEN: "tk-1", NESTED_KEY: "nk-2" });
+  ok("applyTokens url：顶层地址占位符被替换", filled.mcpServers["url-direct"].url === "https://api.example/mcp/?token=tk-1&format=0");
+  ok("applyTokens url：嵌套 transport.url 被替换", filled.mcpServers["url-nested"].transport.url === "https://nested.example/mcp/nk-2");
+  ok("applyTokens url：无占位符地址原样保留", filled.mcpServers["url-plain"].url === "https://plain.example/mcp");
+  ok("applyTokens url：入参对象不被修改", JSON.stringify(servers) === snapshot);
+  ok("applyTokens url：齐全 tokens 时 missingSlots 为空", filled.missingSlots.length === 0, JSON.stringify(filled.missingSlots));
+
+  const partial = applyTokens(servers, { TUSHARE_TOKEN: "tk-1" });
+  ok("applyTokens url：缺 token 的地址保留原占位符", partial.mcpServers["url-nested"].transport.url === "https://nested.example/mcp/${NESTED_KEY}");
+  ok("applyTokens url：缺槽按 container=url 上报", partial.missingSlots.length === 1 && partial.missingSlots[0].container === "url"
+    && partial.missingSlots[0].placeholder === "NESTED_KEY", JSON.stringify(partial.missingSlots));
+
+  // 同一 server 同时有 url 与 header 占位符：两个槽位都在，互不吞没。
+  const mixed = { mix: { url: "https://mix.example/mcp/${MIX_KEY}", headers: { Authorization: "Bearer ${MIX_TOKEN}" } } };
+  const mixSlots = scanTokenSlots(mixed);
+  ok("url + header 混合：两个槽位都在", mixSlots.length === 2
+    && mixSlots.some((slot) => slot.container === "url")
+    && mixSlots.some((slot) => slot.container === "header"), JSON.stringify(mixSlots));
+}
+
 console.log(`\n${failures === 0 ? "WB-AUTH-RULES PASS" : `${failures} CHECK(S) FAILED`}`);
 process.exitCode = failures === 0 ? 0 : 1;
