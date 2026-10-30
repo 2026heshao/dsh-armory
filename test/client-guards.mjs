@@ -10,11 +10,13 @@
 //   M5 adopted（拿不到撤销句柄）要在挂 / 摘两条路上都提示「取消需重启」；
 //   M6 替身人设（generated）不落粘性选择，并在详情 / 挂载提示里标注非原文；
 //   Low 社区列表懒加载守卫必须比较「查询词」而不是真值。
+//   J 「已加入」判定必须用不带冲突后缀的 baseServerName（用 serverName 恒为 false）。
 //
 // 零网络、零写盘，只读 lib/client.js 与 lib/index.js。
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import vm from "node:vm";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const client = await readFile(join(here, "..", "lib", "client.js"), "utf8");
@@ -125,6 +127,33 @@ const truthyGuard = client.replace(
 );
 ok("Low 反向：改回真值守卫后断言必须判红",
   !/if \(communityLoadedQueryRef\.current === communityQuery\) return;/.test(truthyGuard));
+
+// ═══ J communityJoined：拿带后缀的预填名比已装名 = 「已加入」永远点不亮 ═══════
+// 真跑判定函数本体（不只是搜字符串）：把 client.js 里的 arrow 取出来 new Function 执行，
+// 装上 adeu 之后列表里这条会预填成 adeu-2，旧写法拿 adeu-2 去比已装名恒为 false。
+{
+  const raw = between(client, "const communityJoined = (row) => {", "\n  };\n", "communityJoined");
+  const arrow = `(row) => {${raw.slice(raw.indexOf("{") + 1)}}`;
+  const make = (rows) => vm.runInNewContext(`(${arrow})`, { mcpServerRows: rows });
+  const joined = make([{ serverName: "adeu" }, { serverName: "windows" }]);
+  ok("J 已装过 adeu → 已加入（后缀名不影响判定）",
+    joined({ serverName: "adeu-2", baseServerName: "adeu" }) === true);
+  ok("J 没装过 → 未加入", joined({ serverName: "figma", baseServerName: "figma" }) === false);
+  ok("J 空已装列表 → 未加入", make([])({ serverName: "adeu", baseServerName: "adeu" }) === false);
+  ok("J 行缺 baseServerName（旧缓存形状）时回落预填名，不抛错",
+    joined({ serverName: "windows" }) === true && joined({}) === false);
+  ok("J 已装行缺 serverName 不抛错", make([{}])({ serverName: "adeu", baseServerName: "adeu" }) === false);
+  // 反向自测：旧的一行判定（只比 serverName），第一条必须判红。
+  const legacy = vm.runInNewContext(
+    "(row) => mcpServerRows.some((server) => String(server?.serverName || '') === row.serverName)",
+    { mcpServerRows: [{ serverName: "adeu" }] },
+  );
+  ok("J 反向：旧写法在「已装 adeu + 预填 adeu-2」下判成未加入（这正是 bug）",
+    legacy({ serverName: "adeu-2", baseServerName: "adeu" }) === false);
+  // 判据字段必须由数据层给出，客户端不能自己再净化一遍（两处规则会漂移）。
+  ok("J baseServerName 来自数据层 mapRegistryServer", /baseServerName: sanitizeServerName\(name, \[\]\)/.test(
+    await readFile(join(here, "..", "lib", "mcp-community.js"), "utf8")));
+}
 
 console.log(`\n${failed === 0 ? "CLIENT-GUARDS PASS" : `CLIENT-GUARDS FAIL（${failed} 项）`}`);
 process.exitCode = failed === 0 ? 0 : 1;

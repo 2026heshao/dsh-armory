@@ -17,6 +17,13 @@ import {
   setManagedMcpDisabled,
   updateManagedMcpPatch,
 } from "../lib/mcp-config.js";
+import { resetWin32LaunchContext, setWin32LaunchContext } from "../lib/win32-stdio.js";
+
+// 本套件测的是**纯归一化**：结果不能因为跑测试的机器 PATH 里有没有 node.exe 而变。
+// `normalizeEntry` 现在会在 win32 上把裸 npx 归一成绝对 node.exe（真实缺陷的修复，见
+// test/win32-stdio-launch.mjs），所以这里先把那一层显式关成「非 win32」，末尾再单独开回来
+// 验证接线。不这么做的话，同一份用例在 Linux CI 与 Windows 本机上会给出两种答案。
+setWin32LaunchContext({ applicable: false, platform: "test", node: null, cacheDir: null });
 
 let failures = 0;
 const ok = (name, condition, extra = "") => {
@@ -336,6 +343,35 @@ if (sources === null) {
   const broken = convert(["command = "]);
   ok("非法 TOML 只报行号、不回显原文",
     broken.error === "不是合法 TOML（第 1 行附近）" && !broken.error.includes("command"));
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+console.log("\n── 12. win32 启动器归一在归一化边界上的接线 ──");
+// ══════════════════════════════════════════════════════════════════════════════
+{
+  const WIN = { applicable: true, platform: "win32", node: { exe: "D:\\nodejs\\node.exe", npxCli: "D:\\nodejs\\node_modules\\npm\\bin\\npx-cli.js", npmCli: "D:\\nodejs\\node_modules\\npm\\bin\\npm-cli.js" }, cacheDir: "C:\\Users\\me\\.dsh\\armory\\mcp-npm-cache" };
+  setWin32LaunchContext(WIN);
+  const fixed = one({ adeu: { command: "npx", args: ["-y", "@adeu/mcp-server"] } });
+  ok("win32 下裸 npx 归一成可 spawn 的绝对 node.exe", fixed.command === WIN.node.exe, `got ${fixed.command}`);
+  ok("win32 下入口 JS 顶到 args[0]，包名顺序不动",
+    JSON.stringify(fixed.args) === JSON.stringify([WIN.node.npxCli, "-y", "@adeu/mcp-server"]));
+  const warned = normalizeMcpImport({ mcpServers: { adeu2: { command: "npx", args: ["-y", "p"] } } });
+  ok("改写进 warnings（静默改用户输入更糟）",
+    warned.warnings.some((line) => line.includes("adeu2") && line.includes("Windows")));
+  const abs = one({ w: { command: "C:\\tools\\windows-mcp.exe", args: ["serve"] } });
+  ok("已是绝对路径的条目不动（同机两条能连的都是这种形态）",
+    abs.command === "C:\\tools\\windows-mcp.exe" && JSON.stringify(abs.args) === JSON.stringify(["serve"]));
+  const expr = one({ e: { command: "${NODE_BIN}", args: ["s.js"] } });
+  ok("${VAR} 表达式命令不参与归一（归一层看到的是宿主求值形态 !!js）",
+    expr.command === '!!js (process.env.NODE_BIN ?? "")' && JSON.stringify(expr.args) === JSON.stringify(["s.js"]));
+  // 反向自测：把上下文退回非 win32，同一条输入必须写回裸 npx（旧行为）。
+  setWin32LaunchContext({ applicable: false, platform: "test", node: null, cacheDir: null });
+  const legacy = one({ adeu: { command: "npx", args: ["-y", "@adeu/mcp-server"] } });
+  ok("反向自测：非 win32 原样保留裸 npx", legacy.command === "npx" && JSON.stringify(legacy.args) === JSON.stringify(["-y", "@adeu/mcp-server"]));
+  // 默认路径（未注入 = 真探测）也必须能跑通，防止接线只在测试里生效。
+  resetWin32LaunchContext();
+  const auto = one({ p: { command: "python", args: ["server.py"] } });
+  ok("未注入上下文时按本机真实探测也不误改 python", auto.command === "python");
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

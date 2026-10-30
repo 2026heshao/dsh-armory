@@ -263,6 +263,28 @@ function jsonResponse(body, status = 200) {
   ok("nextCursor 缺失 → null", res.nextCursor === null);
 }
 
+// ── 13a. baseServerName：「已加入」判定的唯一可比名字 ─────────────────────
+// 后缀名是「预填叫什么」，不是「装没装」。装完 filesystem 之后 taken 里就有 filesystem，
+// 下一轮列表这条的 serverName 变成 filesystem-2 —— 拿 serverName 去比已装名永远不相等，
+// 面板的「已加入」徽标与按钮禁用一起失效，用户以为没装、再点一次装出第二条。
+// baseServerName 走「无冲突后缀」的净化，与已装名同源可比，才是那个判定该用的字段。
+{
+  resetCommunityCache();
+  const fetchImpl = async () => jsonResponse({
+    servers: [npmEntry({ name: "io.github.a/filesystem" })],
+    metadata: {},
+  });
+  const free = await wbMcpCommunityList({}, { fetchImpl });
+  eq("未装过时 base 与 serverName 同一个名字", free.rows[0].baseServerName, free.rows[0].serverName);
+  resetCommunityCache();
+  const taken = await wbMcpCommunityList({ takenNames: ["filesystem", "mcp"] }, { fetchImpl: async () => jsonResponse({ servers: [npmEntry({ name: "io.github.a/filesystem" })], metadata: {} }) });
+  eq("冲突时 serverName 带后缀", taken.rows[0].serverName, "filesystem-2");
+  eq("冲突时 base 仍是不带后缀的原始名（可与已装名直接相等）", taken.rows[0].baseServerName, "filesystem");
+  // 反向自测：曾经只有 serverName，「已加入」因此恒为 false。
+  ok("反向自测：serverName 单独不可用于已装判定", taken.rows[0].serverName !== "filesystem");
+  eq("mapRegistryServer 直接调用也带 base", mapRegistryServer(npmEntry({ name: "io.github.a/filesystem" })).baseServerName, "filesystem");
+}
+
 // ── 13b. 缓存命中时要按「本次的 takenNames」重算 serverName ─────────────────
 {
   resetCommunityCache();

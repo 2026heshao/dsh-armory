@@ -201,6 +201,11 @@ const SUITES = [
   // 数量显示本次查询已读取的总数（跨页累计去重）、页内容互斥、游标栈回退、换词归零。
   // 抽 loadCommunity 源码进 vm 真跑三页数据，第 4 节把旧「追加」语义注回做反向自测。
   { name: "community-pager（社区 MCP：已读取总数 / 下一页才加载 / 游标栈）", file: "community-pager.mjs" },
+  // 社区徽标显示的全库总数（2026-10-30 用户要求：徽标改成列表总数并常驻，免得被当成一共只有这么多）：
+  // 官方 Registry 不返回总数，只能逐页爬 → 数据层有界统计（块 3 页 / 会话预算 12 页）+ 客户端
+  // localStorage 续爬 + 常驻徽标（未开爬「…」/ 没到底「N+」/ 到底精确值）。
+  // 第 1 节真跑数据层翻页与失败收敛，第 2 节把 client.js 徽标一节抽进 vm 执行，第 5 节反向自测。
+  { name: "community-count（社区 MCP 全库总数：有界续爬 / 常驻徽标 / 口径一致）", file: "community-count.mjs" },
   // 社区卡片点开的详情弹层（2026-10-30 用户要求仿插件页）：
   // 整卡 role=button + Enter/Space、操作区阻止冒泡、遮罩/Esc/焦点陷阱、command+args 与
   // env 明细只读展示、先关详情再开「加入 MCP」草稿。纯静态断言 + 4 条反向自测。
@@ -303,6 +308,10 @@ const SUITES = [
   // https、详情迟到回包作废、重连看 ok、adopted / 替身提示、社区懒加载守卫。每条都配
   // 反向自测（把旧写法注回去），防止断言空转。
   { name: "client-guards（评审修复：路径信任 / 链接协议 / 竞态 / 重连 / 人设提示）", file: "client-guards.mjs" },
+  // Windows 上裸 npx 是 .cmd 壳，宿主 spawn(shell:false) 直接 ENOENT → 社区 MCP 全数「连接失败」。
+  // 钉住归一层与其在唯一写入边界（normalizeEntry）上的接线：平台闸门、幂等、表达式/绝对路径放行、
+  // 不覆盖用户缓存键、探测不到 Node 时宁可不改，全部配反向自测。
+  { name: "win32-stdio-launch（win32 stdio 启动器归一 + 写入边界接线）", file: "win32-stdio-launch.mjs" },
 ];
 
 let failed = 0;

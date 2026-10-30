@@ -103,6 +103,8 @@ dsh plugin --profile web add github:2026heshao/dsh-armory
 - **WB 市场（直连安装，1.8.0 新增）**：看板第四个分类，两个市场一处浏览——
   - **连接器（MCP）**：直读 WorkBuddy 官方分发 ZIP（`static.workbuddy.cn`，与 WorkBuddy 桌面端同一数据源），316 个连接器按需解析；可安装的 242 个（streamable-http 为主），CLI 型 / 需 WorkBuddy token 注入的 74 个如实标注「仅展示」并给出原因。安装 = 把该连接器的 `mcpServers` 合并写入 MCP 配置，与「导入 JSON」同一链路（准入、同名跳过、entry id 预留一致），全局与项目作用域都可选；ZIP 按 ETag 缓存在 `~/.dsh/wb-market/`，解压用 Node 内置 zlib，**零新增运行时依赖**。安装前预检本地客户端型连接器写死的本机程序——缺文件 / 平台不符直接拦住并说明缺哪个路径，不再写进配置后重连十次注销工具（issue #3）；卡片状态按**真实连接态**区分「已连接 / 需授权 / 未连接」，401/403 就地给「重新授权」而不是让你反复重连，详情可看授权有效期并「刷新授权」把新凭据写回配置
   - **社区 MCP（官方 Registry，2.4.4 新增）**：连接器页可切到官方 MCP Registry 的社区条目，不依赖 WorkBuddy 账号；关键词搜索 + 游标分页 + 「只看可直接运行（npx / uvx）」，详情给出启动命令、参数、环境变量与可运行性，点「加入 MCP」只预填表单、确认后才写盘。社区条目未经军械库审核，来源行与详情常驻声明；数据层只接受 active 且可运行的条目，仓库链接仅放行 https
+  - **社区角标显示全库总数（2.4.5 起）**：连接器页「社区 MCP」角标常驻，显示的是**社区目录全库条目总数**而不是本次读到的条数——官方 Registry 不返回总数，插件在后台逐页统计（每次会话最多 12 页，进度存本机、下次打开续爬）：数到底是精确值，没数到底是「N+」下界，还没开爬是「…」；工具条继续显示本次查询的「已读取 N 条」，两处口径在悬浮说明里写清
+  - **Windows 上加入的 MCP 不再必然连不上（2.4.5）**：宿主起 stdio 服务不走 shell，而 `npx` / `npm` 在 Windows 上是 `.cmd` 壳，裸 spawn 直接 `ENOENT` 秒退（面板表现为「连接已关闭」且重连耗尽后永久失败）。写入配置的唯一边界会把裸 `npx` / `npm` 归成本机绝对 `node.exe` + 入口 JS，并注入可写的 npm 缓存目录（你配过 `npm_config_cache` 就不动）；非 Windows、绝对路径、`uvx`、`${VAR}`、`!!js` 原样放行。**副作用**：归一后的命令是本机专属路径，换机导入需重新「加入 MCP」；改动会如实写进安装提示
   - **技能（SkillHub）**：直读 SkillHub 公开 API（`api.skillhub.cn`，19 万+ 技能），支持搜索（`keyword`）、排序（下载/安装/星标/评分）、分页；详情含发布方认证与安全扫描状态。安装 = 逐文件下载并按清单 sha256 校验后写入 `~/.agents/skills/`（与官方 skill 子系统同一发现范围），装完即刻生效；已装的显示「已安装」，可一键卸载、重装即更新。下载量排序在**当前页内**本地完成（上游 `sortBy=downloads` 现在会挂起），其余排序照常走远程；单次请求 15 秒超时，超时文案已中文化
   - 技能版权归原作者所有；两个均为第三方接口，字段可能随上游改版变化（面板顶部有常驻说明）
 - **专家直连（1.9.0 新增，体验对齐 WorkBuddy 专家中心）**：看板独立分类「专家」（侧栏入口同步更名「技能 · MCP · 专家」）——
@@ -292,7 +294,7 @@ dsh plugin --profile web remove dsh-armory
 
 ```sh
 npm install --no-save yaml@2 eslint@9   # 测试与风格检查的唯一裸依赖（运行依赖全部由宿主提供）
-npm test                                # 全 65 套件（与 CI / 发版门槛同一条）
+npm test                                # 全 67 套件（与 CI / 发版门槛同一条）
 npm run lint                            # ESLint：no-undef / no-unused-vars / no-empty 等
 npm run test:e2e                        # 可选：用宿主补丁算法验证专家预设进入组合树
 dsh --profile web --dump-config         # 看 profile 的有效配置
@@ -311,6 +313,7 @@ dsh web                                 # 起 Web 做真实操作验证
 | 自定义套件（2.2.0） | `suites-registry` `suites-client` | 整集合覆盖 / 幂等 / 拒绝与截断两态；id 归属契约（保存后不分裂）、引用套件展开为多个 `/name`、三级写通道降级 |
 | 技能集合（2.2.0） | `skill-remove` `skill-refresh` | 卸载来源白名单与路径边界（根自身 / `..` 穿越 / 跨来源根 / 符号链接只删链接）；装 / 卸后角标与看板实时刷新、乱序回包守卫 |
 | 社区 MCP（2.4.4） | `mcp-community` `community-pager` `community-detail` | Registry 映射 / active 与可运行过滤 / 游标 / 缓存重算 serverName / 4xx 与 5xx 分流；已读取总数与游标栈；详情字段、焦点与「加入 MCP」动作 |
+| Windows 启动器与全库计数（2.4.5） | `win32-stdio-launch` `community-count` | 裸 `npx` / `npm` 归一（探测可注入、非 win32 不介入、幂等、降级如实报错）；有界续爬 / 游标链 / 失败不清进度 / 统计口径 == 列表口径 / 常驻徽标三态 |
 | 技能禁用（2.4.4） | `skill-disable` | frontmatter 手术（重复键收敛 / CRLF / 空块 / 无闭行）；来源白名单、根包含、realpath、BOM 与无合法 frontmatter 拒绝；幂等重放不写盘 |
 | 连接器体检（2.4.4） | `connector-auth-health` `wb-connector-local` | 真实连接态 / 已安装但未连接 / 需授权（401/403）/ 安装闸 / 授权状态；本机固定依赖 found / missing / platform 与安装前拦截 |
 | 项目 MCP 与系统打开（2.4.4） | `workspace-runtime` `system-open-spawn-guard` | 会话登记不依赖配置文件存在、对齐并入存活但未登记的会话；headless 缺 `xdg-open` 不拖走进程（含旧写法必崩的反向自测） |

@@ -2,6 +2,9 @@
 //   · 数量显示的是**本次查询已读取的总数**（跨页累计去重），不是当前页条数；
 //   · 翻页是「用户点下一页才加载下一页」，页内容互斥（第 2 页替换第 1 页），
 //     不是旧的「加载更多」无限追加 + 300 条封顶。
+//   · 同一天第二轮反馈：来源切换那枚**角标**不再显示这个「已读取」数（用户会读成
+//     "社区一共只有 98 个"），改显示全库总数 —— 那部分的口径、预算与续爬在
+//     test/community-count.mjs 里守，这里只反向钉住角标不许退回去。
 //
 // 为什么不能只做文本断言：页语义（替换/累计/游标栈/换词归零）全在 loadCommunity 的
 // 闭包里，正则改一改就能骗过；这里把该函数源码原文抽进 node:vm，配最小 hook 垫片
@@ -46,8 +49,13 @@ ok("不再有 append 追加参数", !/append\s*=\s*false/.test(slice) && !/appen
 ok("不再有「加载更多 / 已到上限」文案", !source.includes("'加载更多'") && !source.includes("'已到上限，请用搜索缩小范围'"));
 ok("翻页控件是「上一页 / 第 N 页 / 下一页」",
 	source.includes("t('上一页')") && source.includes("t('下一页')") && source.includes("t('第 {0} 页'"));
-ok("工具栏与角标都显示「已读取」累计数",
-	source.includes("t('已读取 {0} 条', [communityReadTotal])") && /communityReadTotal \? h\('span'/ .test(source));
+ok("工具栏仍显示本次查询的「已读取」累计数",
+	source.includes("t('已读取 {0} 条', [communityReadTotal])"));
+// 2026-10-30 用户第二轮反馈：角标上那个「98」会被读成"社区一共只有 98 个"。徽标因此
+// 改显示全库总数（口径与续爬见 test/community-count.mjs），这里反向钉住它不许回退成
+// 「已读取」累计数——两件事共用一个数字正是这次要修的错。
+ok("角标不再显示「已读取」累计数（已改为全库总数，常驻）",
+	!/communityReadTotal \? h\('span', \{ className: 'dsh-mcp-seg-count'/.test(source));
 ok("en-US 侧有对应词条", /"已读取 \{0\} 条": "/.test(source) && /"第 \{0\} 页": "/.test(source));
 
 // ── 2. vm 垫片：最小 hook / setter / call ────────────────────────────────────
