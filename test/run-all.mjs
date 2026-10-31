@@ -151,6 +151,10 @@ const SUITES = [
   // 总线与角标重取函数抽进 vm 真跑（reason 透传 / 抛错隔离 / 退订 / 乱序守卫），并钉住
   // 三个变更入口（看板卸载、市场安装、市场卸载）都广播、两个消费方都订阅。
   { name: "skill-refresh（技能集合实时刷新：总线/角标重取/三入口广播）", file: "skill-refresh.mjs" },
+  // issue #8：看板此前从未把作用域传给 listSkills，项目级 skill（<cwd>/.agents/skills、
+  // <cwd>/.dsh/skills）永远看不到。钉住四条技能 RPC 都带 skillScopeArg(scope)、作用域
+  // 切换（listWorkspaces → ScopeTabs → hash skillws）与失效工作区回退，含反向自测。
+  { name: "skill-project-scope（项目级 skill 可见：作用域切换与调用链）", file: "skill-project-scope.mjs" },
   { name: "skill-install-integrity（技能假安装：并发串行/落盘复核/已装双键/搜索框焦点）", file: "skill-install-integrity.mjs" },
   // ── T02 连接器元数据投影 ─────────────────────────────────────────────────
   // 纯解析层守护：零网络、零真实 ~/.dsh。钉 R1 注入规则标注 / R2 visible_in 标签筛选 /

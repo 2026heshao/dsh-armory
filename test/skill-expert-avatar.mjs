@@ -137,7 +137,7 @@ if (skillIconFromDir && skillIconFor && skillIconCache) {
 // 第 2 节 · Skill 看板三个头像位（源码针）
 // ═══════════════════════════════════════════════════════════════════════════
 section("2. Skill 看板：网格卡 / 列表行 / 详情头");
-const boardStart = clientSrc.indexOf("const SkillBoard = ({ call, scope, timer }) => {");
+const boardStart = clientSrc.indexOf("const SkillBoard = ({ call, timer }) => {");
 const boardEnd = clientSrc.indexOf("// 预设状态、捆绑技能、送还、打开看板入口说明", boardStart);
 ok("能定位到 SkillBoard 组件源码段", boardStart >= 0 && boardEnd > boardStart);
 const BOARD = boardEnd > boardStart ? clientSrc.slice(boardStart, boardEnd) : "";

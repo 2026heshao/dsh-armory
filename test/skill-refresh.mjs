@@ -96,7 +96,7 @@ try {
 	INSTALL = sliceBetween("  const installSkill = async (skill) => {", "  const uninstallSkill = async (skill) => {");
 	UNINSTALL = sliceBetween("  const uninstallSkill = async (skill) => {", "  const openSkillDetail = async (skill) => {");
 	REMOVE = sliceBetween("  const removeSelected = useCallback(async () => {", "  // §1.4 空状态四件套");
-	SKILLBOARD = sliceBetween("const SkillBoard = ({ call, scope, timer }) => {", "const WB_MARKET_CONNECTOR_PAGE_SIZE =");
+	SKILLBOARD = sliceBetween("const SkillBoard = ({ call, timer }) => {", "const WB_MARKET_CONNECTOR_PAGE_SIZE =");
 	BOARD_PAGE = sliceBetween("const McpBoardPage = (props) => {", "const WHATS_NEW_SEEN_KEY =");
 } catch (error) {
 	console.log(`FAIL  源码抽取：${error.message}`);
@@ -109,7 +109,7 @@ ok("能定位变更总线 / 角标重取函数 / 三个变更入口 / 两个消�
 		.every(([, text]) => text && text.length > 100));
 ok("总线是模块级单例且先于两个消费组件定义",
 	source.indexOf("const skillChangeListeners = new Set();") > 0
-	&& source.indexOf("const skillChangeListeners = new Set();") < source.indexOf("const SkillBoard = ({ call, scope, timer }) => {")
+	&& source.indexOf("const skillChangeListeners = new Set();") < source.indexOf("const SkillBoard = ({ call, timer }) => {")
 	&& source.indexOf("const skillChangeListeners = new Set();") < source.indexOf("const McpBoardPage = (props) => {")
 	&& (source.match(/const skillChangeListeners = new Set\(\);/g) || []).length === 1);
 
