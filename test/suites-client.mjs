@@ -332,7 +332,7 @@ section("6. 静态契约（结构性不变式，防「改了实现忘了改契�
 	ok("召唤菜单读套件失败不拖垮整个菜单（Promise.all 是一败全败，必须单独兜）",
 		/call\('listSkillSuites'\)\.catch\(\(\) => \(\{ ok: false \}\)\)/.test(source));
 	ok("弹窗空态判据把套件算进来（只有套件、没有技能时不能被 .empty 压掉）",
-		/const hasAny = skillRows\.length > 0 \|\| suites\.length > 0;/.test(source));
+		/const hasAny = isProject \? skillRows\.length \+ mcpRows\.length > 0 : skillRows\.length > 0 \|\| suites\.length > 0;/.test(source));
 	ok("分隔线只在两段都有内容时画",
 		/suites\.length && skillRows\.length \? h\('div', \{ className: 'dsh-mcp-quick-sep'/.test(source));
 	ok("SuiteManager 里所有 hook 都在顶层（no-conditional-hooks 另有专测，这里只钉数量不为 0）",

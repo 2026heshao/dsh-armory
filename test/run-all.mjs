@@ -36,6 +36,9 @@ const SUITES = [
   // 三元里（node 测不到），「更新预设」被塞进 summoned 的恒假分支 → 按钮永不渲染。抽成纯
   // 函数后在这里跑真值表，并用反向自测钉住旧写法不得复活。
   { name: "expert-card-actions（专家卡片按钮判定 / stale 更新入口）", file: "expert-card-actions.mjs" },
+  // 召唤菜单第四行「本项目」：会话 → 项目根解析 + 项目技能/MCP 投影（含反向自测）。
+  { name: "session-workspace（会话 → 项目根解析）", file: "session-workspace.mjs" },
+  { name: "quick-menu-project（本项目子菜单投影）", file: "quick-menu-project.mjs" },
   { name: "expert-manual（专家市场写链）", file: "run-expert-manual.mjs" },
   { name: "upgrade-plan（一键升级判据）", file: "upgrade-plan.mjs" },
   { name: "session-persona（会话级专家随时挂/换/摘）", file: "session-persona.mjs" },
@@ -160,6 +163,9 @@ const SUITES = [
   // 纯解析层守护：零网络、零真实 ~/.dsh。钉 R1 注入规则标注 / R2 visible_in 标签筛选 /
   // R3 examples 优先。（T03 的 CodeBuddy 插件市场已于 2026-10-24 整体移除，对应套件一并下线。）
   { name: "wb-connector-meta（连接器 R1/R2/R3 投影：注入规则/标签筛选/examples）", file: "wb-connector-meta.mjs" },
+  // R7 增强：token 型连接器「API Key 去哪申请」——随包 SKILL.md 自动提取、端点官网与
+  // 搜索三级兜底。纯函数边界 + 真实 ZIP 投影；真实 ZIP 不存在时该套件末节 SKIP。
+  { name: "connector-auth-help（连接器凭据获取通道：提取/边界/真实目录投影）", file: "connector-auth-help.mjs" },
   // issue #3（NVIDIA App 本地助手连不上）回归：本地客户端型连接器把固定本机程序写死在
   // `cmd /c <path>` 里，旧实现不做预检、装完才由宿主重连 10 次失败。这里钉路径识别
   // （不误判 npx 包名/数据路径）、found/missing/platform 三态与按路径去重。零网络、不 spawn。
@@ -169,6 +175,9 @@ const SUITES = [
   // DSH 社区插件卡片的五段式排版（2026-10-24）：固定 176px、标题单行、作者只出现一次、
   // 验证态只留图标、标签最多三个、按钮落同一水平线。只读源码，含反向自测。
   { name: "plugin-card-layout（社区插件卡片：五段固定行高与信息去重）", file: "plugin-card-layout.mjs" },
+  // 专家分类栏可达性（2026-10-31 反馈：尾部分类点不到）：保留单行，两侧箭头 +
+  // 竖向滚轮转横向 + 选中项自动滚入；几何判定抽成纯函数真跑，含反向自测。
+  { name: "expert-market-chips（专家分类栏：箭头/滚轮/自动滚入）", file: "expert-market-chips.mjs" },
   // 市场安装鉴权闸 + 装前 401 探测回归（BugFix 第四单 QA）：被测对象是运行时副本
   // （~/.dsh/profiles/desktop/node_modules/dsh-armory/lib/，DSH 重启后实际加载的版本），
   // 开工先做 SHA256 哈希预检（不符即中止，防并行会话中间态）。钉住三件事：

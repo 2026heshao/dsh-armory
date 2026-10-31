@@ -299,9 +299,12 @@ const lineWith = (source, needles, label) => {
   mustInclude(clientSource, "  const openManualTokenDialog = (item) => {", "逃生口：openManualTokenDialog 存在");
   mustInclude(clientSource, "onClick: () => openManualTokenDialog(connectorDetail)",
     "逃生口：详情里的「我已有令牌」接到 openManualTokenDialog");
-  ok("详情：OAuth 型连接器常驻「我已有令牌」入口",
-    clientSource.includes("connectorDetail.installable && connectorDetail.needsOAuth")
-    && clientSource.includes("该连接器需要通过浏览器完成一次授权"));
+  // 2026-10-31：入口从详情底部提到标题下方（用户报「点开详情看不到获取途径」）。
+  // OAuth 型顶部同时给「去授权」与「我已有令牌」，不再要求先安装/先失败。
+  ok("详情：OAuth 型连接器顶部常驻「去授权 / 我已有令牌」入口",
+    clientSource.includes("connectorDetail.needsOAuth")
+    && clientSource.includes("该连接器通过浏览器完成一次授权，不需要手动申请 API Key。")
+    && clientSource.includes("children: t('我已有令牌')"));
   ok("安装入口不再被账号授权集合收回",
     !clientSource.includes("accountAuthIds")
     && !clientSource.includes("需 WB 账号授权")
