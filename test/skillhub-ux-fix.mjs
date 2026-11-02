@@ -212,7 +212,9 @@ section("4. 面板接线");
 
   const overlayAt = source.indexOf("// ── 技能详情弹层");
   const overlayBody = overlayAt >= 0 ? source.slice(overlayAt, source.indexOf("// 装备清单：导出 / 导入对比", overlayAt)) : "";
-  const descAt = overlayBody.indexOf("skillDetail.description ? h('p'");
+  // issue #9：正文改由 marketSkillCopy 按 locale 投影（中文优先 / 英文优先 / 缺英文占位），
+  // 但分支位置仍是「loading 之外」，打开即有正文、不等详情回来。
+  const descAt = overlayBody.indexOf("skillDetailCopy ? h('p'");
   const loadingAt = overlayBody.indexOf("skillDetail.loading\n");
   ok("4.2 介绍在 loading 分支之外渲染（打开即有正文，不等详情）", descAt >= 0 && loadingAt > descAt);
   ok("4.3 详情页「来源主页」走 browsableHomepageUrl", source.includes("const home = browsableHomepageUrl(homepage || item?.homepage || item?.upstreamUrl);"));

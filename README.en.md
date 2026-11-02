@@ -145,7 +145,7 @@ No. Existing MCP entries and project `.dsh/mcp.json` files stay.
 
 ```sh
 npm install --no-save yaml@2 eslint@9
-npm test       # 72 suites
+npm test       # 73 suites
 npm run lint
 ```
 

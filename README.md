@@ -145,7 +145,7 @@ WorkBuddy 专家中心有 429 位专家、15 个行业，其中 53 个是团队�
 
 ```sh
 npm install --no-save yaml@2 eslint@9
-npm test       # 72 个套件
+npm test       # 73 个套件
 npm run lint
 ```
 

@@ -82,6 +82,21 @@ const indexWithRules = {
     displayCopyOf(null).body === "" && displayCopyOf({ examples_zh: [1, null, "好的"], description: "兜底" }).body === "好的"
     && displayCopyOf({ examples_zh: "不是数组", description: "兜底" }).body === "兜底");
   ok("R3 description 字段兜底序 zh → 裸 description → en", displayCopyOf({ description: "裸描述", description_en: "en" }).body === "裸描述");
+  // issue #9：英文投影不能只是换字段名——examples 才是正文优先来源，必须一起切。
+  const enCopy = displayCopyOf({
+    examples_zh: ["示例一"],
+    examples_en: ["example one"],
+    description_zh: "中文描述",
+    description_en: "english description",
+  }, true);
+  ok("R3 英文投影：examples_en 优先，from=examples", enCopy.from === "examples" && enCopy.body === "example one", enCopy.body);
+  const enDesc = displayCopyOf({ description_zh: "中文描述", description_en: "english description" }, true);
+  ok("R3 英文投影：无英文 examples 时 description_en 优先", enDesc.from === "description" && enDesc.body === "english description", enDesc.body);
+  ok("R3 英文投影：中文 examples 不压过现成的英文 description",
+    displayCopyOf({ examples_zh: ["中文示例"], description_en: "english description" }, true).body === "english description");
+  // 完全没有英文时不在数据层硬塞中文：返回空串，由 UI 决定占位还是回落。
+  ok("R3 英文投影：缺英文时返回空串（UI 负责占位）",
+    displayCopyOf({ description_zh: "中文描述", examples_zh: ["中文示例"] }, true).body === "");
 }
 
 console.log(failed === 0 ? "WB-CONNECTOR-META PASS" : `${failed} CHECK(S) FAILED`);

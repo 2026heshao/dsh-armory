@@ -48,12 +48,14 @@ const CATALOG_BODY = {
     skills: [{
       slug: "zlbx-bidding",
       name: "全国招标中标查询及分析【知了标讯】",
+      name_en: "ZLBX Bidding",
       namespace: { handle: "user_98035bfb", displayName: "user_98035bfb", canonicalName: "@user_98035bfb/zlbx-bidding" },
       iconUrl: "https://example.com/icon.png",
       // 上游真实值：JSON 接口地址。
       homepage: "https://api.skillhub.cn/user_98035bfb/zlbx-bidding",
       upstream_url: "https://clawhub.ai/user_98035bfb/zlbx-bidding",
       description_zh: "列表里的中文介绍",
+      description_en: "English list description",
       downloads: 160075,
       updated_at: 1792817295000,
     }],
@@ -71,8 +73,10 @@ const DETAIL_BODY = {
   },
   skill: {
     displayName: "全国招标中标查询及分析【知了标讯】",
+    displayName_en: "ZLBX Bidding",
     summary: "英文/通用摘要",
     summary_zh: "完整中文介绍（418 字）",
+    summary_en: "English detail summary",
     iconUrl: "https://example.com/icon-detail.png",
     createdAt: 1775204455588,
     category: "business-ops",
@@ -103,6 +107,10 @@ try {
     ok("2.1 列表 homepage → 公开页", row.homepage === "https://skillhub.cn/user_98035bfb/zlbx-bidding", row.homepage);
     ok("2.2 upstreamUrl 保留真实外部来源", row.upstreamUrl === "https://clawhub.ai/user_98035bfb/zlbx-bidding", row.upstreamUrl);
     ok("2.3 列表其它字段不受影响", row.name === "全国招标中标查询及分析【知了标讯】" && row.description === "列表里的中文介绍");
+    // issue #9：中英两套字段都要送出去，UI 才能在英文界面选到英文。
+    ok("2.4 列表同时输出中文原文", row.descriptionZh === "列表里的中文介绍", row.descriptionZh);
+    ok("2.5 列表同时输出英文投影", row.descriptionEn === "English list description", row.descriptionEn);
+    ok("2.6 列表透出 name_en 供标题使用", row.nameEn === "ZLBX Bidding", row.nameEn);
   }
 
   // ── 3. 详情：从 skill 子对象取中文名与完整介绍 ────────────────────────────
@@ -119,6 +127,10 @@ try {
     ok("3.7 请求确实打到了详情端点（namespace 被带上）",
       requests.some((url) => url.includes("/api/v1/skills/zlbx-bidding") && url.includes("namespace=user_98035bfb")),
       requests.join(" | "));
+    // issue #9：详情也必须输出两套字段；只合成一个 description 会让英文永远选不到。
+    ok("3.8 详情同时输出中文原文", detail.descriptionZh === "完整中文介绍（418 字）", detail.descriptionZh);
+    ok("3.9 详情输出 summary_en 英文投影", detail.descriptionEn === "English detail summary", detail.descriptionEn);
+    ok("3.10 详情透出 displayName_en 供标题使用", detail.nameEn === "ZLBX Bidding", detail.nameEn);
   }
 
   // ── 4. 回退链：summary_zh → summary → 根层旧字段 → slug ──────────────────
@@ -136,8 +148,23 @@ try {
     const legacy = await wbSkillDetail({ slug: "zlbx-bidding", namespace: "user_98035bfb" });
     ok("4.3 skill 子对象为空时回落根层 description_zh", legacy.description === "根层旧字段介绍", legacy.description);
 
+    // 只有英文时不能把 description 留空（旧实现只读中文链）。
+    delete DETAIL_BODY.description_zh; // 4.3 的根层中文不能串到这一条
+    DETAIL_BODY.skill = { summary_zh: "", summary: "", summary_en: "English only detail" };
+    const enOnlyDetail = await wbSkillDetail({ slug: "zlbx-bidding", namespace: "user_98035bfb" });
+    ok("4.4 详情只有英文时 description 回落英文", enOnlyDetail.description === "English only detail" && enOnlyDetail.descriptionZh === "",
+      `${enOnlyDetail.description} / zh=${JSON.stringify(enOnlyDetail.descriptionZh)}`);
+
+    const beforeRow = CATALOG_BODY.data.skills[0];
+    CATALOG_BODY.data.skills[0] = { ...beforeRow, description_zh: "", description: "", description_en: "English only list" };
+    const enOnlyList = await wbSkillCatalog({ page: 1, pageSize: 20 });
+    ok("4.5 列表只有英文时 description 回落英文", enOnlyList.skills[0].description === "English only list"
+      && enOnlyList.skills[0].descriptionEn === "English only list", enOnlyList.skills[0].description);
+    CATALOG_BODY.data.skills[0] = beforeRow;
+
     DETAIL_BODY.skill = before;
     delete DETAIL_BODY.description_zh;
+    delete DETAIL_BODY.skill.summary_en;
   }
 } finally {
   globalThis.fetch = realFetch;
