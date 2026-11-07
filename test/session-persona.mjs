@@ -32,7 +32,7 @@ const ok = (name, condition, extra = "") => {
 };
 
 const {
-  attachPersona, detachPersona, installPersonaRuntime, listPersonas, personaOf,
+  attachPersona, activePersonaIds, detachPersona, installPersonaRuntime, listPersonas, personaOf,
   reconcilePersonas, restorePersonaForAgent,
 } = await import(modUrl.href);
 
@@ -340,6 +340,111 @@ function fakeHost(sessionIds) {
       return (raw.sessions || []).some((entry) => entry.sessionId === "swap" && entry.plugin === "persisted");
     } catch { return false; }
   })());
+}
+
+// ── 12. MAX_SESSIONS 淘汰顺序：正在用的会话不能被半路摘掉，用过就该算"最近用过" ──
+// 2026-11-06 复核出的缺陷：pruneSticky 只按 savedAt 升序砍，而 savedAt 仅在真正落盘的
+// attach 里赋值，恢复 / reconcile 都不刷新；同时淘汰会连带 clearPersona。两条合起来的
+// 用户可见后果是——天天用的那个长会话在第 65 个选择出现时被第一个清掉：chip 消失、
+// 重启或压缩后不再补回人设，全程零提示。下面两个子例分别钉住这两处。
+{
+  const MAX = 64;
+  // 从已知的空状态开始：把前面各节留下的选择全部摘掉（detach 同时清运行时与持久化）。
+  const cleaner = fakeHost([]);
+  for (const row of listPersonas()) detachPersona(cleaner.ctx, row.sessionId);
+  ok("起始状态：粘性选择已清空", listPersonas().length === 0, `got ${listPersonas().length}`);
+
+  // 12a 全都在用时，只能动「当前没有活动注入」的那一条
+  {
+    const ids = ["used", "ghost", ...Array.from({ length: MAX - 2 }, (_, i) => `a${i}`), "trigger"];
+    const host = fakeHost(ids);
+    attachPersona(host.ctx, "used", { plugin: "p", name: "常用专家", personaText: "你是常用专家。" });
+    attachPersona(host.ctx, "ghost", { plugin: "p", name: "已卸载", personaText: "你是已卸载。" });
+    for (const id of ids.slice(2, ids.length - 1)) {
+      attachPersona(host.ctx, id, { plugin: "p", name: "填充" + id, personaText: "填充人设 " + id });
+    }
+    ok("12a 到上限时不淘汰", listPersonas().length === MAX, `got ${listPersonas().length}`);
+    // 「ghost」的 agent 被宿主卸载：选择仍在，但运行时记录该被 reconcile 清掉。
+    host.agents.delete("ghost");
+    reconcilePersonas(host.ctx);
+    ok("12a ghost 运行时记录被回收而选择保留", personaOf("ghost") !== null);
+    attachPersona(host.ctx, "trigger", { plugin: "p", name: "触发者", personaText: "我是第 65 条。" });
+    ok("12a 超限后被踢的是「没有活动注入」的那条", personaOf("ghost") === null);
+    ok("12a 正在使用的会话选择没有被踢", personaOf("used") !== null, JSON.stringify(personaOf("used")));
+    // 淘汰连带 clearPersona：旧写法会把这条正在跑的会话的人设当场摘掉（section 被 dispose），
+    // 用户在会话里看到的就是「专家突然掉了」。这里直接看它作用域上的注册/撤销计数。
+    const usedCtx = host.agents.get("used").ctx;
+    ok("12a 正在使用的会话人设仍挂在它的作用域上（没被半路摘掉）",
+      usedCtx.sections.length === 1 && usedCtx.disposed.length === 0,
+      `sections=${usedCtx.sections.length} disposed=${usedCtx.disposed.length}`);
+  }
+
+  // 12b 恢复算「最近用过」：两条都不活动时，被踢的应该是真正久未使用的那一条
+  {
+    const cleaner2 = fakeHost([]);
+    for (const row of listPersonas()) detachPersona(cleaner2.ctx, row.sessionId);
+    const ids = ["oldest", "stale", ...Array.from({ length: MAX - 2 }, (_, i) => `b${i}`), "trigger"];
+    const host = fakeHost(ids);
+    attachPersona(host.ctx, "oldest", { plugin: "p", name: "最久以前", personaText: "你是最久以前。" });
+    attachPersona(host.ctx, "stale", { plugin: "p", name: "久未使用", personaText: "你是久未使用。" });
+    for (const id of ids.slice(2, ids.length - 1)) {
+      attachPersona(host.ctx, id, { plugin: "p", name: "填充" + id, personaText: "填充人设 " + id });
+    }
+    // 两条都失去活动 agent（会话被宿主卸载），选择仍留在粘性表里。
+    host.agents.delete("oldest");
+    host.agents.delete("stale");
+    reconcilePersonas(host.ctx);
+    ok("12b 起点：两条都是「有选择、无活动注入」",
+      personaOf("oldest") !== null && personaOf("stale") !== null);
+    // oldest 被重新挂载（模拟重启 / 压缩后的 agent/created）——这就是「刚刚用过」。
+    const revived = { id: "oldest", ctx: fakeAgentCtx() };
+    host.agents.set("oldest", revived);
+    const restored = restorePersonaForAgent(host.ctx, revived);
+    ok("12b oldest 恢复成功", restored.restored === true, JSON.stringify(restored));
+    // 用完之后再次失去 agent，只留下刷新过的 savedAt 参与排序。
+    host.agents.delete("oldest");
+    reconcilePersonas(host.ctx);
+    attachPersona(host.ctx, "trigger", { plugin: "p", name: "触发者", personaText: "我是第 65 条。" });
+    ok("12b 被踢的是真正久未使用的那条（stale）", personaOf("stale") === null);
+    ok("12b 刚被恢复用过的 oldest 保留下来", personaOf("oldest") !== null, JSON.stringify(personaOf("oldest")));
+  }
+
+  const cleaner3 = fakeHost([]);
+  for (const row of listPersonas()) detachPersona(cleaner3.ctx, row.sessionId);
+}
+
+// ── 13. 运行时记录的清理点：会话结束后不能再强引用着 agentCtx ───────────────
+// reconcilePersonas 只在看板轮询 expertActive 时才跑；从不打开专家视图的长会话里，
+// 每个结束掉的会话都会留下一条 {disposer, agentCtx} —— agentCtx 是强引用，等于让整个
+// agent 作用域跟着泄漏。attachPersona 是天然的清理点（本次修复加的就是这一步）。
+{
+  const host = fakeHost([]);
+  const ctxA = fakeAgentCtx();
+  const ctxB = fakeAgentCtx();
+  host.agents.set("p13a", { id: "p13a", ctx: ctxA });
+  host.agents.set("p13b", { id: "p13b", ctx: ctxB });
+  attachPersona(host.ctx, "p13a", { plugin: "pa", name: "专家 A13", personaText: "A13 的人设正文。" });
+  attachPersona(host.ctx, "p13b", { plugin: "pb", name: "专家 B13", personaText: "B13 的人设正文。" });
+  ok("13 两条挂载后运行时记录齐", activePersonaIds().sort().join(",") === "p13a,p13b", activePersonaIds().join(","));
+  host.agents.delete("p13b"); // 会话结束：宿主注册表里已经没有它
+  ok("13 会话刚结束时记录仍在（清理点确实只有挂载 / reconcile）",
+    activePersonaIds().includes("p13b"), activePersonaIds().join(","));
+  host.agents.set("p13c", { id: "p13c", ctx: fakeAgentCtx() });
+  attachPersona(host.ctx, "p13c", { plugin: "pc", name: "专家 C13", personaText: "C13 的人设正文。" });
+  ok("13 下一次挂载把已结束的会话撤掉（不再泄漏 agentCtx）",
+    activePersonaIds().sort().join(",") === "p13a,p13c", activePersonaIds().join(","));
+  ok("13 撤的是运行时记录，用户选择仍然保留", personaOf("p13b") !== null, JSON.stringify(personaOf("p13b")));
+  ok("13 结束的会话其 section 走的是同一条撤销路（作用域不留残余）", ctxB.disposed.length === 1, `disposed=${ctxB.disposed.length}`);
+  // agent 换代（同一 id 换了 ctx）时，指向旧作用域的记录同样必须撤掉。
+  const rebuilt = { id: "p13a", ctx: fakeAgentCtx() };
+  host.agents.set("p13a", rebuilt);
+  attachPersona(host.ctx, "p13c", { plugin: "pc", name: "专家 C13", personaText: "C13 的人设正文。" });
+  ok("13 反向：agent 换代的旧记录同样被撤（不会把旧作用域留在表里）",
+    !activePersonaIds().includes("p13a"), activePersonaIds().join(","));
+  ok("13 换代时旧 ctx 的 section 被撤销", ctxA.disposed.length === 1, `disposed=${ctxA.disposed.length}`);
+  ok("13 换代会话的选择仍在（等它下一次被 reconcile 补装）", personaOf("p13a") !== null);
+  const cleaner13 = fakeHost([]);
+  for (const row of listPersonas()) detachPersona(cleaner13.ctx, row.sessionId);
 }
 
 try { rmSync(home, { recursive: true, force: true }); } catch { /* 临时目录清理失败不影响结论 */ }

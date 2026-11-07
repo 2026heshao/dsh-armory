@@ -82,6 +82,17 @@ const { mergeSkillDetail, browsableHomepageUrl } = detailProbe;
   ok("1.4 列表独占字段（updatedAt）不会被详情回包弄丢", merged.updatedAt === 1792817295000);
   ok("1.5 0 / false 是合法值，照常覆盖", mergeSkillDetail({ n: 1, b: true }, { n: 0, b: false }).n === 0
     && mergeSkillDetail({ n: 1, b: true }, { n: 0, b: false }).b === false);
+  // 详情缺 displayName 时数据层回退 slug；这个非空值同样不能覆盖列表里的中文名。
+  const slugFallback = mergeSkillDetail(
+    { name: "全国招标中标查询及分析【知了标讯】", slug: "zlbx-bidding" },
+    { name: "zlbx-bidding", slug: "zlbx-bidding" },
+  );
+  ok("1.5b 详情回退 slug 时不覆盖列表中文名", slugFallback.name === "全国招标中标查询及分析【知了标讯】");
+  const realName = mergeSkillDetail(
+    { name: "旧名", slug: "zlbx-bidding" },
+    { name: "真实显示名", slug: "zlbx-bidding" },
+  );
+  ok("1.5c 详情给出真实显示名时照常覆盖", realName.name === "真实显示名");
   ok("1.6 极端输入不抛错", (() => {
     try { mergeSkillDetail(null, null); mergeSkillDetail(undefined, ""); return true; } catch { return false; }
   })());
@@ -102,9 +113,23 @@ const { mergeSkillDetail, browsableHomepageUrl } = detailProbe;
     browsableHomepageUrl("javascript:alert(1)") === ""
     && browsableHomepageUrl("") === ""
     && browsableHomepageUrl("https://api.skillhub.cn.evil.example/u/s") === "https://api.skillhub.cn.evil.example/u/s");
-  // 反向自测：旧校验 `^https?://` 会放行 405 接口地址。
-  ok("1.11 自测：旧校验确实会放行接口地址（证明 1.9 不是恒真）",
-    /^https?:\/\//i.test("https://api.skillhub.cn/u/s"));
+  // 反向自测：从当前实现里真摘掉「拒绝接口地址」那一行（= 旧校验只剩 ^https?://），
+  // 在同一个 vm 里重跑必须把 405 接口地址放出来。以前这条写的是
+  // `/^https?:\/\//i.test("https://api.skillhub.cn/u/s")`——拿字面量比正则，恒真、空转。
+  const legacySlice = SLICE_DETAIL_UTILS.replace(
+    "if (/^https?:\\/\\/api\\.skillhub\\.cn(?=[/?#]|$)/i.test(url)) return '';",
+    "",
+  );
+  ok("1.11a 自测：拒绝规则确实是从现实现里摘出来的（改动点命中源码）", legacySlice !== SLICE_DETAIL_UTILS);
+  const legacyProbe = (() => {
+    const context = vm.createContext({ console });
+    vm.runInContext(`${legacySlice}
+      globalThis.__probe = { browsableHomepageUrl };`, context, { filename: "skillhub-detail-utils-legacy.js" });
+    return context.__probe;
+  })();
+  ok("1.11b 自测：旧校验放行接口地址、现实现拒绝（证明 1.9 不是恒真）",
+    legacyProbe.browsableHomepageUrl("https://api.skillhub.cn/u/s") === "https://api.skillhub.cn/u/s"
+    && browsableHomepageUrl("https://api.skillhub.cn/u/s") === "");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -232,6 +257,10 @@ section("4. 面板接线");
   ok("4.8 唯一入口时隐藏项禁用（不产生全关状态）",
     fabBody.includes("disabled: !canHideFab") && fabBody.includes("entryModeWithoutFab(mode) !== mode"));
   ok("4.9 CSS 有菜单与提示条", source.includes(".dsh-mcp-tab-pop.dsh-mcp-fab-menu{") && source.includes(".dsh-mcp-fab-hint{"));
+  ok("4.10 长按松手后的 click 只吞一次并在短窗口后失效",
+    fabBody.includes("scheduleSuppressClear") && fabBody.includes("suppressClearTimerRef"));
+  ok("4.11 菜单外侧点击忽略 FAB 自身（长按松手不会把菜单瞬间关掉）",
+    /fabRef\.current && fabRef\.current\.contains\(event\.target\)/.test(fabBody));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

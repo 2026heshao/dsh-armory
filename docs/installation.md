@@ -4,31 +4,37 @@
 
 ## 环境要求
 
-- DeepSeek Harness `0.1.5-rc.1` 及以上（已验证至 `0.2.0-rc.2`）
+- DeepSeek Harness `0.1.5-rc.1` 及以上（已验证至 `0.2.1-rc.5`）
 - 已初始化的 `web` profile
 - Node.js 和 pnpm 可由 DSH 的插件命令正常调用
 
-插件把 DSH 宿主 API 声明为 `>=0.1.5-rc.1 <0.2.0` 的 peer 依赖。只支持 0.1.5 起，因为插件用了两个 0.1.5 才有的官方能力：`mcp-client` 按注册作用域判 `serverName` 唯一性（项目级 MCP 的同名能力建立在此），以及 `setup` 把 agent 作为第二个参数传给插件（项目 MCP 挂载需要 agent 的 cwd）。开发基线跟随已验证的最新 RC，并镜像每一个 peer 依赖（另有一个仅供测试的 `@deepseek-ai/dsh-typert-loader`，见[设计与限制](design.md#版本范围怎么定以及它管不到什么)）；升级 DSH 后运行 `pnpm install && npm test` 验证。
+插件把 DSH 宿主 API 声明为 `>=0.1.5-rc.1` 的 peer 依赖（`@deepseek-ai/cordis` 是 `~4.0.2`），**没有 `<0.2.0` 那样的上限**——2026-10 起宿主进入 0.2.x，加上限会让插件在新宿主上装不上，所以口径改为「下限卡到确需的能力，上限靠实测」。只支持 0.1.5 起，因为插件用了两个 0.1.5 才有的官方能力：`mcp-client` 按注册作用域判 `serverName` 唯一性（项目级 MCP 的同名能力建立在此），以及 `setup` 把 agent 作为第二个参数传给插件（项目 MCP 挂载需要 agent 的 cwd）。开发基线跟随已验证的最新 RC，并镜像每一个 peer 依赖（另有一个仅供测试的 `@deepseek-ai/dsh-typert-loader`，见[设计与限制](design.md#版本范围怎么定以及它管不到什么)）；升级 DSH 后运行 `pnpm install && npm test` 验证。
 
 ## 安装
 
-推荐用 npm 安装：包里的 `^1.x` 范围让后续 `dsh plugin update` 能自动升级小版本。
+推荐用 npm 安装并**跟上当前大版本**：
 
 ```sh
-dsh plugin --profile web add dsh-armory@^1.9.0
+# 裸包名 = registry 的 latest（推荐；当前是 2.x）
+dsh plugin --profile web add dsh-armory
+
+# 或显式锁大版本，让后续 `dsh plugin update` 在 2.x 内自动升小版本
+dsh plugin --profile web add dsh-armory@^2
 ```
+
+> **不要照旧文档写 `@^1.9.0`。** 那是 1.x 时代的规格，今天解析出来是 `1.10.0`（2026-10-19 发布），比 latest 落后 16 个版本，缺 2.x 全部的市场、win32 启动器修复与 i18n 改动——表现就是「按说明装好了，但界面和说明对不上」。本文件在 2026-11-06 之前一直写着这个过期规格，已订正。
 
 也可以固定 GitHub release tag（适合需要锁定某个具体版本时）：
 
 ```sh
 # 固定 release tag
-dsh plugin --profile web add github:2026heshao/dsh-armory#v1.9.0
+dsh plugin --profile web add github:2026heshao/dsh-armory#v2.4.8
 
 # 或固定某个 commit
 dsh plugin --profile web add github:2026heshao/dsh-armory#<commit>
 ```
 
-两种方式的**代码与运行行为完全相同**（包里带预构建的 `lib/`，不需要运行 `prepare`，也不需要配置 `allowBuilds`）；区别只在升级：`^1.x` 范围能被 `dsh plugin update` 自动推进，而 tag/commit 是不可变规格、`update` 只会重新解析同一个规格。
+两种方式的**代码与运行行为完全相同**（包里带预构建的 `lib/`，不需要运行 `prepare`，也不需要配置 `allowBuilds`）；区别只在升级：`^2` 这类范围能被 `dsh plugin update` 自动推进，而 tag/commit 是不可变规格、`update` 只会重新解析同一个规格。
 
 如果之前安装的是本地开发目录或另一种规格，先移除旧依赖：
 
@@ -71,8 +77,9 @@ dsh plugin --profile web update dsh-armory
 
 | 安装规格 | `update` 的效果 | 怎么跨版本 |
 |---|---|---|
-| `dsh-armory@^1.9.0`（npm，推荐） | 在 `^1.x` 内自动升到最新小版本，不会跨到 2.0.0 | 已是自动；跨大版本显式安装 `@^2` |
-| `github:...#v1.9.0`（tag） | 重新解析同一个 tag，**不会动** | 换成新 tag 重新 `add`：`... #<新 tag>` |
+| `dsh-armory@^2`（npm，推荐） | 在 `^2.x` 内自动升到最新小版本，不会跨到 3.0.0 | 已是自动；跨大版本显式安装 `@^3` |
+| 裸包名 `dsh-armory` | 解析到 registry 的 latest，`update` 跟进最新 | 已是自动 |
+| `github:...#v2.4.8`（tag） | 重新解析同一个 tag，**不会动** | 换成新 tag 重新 `add`：`... #<新 tag>` |
 | `github:...#<commit>` | 同上，固定在 commit | 用新 commit/tag 重新 `add` |
 | `github:...#main`（分支） | 拉取最新 main | 已是自动；但不推荐生产（无 release 门槛） |
 | `link:<本地目录>`（开发） | 不适用 | 在 checkout 里 `git pull` 后重启 `dsh web` |
@@ -86,7 +93,7 @@ dsh plugin --profile web update dsh-armory
 1.9.0 起本插件由 `dsh-skill-mcp-board` 更名为 `dsh-armory`（npm 包名、GitHub 仓库名、bundle id 一并改）。这不是同一个包的版本升级，而是**换了一个包名**，所以：
 
 ```sh
-dsh plugin --profile web add dsh-armory@^1.9.0
+dsh plugin --profile web add dsh-armory
 dsh plugin --profile web remove dsh-skill-mcp-board
 ```
 
@@ -136,7 +143,9 @@ CI 分工（两条工作流，门槛命令**逐字相同**，改一处必须改�
 | `.github/workflows/ci.yml` | push 到 main、PR、手动 | 装 `yaml@2` → `node ./test/run-expert-manual.mjs`（只验证，不发布） |
 | `.github/workflows/release.yml` | 推 `v*.*.*` tag、手动 | 同上门槛 + 版本 / whats-new / release-notes 三项校验 → `npm publish` → GitHub Release |
 
-> **本仓库没有 `pnpm-lock.yaml`**（运行依赖全是宿主提供的 peer，不装进包），而 devDependencies 里的 `@deepseek-ai/*` 是宿主内部包、npm registry 上不存在。所以两条工作流都**不能用** `pnpm install --frozen-lockfile`——改回它会立刻红（历史上失败过一次）。测试只需 `yaml`，用 `npm install --no-save` 装。
+> **本仓库不提交 `pnpm-lock.yaml`**：运行依赖全是宿主在运行时提供的 peer，不装进包，而 devDependencies 里那些 `@deepseek-ai/*` 钉的是 **RC / prerelease** 版本（宿主同版本的镜像）。`pnpm install --frozen-lockfile` 的前提是仓库里有 lockfile，没有它就当场失败（历史上红过一次），所以两条工作流都改用 `npm install --no-save` 只装测试需要的 `yaml`。
+>
+> 一句过时话已订正：这里原先写「`@deepseek-ai/*` 是宿主内部包、npm registry 上不存在」。实测并非如此——2026-11-06 对 `registry.npmjs.org` 与 `registry.npmmirror.com` 逐个请求，9 个 `@deepseek-ai/*`（cordis、cordis-plugin-loader、dsh-agent、dsh-agent-loop、dsh-atomic-write、dsh-mcp-client、dsh-scope、dsh-tools、dsh-typert-protocol、dsh-api-remotes）**全部 HTTP 200**，各带 8–13 个版本。真正拦住 frozen-lockfile 的是「没有 lockfile」，不是「包不存在」；照旧话去理解会把排障方向带偏。
 
 **第 2 步的真机检查什么时候必须做**：客户端那一半是替身测试——组件在 node 里渲染不起来（见[设计与限制](design.md#版本范围怎么定以及它管不到什么)），所以 CI 全绿也证明不了面板能显示。因此**只要本次改动碰了 `lib/client.js`、或推进了 DSH 基线，就必须做**：起 `dsh web`，确认侧栏入口能打开面板、悬浮按钮在位，然后导入 / 预览 / 启停各点一次。
 
@@ -144,7 +153,7 @@ CI 分工（两条工作流，门槛命令**逐字相同**，改一处必须改�
 
 **Release notes 是必写的**，稿子放 `.github/release-notes/vX.Y.Z.md`（**不要**放 `docs/`，docs 会随包发布到 npm）；`release.yml` 的「校验 release notes 稿子存在」步骤会拦下漏写，`gh release create --notes-file` 用它作为 Release 页面正文。为什么必写：本仓库全部直接提交到 main、没有 PR，自动生成几乎生成不出内容（v1.3.0 及之前每个 Release 页面都只有一行 compare 链接），而面板的更新提示正是把用户指到那一页。
 
-**应用内的「更新到 vX」提示是另一件事**：它的内容真源是 `lib/whats-new.js`（随包发布，宿主的 `whatsNew` RPC 直接转发它），发布前必须给它写上当前版本那一条——`test/whats-new.test.mjs` 会拦下「bump 了版本却没写更新内容」。只写一条就够，不必和 GitHub Release notes 逐字一致。
+**应用内的「更新到 vX」提示是另一件事**：它的内容真源是 `lib/whats-new.js`（随包发布，宿主的 `whatsNew` RPC 直接转发它），发布前必须给它写上当前版本那一条——`test/upgrade-plan.mjs:141` 会拦下「bump 了版本却没写更新内容」（同文件 146 行还拦 release notes 稿缺失）。只写一条就够，不必和 GitHub Release notes 逐字一致。
 
 ### 不用 CI 的手动路径（备选）
 
@@ -152,7 +161,7 @@ CI 分工（两条工作流，门槛命令**逐字相同**，改一处必须改�
 
 ```sh
 npm publish          # 会弹 2FA 挑战；若用 bypass-2FA 的 granular token 则非交互
-gh release create v1.9.0 --title "dsh-armory v1.9.0" --notes-file <notes>
+gh release create vX.Y.Z --title "dsh-armory vX.Y.Z" --notes-file <notes>
 ```
 
 `npm login` 的会话 token 只有 2 小时，超时需要重新登录；classic token 已被 npm 永久吊销，能非交互发布的只剩勾了 **Bypass 2FA** 的 granular access token——但它正在被 npm 收窄（已不能做账号/包管理类操作，且 2027-01 起将失去直接发布能力），所以长期方案是上面的 trusted publishing。

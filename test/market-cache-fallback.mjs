@@ -115,6 +115,11 @@ const ifNoneMatchOf = (init = {}) => (init.headers && init.headers["if-none-matc
 const marketRoots = [];
 const realFetch = globalThis.fetch;
 const realMarketHome = process.env.DSH_ARMORY_MARKET_HOME;
+const realMarketOffline = process.env.DSH_ARMORY_MARKET_OFFLINE;
+// 本套件自己决定每个场景是否离线（⑨ 节），所以开局先把外部值清掉：
+// `npm test` / CI 里带着 DSH_ARMORY_MARKET_OFFLINE=1 跑整套时，①–⑧ 这些「缓存回落 +
+// 条件 GET」场景会被离线口短路，直接在 loadConnectorZip 抛「离线模式」（2026-11-07 实跑撞到）。
+delete process.env.DSH_ARMORY_MARKET_OFFLINE;
 const realArmoryHome = process.env.DSH_ARMORY_HOME;
 try {
   let caseNo = 0;
@@ -274,6 +279,66 @@ try {
     ok(residues.length === 0, "⑧缓存落盘无 .staging/.tmp 残留", residues.join(","));
   }
 
+  // ── ⑨ 离线口：DSH_ARMORY_MARKET_OFFLINE=1 时连接器 ZIP 零网络请求 ─────────────
+  // 这条存在的理由不是缓存策略，而是测试隔离：auth-gate-regression 第 4 节与
+  // connector-auth-help 第 6 节要在真实目录上投影鉴权/凭据字段，没有离线口时它们
+  // 在 CI（无缓存）会真去下 54 MiB 的 ZIP、在本机每次至少发一次条件 GET。
+  {
+    const root = await tempRoot();
+    process.env.DSH_ARMORY_MARKET_HOME = root;
+    process.env.DSH_ARMORY_HOME = await tempRoot();
+    const p = zipPaths(root);
+    await writeAt(p.meta, JSON.stringify({ etag: '"z1"', fetchedAt: 1 }));
+    await writeAt(p.zip, VALID_ZIP);
+    let offlineCalls = 0;
+    globalThis.fetch = async (...args) => {
+      offlineCalls += 1;
+      return respondOk(VALID_ZIP, '"z9"')(...args);
+    };
+    process.env.DSH_ARMORY_MARKET_OFFLINE = "1";
+    const mod = await freshWb();
+    const res = await mod.wbConnectorCatalog();
+    ok(res && res.loadedFrom === "disk" && Array.isArray(res.connectors),
+      "连接器⑨离线：直接用磁盘 ZIP", JSON.stringify(res).slice(0, 100));
+    ok(offlineCalls === 0, "连接器⑨离线：一次网络请求都没发", `calls=${offlineCalls}`);
+  }
+  {
+    // 缓存缺失 + 离线 → 响亮地抛「离线模式」，让调用方走 SKIP 分支，而不是偷偷联网。
+    const root = await tempRoot();
+    process.env.DSH_ARMORY_MARKET_HOME = root;
+    process.env.DSH_ARMORY_HOME = await tempRoot();
+    let calls = 0;
+    globalThis.fetch = async (...args) => {
+      calls += 1;
+      return respondOk(VALID_ZIP, '"z9"')(...args);
+    };
+    process.env.DSH_ARMORY_MARKET_OFFLINE = "1";
+    const mod = await freshWb();
+    const res = await mod.wbConnectorCatalog().then(() => "no-throw", (error) => String(error?.message || error));
+    ok(res !== "no-throw" && res.includes("离线模式"), "连接器⑨离线且无缓存：抛「离线模式」而非静默空目录", String(res).slice(0, 80));
+    ok(calls === 0, "连接器⑨离线且无缓存：仍未零网络", `calls=${calls}`);
+  }
+  {
+    // 反向自测：同一份磁盘缓存，**不设**离线开关时必须发请求。少了这条，
+    // 「calls === 0」可能只是替身没接上的假绿。
+    const root = await tempRoot();
+    process.env.DSH_ARMORY_MARKET_HOME = root;
+    process.env.DSH_ARMORY_HOME = await tempRoot();
+    const p = zipPaths(root);
+    await writeAt(p.meta, JSON.stringify({ etag: '"z1"', fetchedAt: 1 }));
+    await writeAt(p.zip, VALID_ZIP);
+    let controlCalls = 0;
+    globalThis.fetch = async () => {
+      controlCalls += 1;
+      return respond304();
+    };
+    delete process.env.DSH_ARMORY_MARKET_OFFLINE;
+    const mod = await freshWb();
+    const res = await mod.wbConnectorCatalog();
+    ok(controlCalls > 0, "反向自测：不设离线开关时确实会发条件 GET", `calls=${controlCalls}`);
+    ok(res?.loadedFrom === "disk", "反向自测：304 时仍用磁盘缓存（对照组行为未变）", String(res?.loadedFrom));
+  }
+
   // ── 反向自测：坏清单 + "带 etag 就 304" 的死路响应 → 任何实现都必须**响亮地失败**，
   // 不许静默返回空目录冒充成功（这条钉失败面，①钉的是成功面）。
   {
@@ -289,6 +354,8 @@ try {
   }
 } finally {
   globalThis.fetch = realFetch;
+  if (realMarketOffline === undefined) delete process.env.DSH_ARMORY_MARKET_OFFLINE;
+  else process.env.DSH_ARMORY_MARKET_OFFLINE = realMarketOffline;
   if (realMarketHome === undefined) delete process.env.DSH_ARMORY_MARKET_HOME;
   else process.env.DSH_ARMORY_MARKET_HOME = realMarketHome;
   if (realArmoryHome === undefined) delete process.env.DSH_ARMORY_HOME;

@@ -178,15 +178,20 @@ const SUITES = [
   // 专家分类栏可达性（2026-10-31 反馈：尾部分类点不到）：保留单行，两侧箭头 +
   // 竖向滚轮转横向 + 选中项自动滚入；几何判定抽成纯函数真跑，含反向自测。
   { name: "expert-market-chips（专家分类栏：箭头/滚轮/自动滚入）", file: "expert-market-chips.mjs" },
-  // 市场安装鉴权闸 + 装前 401 探测回归（BugFix 第四单 QA）：被测对象是运行时副本
-  // （~/.dsh/profiles/desktop/node_modules/dsh-armory/lib/，DSH 重启后实际加载的版本），
-  // 开工先做 SHA256 哈希预检（不符即中止，防并行会话中间态）。钉住三件事：
-  // ① probeServerAuthorization 状态码判定（401/403 throw 且错误含 server 名与 URL，
-  //   200/500 放行，stdio/无 url skipped 放行，mcp.json headers 透传，本地 node:http 零外网）；
-  // ② probeMcpServersAuthorization 任一 401 整体中止 / 全放行返回 {ok:true,checked:n}；
-  // ③ wbConnectorCatalog 在真实 316 条索引上：95 条 auth_mode 非空全不可装且 blockedReason
-  //   非空，tec-do（漏标鉴权裸 URL）仍 installable=true；运行时 lib/index.js 装链里探测
-  //   位于 wbConnectorPreview 之后、json 组装之前（静态针）。8 秒真实超时按规约 SKIP。
+  // 市场安装鉴权闸 + 装前 401 探测回归（BugFix 第四单 QA，R8 版）：被测对象是仓库内 lib/
+  // （旧版钉运行时副本 + SHA256 预检，会把「改了源码还没部署」误报成回归；部署归
+  // .deploy-apply.mjs 管）。动态项全部走 node:http 本地替身服务器，零外网、零真实 sleep；
+  // 第 4 节另钉 DSH_ARMORY_MARKET_OFFLINE=1，本机有连接器 ZIP 缓存才投影，没有就 SKIP。
+  // 钉住四件事：
+  // ① probeServerAuthorization 遇 401/403 **不抛错**，回传 { authorized:false, needsAuth:true,
+  //   status, serverName, url, wwwAuthenticate, resourceMetadata }；其它状态码 / 网络错误 /
+  //   stdio / 无 url 一律放行（不把服务器故障误判成「需要授权」）；
+  // ② probeMcpServersAuthorization 聚合为 { ok:true, checked, needsAuth:[…] }，交上层决定，
+  //   不再让整条安装链炸掉；
+  // ③ serverInstallability 允许 auth_mode = oauth / oneid-token 安装并标 needsOAuth，
+  //   server-side / mcp 仍硬拒；真实索引上 needsOAuth 全部 installable、server-side/mcp 全不可装、
+  //   installable ⇔ 无 blockedReason；
+  // ④ 安装链顺序静态针：先注入已存 token → 再探测 → 报 needsAuth 就弹授权框、不写配置。
   { name: "auth-gate-regression（市场安装鉴权闸 + 装前 401 探测）", file: "auth-gate-regression.mjs" },
   // T05 收尾：把现有两道护栏的盲区补上——(1) 装饰器声明了但方法体没写、
   // (2) import 了却从未调用、(3) 上一个函数少闭合 } 导致下一个声明被嵌进它体内。

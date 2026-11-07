@@ -4,7 +4,8 @@
 //   1. 纯函数边界：只放行 https；排除 MCP 端点 / 示例域名 / 图片 / 凭据拼接参数；
 //   2. 提取质量：鉴权章节里的控制台 / api-keys 命中，错误处理与工具说明不得冒充；
 //   3. 真实 ZIP 投影：110+ 条 token 连接器每条都有 authHelp，且占位符与目录一致。
-// 真实 ZIP 不存在时第 3 节 SKIP（与 auth-gate-regression 同惯例）。
+// 真实 ZIP 缓存不存在时第 6 节 SKIP（与 auth-gate-regression 第 4 节同惯例；两边都走
+// DSH_ARMORY_MARKET_OFFLINE=1，所以本机有缓存就用缓存、没有就跳过，绝不联网补数据）。
 import {
   buildAuthHelp,
   extractCredentialLinks,
@@ -19,6 +20,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 let failed = 0;
+// 第 6 节的真实目录投影只读本地 ZIP 缓存（同 auth-gate-regression 第 4 节）：
+// 离线口保证测试不会为一条冒烟断言去下 54 MiB 的包，也不会每次发条件 GET。
+process.env.DSH_ARMORY_MARKET_OFFLINE ||= "1";
 const ok = (name, condition, extra = "") => {
   if (!condition) failed += 1;
   console.log(`${condition ? "PASS" : "FAIL"}  ${name}${extra ? "  " + extra : ""}`);
@@ -85,6 +89,40 @@ section("3. 从 SKILL.md 提取入口");
     settingsMcp.some((row) => row.url === "https://chat.example.cn/settings/mcp"));
 }
 
+section("3b. 畸形百分号 URL：丢弃而不是抛错");
+{
+  // 第三方 SKILL.md 是不可信文本。decodeURIComponent 遇到畸形序列会抛 URIError；
+  // 旧实现会让整个 wbConnectorCatalog RPC 失败（连接器页全空）。
+  const malformed = "https://console.acme.test/%E0%A4%A";
+  ok("safeHttpsUrl：畸形百分号 URL 不放行", safeHttpsUrl(malformed) === "");
+  let threw = false;
+  let links = [];
+  try {
+    links = extractCredentialLinks(`## 鉴权\n到 ${malformed} 申请 API Key`, {
+      placeholders: ["TOKEN"],
+      serverUrls: ["https://api.acme.test/mcp"],
+    });
+  } catch {
+    threw = true;
+  }
+  ok("extractCredentialLinks：畸形 URL 不抛错", threw === false);
+  ok("extractCredentialLinks：畸形 URL 不进入候选", !links.some((row) => row.url.includes("%E0%A4%A")));
+  let help = null;
+  try {
+    help = buildAuthHelp({
+      connectorId: "malformed",
+      name: "Malformed",
+      tokenSlots: [{ placeholder: "TOKEN" }],
+      mcpServers: { s: { url: "https://api.acme.test/mcp" } },
+      skillTexts: [`## 鉴权\n到 ${malformed} 申请 API Key`],
+    });
+  } catch {
+    threw = true;
+  }
+  ok("buildAuthHelp：畸形 URL 不抛错", threw === false);
+  ok("buildAuthHelp：仍给出可执行兜底入口", Boolean(help && help.links.length));
+}
+
 section("4. 文档摘录只留获取步骤");
 {
   const good = extractCredentialNote(
@@ -145,7 +183,7 @@ try {
   catalog = null;
 }
 if (!catalog || !Array.isArray(catalog.connectors) || !catalog.connectors.length) {
-  console.log("SKIP  6. 目录不可用（无本地索引缓存）");
+  console.log("SKIP  6. 本机没有连接器 ZIP 缓存（离线口不会去下载），跳过投影断言");
 } else {
   const tokenRows = catalog.connectors.filter((row) => row.needsTokens === true);
   ok("token 型连接器都有 authHelp", tokenRows.length > 0 && tokenRows.every((row) => row.authHelp && typeof row.authHelp === "object"),

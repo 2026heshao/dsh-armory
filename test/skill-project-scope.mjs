@@ -60,17 +60,46 @@ ok('作用域行有配套样式',
 ok('作用域行里的 ScopeTabs wrap 撑满可用宽度（折叠态可随面板变宽恢复）',
   /\.dsh-mcp-skill-scope>\.dsh-mcp-tabs-wrap\{flex:1 1 auto;min-width:0\}/.test(source));
 
+// ── 1.6 取不到工作区列表 ≠ 工作区都被删了 ────────────────────────────────
+// 看板靠 `listWorkspaces` 的结果判「当前 scope 还存不存在」，失效时清 hash 并回退全局。
+// 旧写法把失败也当成「取到了，列表是空的」（`setWorkspacesLoaded(true)` 在成功分支之外
+// 无条件执行，`.catch` 里也执行），于是用户带着 `#skillws=<项目路径>` 刷新或点分享链接
+// 进来时，只要 Remote 没就绪或 RPC 报 !ok，项目作用域就被无声清掉、hash 一起删——再刷新
+// 也回不去，全程零提示。现在只有真拿到数组才算「已取到」。
+ok('工作区列表：只有真拿到数组才置 loaded（失败保持未知，不回退、不动 hash）',
+  /if \(res \&\& res\.ok \&\& Array\.isArray\(res\.workspaces\)\) \{[\s\S]{0,160}setWorkspacesLoaded\(true\);[\s\S]{0,40}\}/.test(BOARD)
+  && !/setWorkspacesLoaded\(true\);\s*\}\)\.catch/.test(BOARD)
+  && /\.catch\(\(\) => \{[^}]*\}\)/.test(BOARD));
+ok('失效回退仍以 loaded 为门槛（首帧空列表不误清）',
+  /if \(!workspacesLoaded \|\| scope === 'global'\) return;/.test(BOARD));
+ok('反向自测：把 loaded 退回无条件置真（旧缺陷）会被上面两条抓住',
+  // 把新写法退回旧形态（成功分支外无条件置 loaded），第一条断言必须不再成立——
+  // 证明它真的在判「只有成功才置 loaded」，而不是恒真地匹配任何东西。
+  (() => {
+    const legacy = BOARD.replace(
+      'if (res && res.ok && Array.isArray(res.workspaces)) {\n        setWorkspaces(res.workspaces);\n        setWorkspacesLoaded(true);\n      }',
+      'setWorkspaces(res && res.ok && Array.isArray(res.workspaces) ? res.workspaces : []);\n      setWorkspacesLoaded(true);',
+    );
+    return legacy !== BOARD
+      && !/if \(res && res\.ok && Array\.isArray\(res\.workspaces\)\) \{[\s\S]{0,160}setWorkspacesLoaded\(true\);/.test(legacy);
+  })());
+
 // ── 1.5 项目作用域只显示项目本地技能 ─────────────────────────────────────────
 // 宿主 list({cwd}) 返回「用户级 + 随包 + 项目本地」的并集，项目目录为空时与全局完全一样。
 // 看板按来源收窄，项目里没有 skill 就显示空态——否则用户会以为作用域切换没生效。
 ok('项目作用域按来源收窄（project-agents / project-dsh）',
   /const PROJECT_SKILL_SOURCES = new Set\(\['project-agents', 'project-dsh'\]\)/.test(source)
   && /setSkills\(scope === 'global' \? rows : rows\.filter\(isProjectSkillRow\)\)/.test(BOARD));
-ok('套件管理器拿未收窄的全集（allSkills），避免项目作用域把用户级成员误标失效',
+ok('套件管理器拿跨作用域累积的全集（allSkills），避免成员被假标「已失效」',
   /const \[allSkills, setAllSkills\] = useState\(\[\]\)/.test(BOARD)
-  && /setAllSkills\(rows\)/.test(BOARD)
+  // 全局档的 listSkills({}) 并集里根本没有 project-* 行（withSkillScope 不带 cwd 就不并项目根），
+  // 所以整体替换会让「在工作区档加进套件的项目技能」在切回全局后被 SuiteManager 判成缺失。
+  && /setAllSkills\(\(prev\) => \{[\s\S]{0,400}new Map\(prev\.map/.test(BOARD)
   && /skills: allSkills/.test(BOARD)
   && /setAllSkills\(\(rows\) => rows\.filter/.test(BOARD));
+ok('反向：退回整体替换 setAllSkills(rows) 就必须变红（2026-11-06 复核出的假「已失效」）',
+  !/setAllSkills\(rows\);/.test(BOARD)
+  && /setAllSkills\(rows\);/.test(BOARD.replace('setAllSkills((prev) => {', 'setAllSkills(rows);')));
 ok('项目作用域空态说明只看项目本地技能',
   /这个工作区没有本地 skill/.test(BOARD)
   && /项目作用域只显示工作区里 \.agents\/skills 与 \.dsh\/skills 的技能/.test(BOARD));
@@ -136,6 +165,10 @@ if (argStart >= 0 && argEnd > argStart) {
 ok('面板挂载 SkillBoard 时不传 scope（作用域由看板自管）',
   /h\(SkillBoard, \{ call, timer \}\)/.test(source)
   && !/h\(SkillBoard, \{[^}]*scope/.test(source));
+// 工具裁缝账本读注册表没有 cwd，禁用按钮只对用户级来源出现；项目级能力保留在
+// 宿主数据层（带 cwd 可写），但不在 UI 上给一个必然报错的假按钮。
+ok('工具裁缝禁用按钮只对用户级来源出现（不宣称项目级）',
+  /const SKILL_DISABLE_SOURCES = new Set\(\['user-agents', 'user-dsh'\]\)/.test(source));
 
 // ── 5. 反向自测：漏掉作用域必须被第 2 节抓到 ────────────────────────────────
 {

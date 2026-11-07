@@ -53,12 +53,12 @@ MCP server 是有状态的（HTTP 有 `Mcp-Session-Id`，stdio 是单进程双�
 
 | 性质 | 证据 |
 |---|---|
-| 挂载在创建事务内完成、抛错不阻断 | `test/real-host-integration.test.mjs`（含"抛错否决创建"的夹具保真度对照） |
+| 挂载在创建事务内完成、抛错不阻断 | `test/workspace-runtime.test.mjs`（替身宿主；**原 `test/real-host-integration.test.mjs` 已不在仓库**，真宿主那一层无自动护栏）（含"抛错否决创建"的夹具保真度对照） |
 | 会话开着时写配置 → 活会话立刻可用；移除 → 工具撤回、子进程退出 | 同上 |
 | 首轮之前就绪（无 `waitFor` 断言） | 同上 |
 | 会话结束不拆连接；空闲超时才拆；`idleTimeoutMs: 0` 永不拆 | `test/workspace-runtime.test.mjs` + 同上 |
 | 项目还没有 `.dsh/mcp.json` 时会话也已登记；写盘对齐会并存活但未登记的会话 | `test/workspace-runtime.test.mjs` |
 | 改配置就地重载、工具名不变、旧会话无需重开 | `test/workspace-runtime.test.mjs` |
 | 终态连接按需重建、重建后真的可调用 | 同上（真宿主） |
-| 项目行文案区分两个事实 | `test/client-behavior.test.mjs`（纯函数 `wsSub`） |
-| README 承诺与面板实现一致 | `test/package-contract.test.mjs` |
+| 项目行文案区分两个事实 | **缺口**：`wsSub` 仍在 `lib/client.js:4118`，但 `test/client-behavior.test.mjs` 已不在仓库，没有用例调用它 |
+| README 承诺与面板实现一致 | 配图：`test/readme-images.mjs`；宣传数字：`test/audit-market-claims.mjs`（**未登记进 run-all，需手动跑**）。原 `test/package-contract.test.mjs` 已不在仓库 |

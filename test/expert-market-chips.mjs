@@ -68,9 +68,22 @@ ok("亚像素抖动：1px 内不当作可滚",
   eq(chipEdgeState(1, CLIENT, SCROLL), { left: false, right: true }));
 ok("异常入参不抛错（null / NaN）",
   eq(chipEdgeState(null, NaN, undefined), { left: false, right: false }));
-const brokenEdges = () => ({ left: false, right: false });
-ok("反向：永久返回「两边都不可滚」→ 初始位置断言必须失败",
-  !eq(brokenEdges(0, CLIENT, SCROLL), { left: false, right: true }));
+// 反向自测必须真改实现：把片段里的判据替换成旧/坏形态后在同一个 vm 里重跑，
+// 断言确实变红才算上一条不是空转。（早先这里写的是 `brokenEdges()` 之类的桩函数，
+// 比的是桩自己的返回值，无论实现怎么写都恒过。）
+const mutate = (label, from, to) => {
+  if (!GEO.includes(from)) {
+    ok(`反向自测「${label}」：改动点确实命中了源码`, false, `未找到片段 "${from}"`);
+    return null;
+  }
+  const context = vm.createContext({});
+  vm.runInContext(`${GEO.replace(from, to)}
+    globalThis.__p = { chipEdgeState, chipWheelTarget, chipScrollStep };`, context, { filename: "expert-market-chips-mutant.js" });
+  return context.__p;
+};
+const deadEdges = mutate("箭头两边都不亮", "return { left: at > 1, right: max > 1 && at < max - 1 };", "return { left: false, right: false };");
+ok("反向：箭头判定退化成「两边都不亮」→ 初始位置断言确实变红",
+  !!deadEdges && JSON.stringify(deadEdges.chipEdgeState(0, CLIENT, SCROLL)) !== JSON.stringify({ left: false, right: true }));
 
 section("3. 滚轮转横向（chipWheelTarget）");
 ok("中部向下滚：前进 delta", chipWheelTarget(100, MAX, 120) === 220);
@@ -80,15 +93,16 @@ ok("右端继续向下：返回 null（放行页面纵向滚动）", chipWheelTa
 ok("左端继续向上：返回 null", chipWheelTarget(0, MAX, -120) === null);
 ok("deltaY 为 0：不处理", chipWheelTarget(100, MAX, 0) === null);
 ok("内容不溢出：不处理", chipWheelTarget(0, 0, 120) === null);
-const brokenWheel = () => null;
-ok("反向：滚轮永远不处理 → 中部滚动断言必须失败", brokenWheel(100, MAX, 120) !== 220);
+const deadWheel = mutate("滚轮不换算", "const next = Math.max(0, Math.min(max, at + delta));", "const next = at;");
+ok("反向：滚轮换算退化成「位置不动」→ 中部滚动断言确实变红",
+  !!deadWheel && deadWheel.chipWheelTarget(100, MAX, 120) !== 220);
 
 section("4. 箭头步长（chipScrollStep）");
 ok("1000px 面板一次滚 70%", chipScrollStep(1000) === 700);
 ok("窄面板保底 160px", chipScrollStep(200) === 160);
 ok("异常入参也保底", chipScrollStep(0) === 160 && chipScrollStep(NaN) === 160);
-const brokenStep = () => 40;
-ok("反向：步长退化成 40px → 70% 断言必须失败", brokenStep(1000) !== 700);
+const tinyStep = mutate("步长退化 40px", "* 0.7));", "* 0.04));");
+ok("反向：步长退化成 ~40px → 70% 断言确实变红", !!tinyStep && tinyStep.chipScrollStep(1000) !== 700);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 5. 组件与 CSS 接线

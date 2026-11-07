@@ -197,7 +197,7 @@ function bootClient(store = {}) {
   };
   ctx.globalThis = ctx;
   const proof = vm.createContext(ctx);
-  vm.runInContext(slice + "\nglobalThis.__probe = { COMMUNITY_COUNT_KEY, COMMUNITY_COUNT_CHUNK_PAGES, COMMUNITY_COUNT_PAGE_BUDGET, emptyCommunityCount, readCommunityCount, writeCommunityCount, communityCountBadgeText, communityCountBadgeTitle };", proof, { filename: "client-community-count-slice.js" });
+  vm.runInContext(slice + "\nglobalThis.__probe = { COMMUNITY_COUNT_KEY, COMMUNITY_COUNT_CHUNK_PAGES, COMMUNITY_COUNT_PAGE_BUDGET, COMMUNITY_COUNT_MAX_AGE, emptyCommunityCount, readCommunityCount, writeCommunityCount, communityCountBadgeText, communityCountBadgeTitle };", proof, { filename: "client-community-count-slice.js" });
   return { probe: proof.__probe, store };
 }
 {
@@ -207,12 +207,23 @@ function bootClient(store = {}) {
   eq("徽标文本：没到底 → 下界「1200+」", probe.communityCountBadgeText({ counted: 1200, done: false }), "1200+");
   eq("徽标文本：数到底 → 精确值，不带 +", probe.communityCountBadgeText({ counted: 13452, done: true }), "13452");
   eq("徽标文本：到底且真是 0 条 → 显示 0", probe.communityCountBadgeText({ counted: 0, done: true }), "0");
-  // 反向自测：把「到底」写成带 + 的下界形态，正向断言必须抓得住。
-  const mutated = probe.communityCountBadgeText({ counted: 13452, done: true }) + "+";
-  ok("自测：到底值若误带「+」会被上面的断言判红", mutated !== probe.communityCountBadgeText({ counted: 13452, done: true }));
+  // 反向自测：「+」必须只属于未到底分支。实现无条件补 + → 第二条红；实现不补 + → 第一条红。
+  // （旧写法比的是 `x + "+" !== x`，拿字面量自证，恒真、空转。）
+  ok("自测：「+」只在下界分支出现（证明上一条「到底不带 +」不是恒真）",
+    probe.communityCountBadgeText({ counted: 13452, done: false }) === "13452+"
+    && !probe.communityCountBadgeText({ counted: 13452, done: true }).endsWith("+"));
   ok("tooltip 未开爬时说明在统计", probe.communityCountBadgeTitle(null).includes("正在后台统计"));
+  // 统计因失败停下时（循环 !res.ok 直接 break 且本会话不重试），不能再承诺「正在统计」。
+  ok("tooltip halted 且有下界：说中断并承诺下次续爬，不说「正在」",
+    probe.communityCountBadgeTitle({ counted: 300, done: false }, true).includes("已中断")
+    && !probe.communityCountBadgeTitle({ counted: 300, done: false }, true).includes("正在后台统计"));
+  ok("tooltip halted 且一无所获：说暂不可统计与重试，不说「正在」",
+    probe.communityCountBadgeTitle(null, true).includes("暂不可统计")
+    && !probe.communityCountBadgeTitle(null, true).includes("正在后台统计"));
   ok("tooltip 下界口径写「至少」，不让人当成上限", probe.communityCountBadgeTitle({ counted: 1200, done: false }).includes("至少"));
   ok("tooltip 到底口径写「共」", probe.communityCountBadgeTitle({ counted: 13452, done: true }).includes("共 13452 条"));
+  ok("tooltip 到底 0 条时仍是「共 0 条」，不冒充正在统计",
+    probe.communityCountBadgeTitle({ counted: 0, done: true }).includes("共 0 条"));
 }
 {
   const { probe, store } = bootClient();
@@ -221,6 +232,29 @@ function bootClient(store = {}) {
   const back = probe.readCommunityCount();
   eq("写→读往返一致", [back.counted, back.cursor, back.done, back.at], [900, "c/9", false, 123]);
   ok("localStorage 里就是这一条 JSON", JSON.parse(store[probe.COMMUNITY_COUNT_KEY]).counted === 900);
+  // 数到底的精确值不能永久冻结：上游会增删条目，超过保鲜期应重新计数。
+  store[probe.COMMUNITY_COUNT_KEY] = JSON.stringify({
+    counted: 13452,
+    cursor: "",
+    done: true,
+    at: Date.now() - probe.COMMUNITY_COUNT_MAX_AGE - 1000,
+  });
+  // 过期不再整份丢掉：丢掉后徽标会从精确值掉回「…」，而一次会话只有 12 页 = 1200 条
+  // 预算，要靠十几次打开面板才可能重新数到底。正确口径是降级成**下界**（数字留着，
+  // 游标清零，下次进面板重数）。
+  const expired = probe.readCommunityCount();
+  ok("done 超过保鲜期 → 降级为下界继续显示，不再从零断档",
+    expired && expired.done === false && expired.cursor === "" && expired.counted === 13452,
+    JSON.stringify(expired));
+  store[probe.COMMUNITY_COUNT_KEY] = JSON.stringify({
+    counted: 13452,
+    cursor: "",
+    done: true,
+    at: Date.now() - 1000,
+  });
+  const freshDone = probe.readCommunityCount();
+  ok("done 在保鲜期内 → 保留精确值", freshDone?.done === true && freshDone.counted === 13452);
+  store[probe.COMMUNITY_COUNT_KEY] = JSON.stringify({ counted: 900, cursor: "c/9", done: false, at: 123 });
   store[probe.COMMUNITY_COUNT_KEY] = "{坏掉的 json";
   ok("坏数据读成 null（宁可重数，不显示假数）", probe.readCommunityCount() === null);
   store[probe.COMMUNITY_COUNT_KEY] = JSON.stringify({ counted: -5, cursor: 42 });
@@ -244,11 +278,15 @@ function bootClient(store = {}) {
 
 // ── 3. 接线：常驻、让路、每块落盘、失败不清进度 ──────────────────────────────
 {
-  const badge = /className: 'dsh-mcp-seg-count', title: communityCountBadgeTitle\(communityCount\) \}, communityCountBadgeText\(communityCount\)\)/;
+  const badge = /className: 'dsh-mcp-seg-count', title: communityCountBadgeTitle\(communityCount, communityCountHalted\) \}, communityCountBadgeText\(communityCount\)\)/;
   ok("社区徽标无条件渲染（常驻），文本与 tooltip 都取自全库统计", badge.test(source));
   // 反向自测：把旧的条件写法注回去，针必须变红。
   const legacy = source.replace(badge, "communityReadTotal ? h('span', { className: 'dsh-mcp-seg-count' }, communityReadTotal) : null");
   ok("自测：退化成「有才显示」的旧写法会被这条针抓到", !badge.test(legacy) && legacy.includes("communityReadTotal ? h('span'"));
+  // 反向自测：tooltip 少传 halted → 中断后仍回答「正在后台统计…稍后自动显示」，
+  // 那是关于不存在的工作的长期承诺（离线时尤其骗人），这条针要变红。
+  const noHalted = source.replace(badge, "className: 'dsh-mcp-seg-count', title: communityCountBadgeTitle(communityCount) }, communityCountBadgeText(communityCount))");
+  ok("自测：徽标 tooltip 漏传 halted 会被这条针抓到", !badge.test(noHalted) && noHalted.includes("communityCountBadgeTitle(communityCount) }"));
   ok("连接器徽标同样常驻（未取到显示「…」）", source.includes("connectors.length || '…'"));
   ok("不再把「已读取」累计数放在社区徽标上", !/communityReadTotal \? h\('span', \{ className: 'dsh-mcp-seg-count'/.test(source));
   ok("工具行仍保留「已读取」，并说明它与徽标口径不同",
@@ -257,17 +295,36 @@ function bootClient(store = {}) {
     /if \(tab !== 'connector' \|\| connectorFeed !== 'community'\) return undefined;/.test(source));
   ok("先让路给列表请求（scheduleIdle 3s 后才开爬）", source.includes("scheduleIdle(runChunks, 3000)"));
   ok("会话预算用尽即停", source.includes("communityCountPagesRef.current < COMMUNITY_COUNT_PAGE_BUDGET"));
-  ok("同一面板只允许一条统计流水", source.includes("if (cancelled || communityCountBusyRef.current) return;"));
+  ok("同一面板只允许一条统计流水；上一代在飞时排队重试",
+    source.includes("if (communityCountBusyRef.current) {") && source.includes("retryTimer"));
   ok("每数完一块立刻落盘 + 更新徽标（不是等全部数完）", /setCommunityCount\(next\);\s*\n\s*writeCommunityCount\(next\);/.test(source));
   ok("下一块用最新游标：ref 同步不等 re-render", source.includes("communityCountRef.current = next;"));
-  ok("上游失败直接收工，不清已数到的进度", /if \(!res \|\| res\.ok !== true\) break;/.test(source));
+  // 上游失败 → 本会话不再重试，所以除了"收工"还必须把「已中断」记进 halted，
+  // 否则徽标 tooltip 会长期承诺一件不会发生的事（离线时最明显）。
+  const haltedBreak = /if \(!res \|\| res\.ok !== true\) \{\s*\n\s*(?:\/\/[^\n]*\n\s*)?setCommunityCountHalted\(true\);\s*\n\s*break;\s*\n\s*\}/;
+  ok("上游失败直接收工并记下「已中断」，不清已数到的进度", haltedBreak.test(source));
+  const silentBreak = source.replace(haltedBreak, "if (!res || res.ok !== true) break;");
+  ok("自测：把「已中断」标记摘掉后这条针会变红", !haltedBreak.test(silentBreak) && silentBreak.includes("res.ok !== true) break;"));
+  ok("失败分支不回滚进度（不写空记录、不删 localStorage）",
+    !/setCommunityCount\(emptyCommunityCount\(\)\)/.test(source) && !/removeItem\(COMMUNITY_COUNT_KEY\)/.test(source));
+  ok("问到结果后清除「已中断」（否则恢复后文案仍谎称中断）", source.includes("setCommunityCountHalted(false);"));
   ok("面板卸载 / 切走后不再 setState", /if \(cancelled\) break; \/\/ 面板已切走/.test(source));
+  ok("统计暂停可被 cleanup 唤醒（否则 busy 卡死，切回来不再统计）",
+    source.includes("if (pauseResolve) pauseResolve();")
+    && source.includes("const pause = (ms) => new Promise((resolve) => {"));
   ok("数到底就不留游标（下次不再开爬）", source.includes("cursor: done ? '' :"));
-  ok("整块统计包在 try/catch 里：徽标数字不能把列表带崩", /catch \{ \/\* 徽标那枚数字而已/.test(source));
+  // try/catch 里也要落 halted：异常同样意味着"本次不会再有结果"，文案不能继续说正在统计。
+  const crashGuard = /catch \{\s*\n\s*\/\/ 徽标那枚数字而已[\s\S]{0,160}?setCommunityCountHalted\(true\);[\s\S]{0,60}?\n\s*\}\s*\n\s*finally \{ communityCountBusyRef\.current = false; \}/;
+  ok("整块统计包在 try/catch 里：徽标数字不能把列表带崩，且异常也记「已中断」", crashGuard.test(source));
+  const unguarded = source.replace(crashGuard, "finally { communityCountBusyRef.current = false; }");
+  ok("自测：摘掉 try/catch 后这条针确实会失效（证明上一条不是恒真）",
+    !crashGuard.test(unguarded) && unguarded.includes("finally { communityCountBusyRef.current = false; }"));
   const newKeys = [
     "正在后台统计社区目录条目数，稍后自动显示…",
     "社区目录共 {0} 条（逐页统计；官方 Registry 不返回总数）",
     "社区目录至少 {0} 条，仍在后台续爬统计（官方 Registry 不返回总数）",
+    "社区目录至少 {0} 条；后台统计本次已中断（网络或上游返回异常），下次进面板会续爬",
+    "社区目录条目数暂不可统计（网络或上游返回异常），下次进面板会自动重试",
     "本次查询已逐页读取的条数；上方徽标显示的是社区目录全库总数",
     "WorkBuddy 官方目录里的连接器总数",
     "正在读取连接器列表…",

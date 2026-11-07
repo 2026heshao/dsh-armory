@@ -1,7 +1,8 @@
 // 召唤菜单「本项目」数据投影直测（lib/client.js 的 projectQuick* 一节）。
 //
 // 为什么需要这个套件：第四行是否出现「项目里配了、菜单里点不到」的回归，取决于三个
-// 收窄规则同时成立——技能只留项目来源、MCP 去掉禁用与项目屏蔽、计数只算技能+MCP。
+// 收窄规则同时成立——技能只留项目来源、MCP 只去禁用与无名行（exclude 不管项目条目）、
+// 计数只算技能+MCP。
 // 这些判定原先会内联在 JSX 里，node 测不到；抽成模块作用域纯函数后在这里真跑，
 // 并用反向注入证明断言不是恒真。
 
@@ -59,27 +60,29 @@ ok("项目技能只留 project-dsh / project-agents", skills.length === 2 && ski
 ok("项目技能保留描述与 whenToUse 回落", skills[0].description === "项目技能 A" && skills[1].description === "项目技能 B");
 ok("空名字条目不进菜单", skills.every((row) => row.name.length > 0));
 
-// ── 2. MCP：去掉禁用、项目屏蔽与无名行 ─────────────────────────────────────
+// ── 2. MCP：只去禁用与无名行（exclude 不参与，见下）────────────────────────
 const view = {
 	exclude: ["blocked"],
 	servers: [
 		{ serverName: "ok-stdio", transport: "stdio", enabled: true, status: "connected" },
 		{ serverName: "ok-http", transport: "http", enabled: true, status: "loading" },
+		// 与「被屏蔽的全局条目」同名的**项目自有**条目：宿主只 deny 全局那份，这条照常
+		// 挂载可用，所以菜单里必须有它。旧实现拿 exclude 筛项目条目，把它藏了。
 		{ serverName: "blocked", transport: "stdio", enabled: true, status: "connected" },
 		{ serverName: "off", transport: "stdio", enabled: false, status: "disabled" },
 		{ serverName: "", transport: "stdio", enabled: true, status: "connected" },
 	],
 };
 const mcp = probe.projectQuickMcp(view);
-ok("项目 MCP 去掉屏蔽与禁用条目", mcp.length === 2 && mcp.map((row) => row.name).join(",") === "ok-stdio,ok-http");
+ok("项目 MCP 只去禁用与无名行", mcp.length === 3 && mcp.map((row) => row.name).join(",") === "ok-stdio,ok-http,blocked", JSON.stringify(mcp));
 ok("项目 MCP 保留传输类型", mcp[0].transport === "stdio" && mcp[1].transport === "http");
 ok("残缺 view 不抛异常", probe.projectQuickMcp(null).length === 0 && probe.projectQuickMcp({}).length === 0);
 
 // ── 3. 计数 = 技能 + MCP，专家不参与 ───────────────────────────────────────
-ok("计数为技能 + MCP", probe.projectQuickCount({ skills, mcp }) === 4);
+ok("计数为技能 + MCP", probe.projectQuickCount({ skills, mcp }) === 5);
 ok("空项目计数为 0", probe.projectQuickCount({ skills: [], mcp: [] }) === 0);
 ok("缺字段计数为 0", probe.projectQuickCount({}) === 0);
-ok("专家字段不影响计数", probe.projectQuickCount({ skills, mcp, expert: [{ name: "x" }] }) === 4);
+ok("专家字段不影响计数", probe.projectQuickCount({ skills, mcp, expert: [{ name: "x" }] }) === 5);
 
 // ── 4. 反向自测：把收窄规则改坏，同一断言必须变红 ─────────────────────────
 const looseSkills = run(slice.replace(".filter(isProjectSkillRow)", ".filter(() => true)"));
@@ -87,10 +90,26 @@ ok(
 	"反向自测：技能收窄被移除 → 用户级技能会混进来（证明断言非恒真）",
 	looseSkills.projectQuickSkills(skillRows).length === 4,
 );
-const looseMcp = run(slice.replace("!excluded.has(server.serverName)", "true"));
+const looseMcp = run(slice.replace("server.enabled !== false && server.status !== 'disabled'", "true"));
 ok(
-	"反向自测：屏蔽判定被移除 → blocked 会混进来（证明断言非恒真）",
-	looseMcp.projectQuickMcp(view).length === 3,
+	"反向自测：禁用判定被移除 → off 会混进来（证明断言非恒真）",
+	looseMcp.projectQuickMcp(view).length === 4,
+);
+// 反向自测：把「用 exclude 筛项目条目」的旧语义注回去，同名可用条目必须被藏掉——
+// 这正是本次修掉的那条（现实现判 3 条，旧语义判 2 条）。
+const excludeAgain = run(slice
+	.replace(
+		"const servers = Array.isArray(view?.servers) ? view.servers : [];",
+		"const excluded = new Set(Array.isArray(view?.exclude) ? view.exclude : []);\n\tconst servers = Array.isArray(view?.servers) ? view.servers : [];",
+	)
+	.replace(
+		"server.enabled !== false && server.status !== 'disabled')",
+		"server.enabled !== false && server.status !== 'disabled' && !excluded.has(server.serverName))",
+	));
+ok(
+	"反向自测：exclude 注回项目条目筛选后同名可用条目被藏掉（旧缺陷复现）",
+	excludeAgain.projectQuickMcp(view).length === 2 && mcp.length === 3,
+	JSON.stringify(excludeAgain.projectQuickMcp(view)),
 );
 
 // ── 5. 接线源码断言：第四行、数据源、无管理入口、分组与分割线 ───────────────
@@ -190,6 +209,21 @@ ok(
 	renderError ? String(renderError?.stack || renderError).split("\n")[0] : "",
 );
 
+
+// ── 9. getWorkspaceView 的 error 是告警通道，不能当失败文案 ────────────────
+// 后端 `getWorkspaceView` 在 ok:true 时也可能带非空 `error`（工作区配置文件读取告警，
+// 见 lib/index.js 的 `error: config.error || ""`）。旧接线在成功分支照样回填 mcpError，
+// 而菜单头部只要 mcpError 非空就显示「项目 MCP 读取失败」——同一帧里 mcp 清单其实已经
+// 投影成功。用户看到的是「读取失败」，实际数据在手上：把没发生过的失败说给用户。
+{
+	const at = source.indexOf("mcpError: viewOk ?");
+	const line = at >= 0 ? source.slice(at, source.indexOf("\n", at)) : "";
+	ok("成功分支不再回填 mcpError", at >= 0 && /^mcpError: viewOk \? '' : String\(viewRes\?\.error \|\| 'load failed'\)/.test(line), line);
+	ok("失败分支仍然报 load failed（不是把错误吞掉）", /: String\(viewRes\?\.error \|\| 'load failed'\)/.test(line), line);
+	// 反向自测：把旧的成功分支回填注回来，第一条断言必须变红。
+	const legacy = line.replace("viewOk ? '' :", "viewOk ? String(viewRes?.error || '') :");
+	ok("反向自测：旧接线注回会被本段抓住", legacy !== line && !/^mcpError: viewOk \? '' :/.test(legacy));
+}
 
 console.log(failures ? `\nQUICK-MENU-PROJECT FAIL（${failures} 条）` : "\nQUICK-MENU-PROJECT PASS");
 process.exit(failures ? 1 : 0);

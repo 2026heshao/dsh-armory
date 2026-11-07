@@ -192,6 +192,18 @@ eq("源地址只有一条且为官方 Registry v0", MCP_REGISTRY_SOURCES, ["http
   eq("与已装冲突追加 -2", sanitizeServerName("server-filesystem", ["server-filesystem"]), "server-filesystem-2");
   eq("多级冲突追加 -3", sanitizeServerName("server-filesystem", ["server-filesystem", "server-filesystem-2"]), "server-filesystem-3");
   eq("冲突判定不区分大小写", sanitizeServerName("A/B", ["b"]), "b-2");
+  // 宿主 normalizeEntry 只接受 1~32 字符；社区预填名超限会在「加入 MCP」时被拒。
+  const longTail = "x".repeat(43);
+  const longName = sanitizeServerName(`io.example/${longTail}`);
+  eq("超长尾段截到宿主上限 32", longName.length, 32);
+  ok("超长尾段仍可被宿主接受", /^[A-Za-z0-9_-]{1,32}$/.test(longName));
+  const capped = "y".repeat(32);
+  const collided = sanitizeServerName(`io.example/${capped}`, [capped]);
+  eq("32 字符冲突加后缀后仍不超过 32", collided.length, 32);
+  ok("32 字符冲突保留可读前缀与 -2 后缀", collided.endsWith("-2") && collided.startsWith("y"));
+  const deep = sanitizeServerName(`io.example/${capped}`, [capped, collided]);
+  eq("多级冲突也守住 32 字符", deep.length, 32);
+  ok("多级冲突后缀为 -3", deep.endsWith("-3"));
 }
 
 // ── 10. GitHub owner 解析 ─────────────────────────────────────────────────

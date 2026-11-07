@@ -6,6 +6,7 @@
 //   3. 内容只来自列表行（不再发请求）：command/args、env 明细、远程地址、免责声明、动作。
 // 全部静态读取 lib/client.js，零网络零写盘；关键断言配反向自测，防止断言空转。
 import { readFile } from "node:fs/promises";
+import vm from "node:vm";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -81,12 +82,15 @@ ok("弹层：复用 wb-modal 尺寸与 .dsh-mcp-detail-person 头像行",
 ok("头部：标题 + 完整名称（可悬停看全）",
   /h\('h3', null, communityDetail\.title \|\| communityDetail\.name\)/.test(modal)
   && /className: 'dsh-mcp-card-vendor', title: communityDetail\.name/.test(modal));
-ok("徽标：传输 / 版本 / 环境变量数 / 密钥 / 已加入",
+ok("徽标：传输 / 版本 / 环境变量数 / 密钥 / 同名提示",
   /communityDetail\.transport === 'http' \? t\('远程（需自备令牌）'\) : 'stdio'/.test(modal)
   && /communityDetail\.version \? h\(Badge, null, 'v' \+ communityDetail\.version\)/.test(modal)
   && /t\('需 \{0\} 个环境变量', \[communityDetail\.env\.length\]\)/.test(modal)
   && /t\('含密钥字段'\)/.test(modal)
-  && /communityJoined\(communityDetail\) \? h\(Badge, \{ cls: 's-on' \}, t\('已加入'\)\)/.test(modal));
+  // 判定只能比 serverName 尾段，`github/foo` 与 `github-community/foo` 会撞成同一个 foo，
+  // 所以措辞是「同名条目已存在」而不是「已加入」——后者在跨命名空间时是句假话。
+  && /communityJoined\(communityDetail\)[\s\S]{0,220}t\('同名条目已存在'\)/.test(modal)
+  && !/communityJoined\(communityDetail\)[\s\S]{0,220}t\('已加入'\)/.test(modal));
 ok("正文：完整 description 用 wb-modal-desc 渲染", /className: 'dsh-mcp-wb-modal-desc'/.test(modal));
 ok("环境变量：逐项列出名称 / 必填 / 密钥 / 说明 / 默认值",
   /communityDetail\.env\.map\(\(item\) => h\('li', \{ key: item\.name \}/.test(modal)
@@ -94,7 +98,11 @@ ok("环境变量：逐项列出名称 / 必填 / 密钥 / 说明 / 默认值",
   && /item\.required \? t\('必填'\) : t\('可选'\)/.test(modal)
   && /item\.secret \? ' · ' \+ t\('密钥'\) : ''/.test(modal)
   && /item\.description \? ' — ' \+ item\.description : ''/.test(modal)
-  && /item\.hasDefault \? ' · ' \+ t\('默认值：'\) \+ item\.default : ''/.test(modal));
+  && /item\.hasDefault && !item\.secret \? ' · ' \+ t\('默认值：'\) \+ item\.default : ''/.test(modal)
+  // 密钥项：值既不渲染也不预填（Registry 的 default 偶尔真是可用凭据）。
+  && /item\.hasDefault && item\.secret \? ' · ' \+ t\('上游给了默认值（密钥项不展示、不自动填入）'\)/.test(modal));
+ok("环境变量：密钥项绝不能把上游 default 当普通默认值渲染出来",
+  !/item\.hasDefault \? ' · ' \+ t\('默认值：'\) \+ item\.default/.test(modal));
 ok("命令：stdio 显示 command + args；远程条目回落到 remoteUrl",
   /\[communityDetail\.command\]\.concat\(communityDetail\.args \|\| \[\]\)\.filter\(Boolean\)\.join\(' '\)/.test(modal)
   && /className: 'dsh-mcp-cmdline'/.test(modal)
@@ -102,14 +110,58 @@ ok("命令：stdio 显示 command + args；远程条目回落到 remoteUrl",
   && /t\('远程地址'\)/.test(modal));
 ok("免责声明：复用既有社区 MCP 那句（已审核边界不放松）",
   /社区 MCP 来自官方 MCP Registry，由社区提交；军械库未审核其代码，加入前请自行确认命令与环境变量。/.test(modal));
-ok("动作：关闭 / 仓库 / 加入 MCP；已加入时按钮禁用",
+ok("动作：关闭 / 仓库 / 加入 MCP；同名条目仍可再加一条（不能把按钮锁死）",
   /h\(Btn, \{ disabled: busy, onClick: \(\) => setCommunityDetail\(null\), children: t\('关闭'\) \}\)/.test(modal)
   && /externalHref\(communityDetail\.repoUrl\)/.test(modal)
   && /href: externalHref\(communityDetail\.repoUrl\), target: '_blank', rel: 'noreferrer'/.test(modal)
-  && /communityJoined\(communityDetail\)[\s\S]{0,120}h\(Btn, \{ disabled: true, children: t\('已加入'\) \}\)/.test(modal)
+  // 旧断言钉的是「joined → disabled: true」，那正是缺陷本身：不同命名空间的社区条目尾段
+  // 相同（github/foo 与 github-community/foo 都净化成 foo），禁用等于把第二条永久挡死。
+  // 现在 joined 分支仍然可点，标签换成「再加一条」，宿主按冲突后缀写第二条。
+  && /communityJoined\(communityDetail\)[\s\S]{0,400}children: t\('再加一条'\)/.test(modal)
+  && !/communityJoined\(communityDetail\)[\s\S]{0,200}disabled: true/.test(modal)
   && /children: t\('加入 MCP'\)/.test(modal));
 ok("动作：先关详情再开草稿（两层弹层不叠加）",
   /const row = communityDetail; setCommunityDetail\(null\); openCommunityDraft\(row\);/.test(modal));
+
+// ── 4b. 草稿预填：密钥项一律留空（不预填上游 default）─────────────────────────
+// 真跑 openCommunityDraft 本体，不是搜字符串：官方 Registry 的
+// environmentVariables.default 偶尔就是可用凭据，旧写法把它原样填进表单，用户点
+// 「加入」就连凭据一起落盘；而不是让用户自己填自己的密钥。
+{
+  const start = client.indexOf("const openCommunityDraft = (row) => {");
+  const end = start < 0 ? -1 : client.indexOf("\n  };", start);
+  ok("能定位 openCommunityDraft 本体", start >= 0 && end > start, `start=${start} end=${end}`);
+  const body = end > start ? client.slice(start, end + 4) : ""; // 截到闭括号，不带结尾分号
+  const draftProbe = (src) => {
+    let captured = null;
+    const fn = vm.runInNewContext(`(${src.slice(src.indexOf("(row) => {"))})`, {
+      setCommunityDraft: (value) => { captured = value; },
+    });
+    fn({
+      serverName: "demo",
+      transport: "stdio",
+      env: [
+        { name: "API_KEY", secret: true, required: true, hasDefault: true, default: "sk-live-leaked" },
+        { name: "REGION", secret: false, required: false, hasDefault: true, default: "cn-north" },
+        { name: "PROFILE", secret: false, required: false, hasDefault: false, default: "" },
+      ],
+    });
+    return captured;
+  };
+  const draft = draftProbe(body);
+  ok("预填：密钥项留空（上游 default 不进表单、不进配置）", draft && draft.env.API_KEY === "", JSON.stringify(draft && draft.env));
+  ok("预填：非密钥项的默认值照常带出", draft && draft.env.REGION === "cn-north");
+  ok("预填：没有默认值的项是空串而不是 undefined", draft && draft.env.PROFILE === "");
+  ok("预填：必填项名单照旧给出（弹层仍能提醒）",
+    JSON.stringify(draft && draft.requiredEnv) === JSON.stringify(["API_KEY"]));
+  // 反向自测：退回旧的「无条件带 default」写法，第一条必须变红。
+  const legacyDraft = draftProbe(body.replace(
+    "env[item.name] = !item.secret && item.hasDefault ? item.default : '';",
+    "env[item.name] = item.hasDefault ? item.default : '';",
+  ));
+  ok("反向：旧预填写法会把密钥默认值带进表单（正是上一条要拦的）",
+    legacyDraft && legacyDraft.env.API_KEY === "sk-live-leaked");
+}
 
 // ── 5. CSS：可点反馈 / 命令行等宽 / 动作区链接不画下划线 ────────────────────
 ok("CSS：clickable 卡有手型 + hover + focus-visible",
@@ -123,7 +175,8 @@ ok("CSS：动作区里的仓库链接沿用按钮外观（无下划线）",
 
 // ── 6. i18n：新增文案必须有 en-US 词条（双向护栏再兜底）────────────────────
 const enBlock = client.slice(client.indexOf("const EN_US_MESSAGES"), client.indexOf("applyI18nLocale(I18N_LOCALE)"));
-for (const key of ["查看 {0} 的详情", "社区 MCP 详情", "启动命令", "远程地址", "密钥"]) {
+for (const key of ["查看 {0} 的详情", "社区 MCP 详情", "启动命令", "远程地址", "密钥",
+  "上游给了默认值（密钥项不展示、不自动填入）"]) {
   const needle = `"${key}": "`;
   const at = enBlock.indexOf(needle);
   ok(`i18n：${key} 有 en-US 词条`, at >= 0 && enBlock.slice(at + needle.length).indexOf('"') > 0);
@@ -143,7 +196,14 @@ const noStop = card.replace("onClick: (e) => e.stopPropagation(), onKeyDown: (e)
 ok("反向：操作区不再阻止冒泡 → 断言必须失败（点安装会误开详情）",
   !/className: 'dsh-mcp-wb-card-actions', onClick: \(e\) => e\.stopPropagation\(\)/.test(noStop));
 
-const wrongOrder = modal.replace("const row = communityDetail; setCommunityDetail(null); openCommunityDraft(row);", "const row = communityDetail; openCommunityDraft(row); setCommunityDetail(null);");
+// 卡片与详情两处都是「先关详情再开草稿」，反向注回必须把所有出现处一起改掉：
+// 只换第一处的话，剩下那一处仍能满足顺序断言，这条反向自测就等于没测（本套件踩过）。
+const GOOD_ORDER = "const row = communityDetail; setCommunityDetail(null); openCommunityDraft(row);";
+const BAD_ORDER = "const row = communityDetail; openCommunityDraft(row); setCommunityDetail(null);";
+const goodOrderCount = modal.split(GOOD_ORDER).length - 1;
+ok("反向：草稿行有两处（漏改任一处都会让顺序断言假绿）",
+  goodOrderCount === 2, `得到 ${goodOrderCount} 处`);
+const wrongOrder = modal.split(GOOD_ORDER).join(BAD_ORDER);
 ok("反向：先开草稿再关详情 → 顺序断言必须失败（两层弹层会叠加）",
   !/setCommunityDetail\(null\); openCommunityDraft\(row\);/.test(wrongOrder)
   && /openCommunityDraft\(row\); setCommunityDetail\(null\)/.test(wrongOrder));

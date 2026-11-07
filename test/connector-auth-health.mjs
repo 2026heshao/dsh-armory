@@ -93,6 +93,24 @@ function sliceBetween(source, startNeedle, endNeedle, label) {
       badgeText(failed.connectorBadge(item())) === "已安装 · 未连接"
       && failed.connectorBadge(item()).props.cls === "s-err");
 
+    // disabled 不是 failed：宿主 reconnect 会直接拒绝「MCP 已禁用」，
+    // 卡片不能既显示「未连接」又给一个必然失败的重连按钮。
+    const disabled = make(["ima"], [], [{ serverName: "ima", status: "disabled", enabled: false, authRequired: false }]);
+    ok("健康度：已禁用 → disabled", disabled.connectorHealth(item()) === "disabled");
+    ok("徽标：已禁用 → 「已安装 · 已禁用」s-warn",
+      badgeText(disabled.connectorBadge(item())) === "已安装 · 已禁用"
+      && disabled.connectorBadge(item()).props.cls === "s-warn");
+
+    const loading = make(["ima"], [], [{ serverName: "ima", status: "loading", enabled: true, authRequired: false }]);
+    ok("健康度：连接中 → loading", loading.connectorHealth(item()) === "loading");
+    ok("徽标：连接中 → 「已安装 · 连接中」",
+      badgeText(loading.connectorBadge(item())) === "已安装 · 连接中");
+
+    const rowUnknown = make(["ima"], [], [{ serverName: "ima", status: "unknown", enabled: true, authRequired: false }]);
+    ok("健康度：status=unknown 的行 → unknown（不冒充失败）", rowUnknown.connectorHealth(item()) === "unknown");
+    ok("卡片：只有 failed/auth 才给重连/重新授权出口",
+      /connectorHealth\(item\) === 'auth' \|\| connectorHealth\(item\) === 'failed'/.test(clientSource));
+
     // 反例守卫：连接器装在别的 profile / 别的会话里时 list() 里没有同名行——
     // 这时只能显示「已安装」，绝不能拿「没搜到」冒充「没连上」。
     const elsewhere = make(["ima"], [], [row("some-other-server", "connected")]);
@@ -197,11 +215,14 @@ const lineWith = (source, needles, label) => {
   mustInclude(clientSource, "              connectorBadge(item),", "卡片：徽标走 connectorBadge(item)");
   const reconnectButtonLine = lineWith(
     clientSource,
-    ["installedConnectorKeys.has(String(item.id || ''))", "connectorHealth(item) !== 'connected'", "connectorHealth(item) !== 'unknown'"],
-    "卡片：只有「已装且确认没连上」才出现重连/重新授权按钮",
+    ["installedConnectorKeys.has(String(item.id || ''))", "connectorHealth(item) === 'auth' || connectorHealth(item) === 'failed'"],
+    "卡片：只有「已装且需授权 / 确认失败」才出现重连/重新授权按钮",
   );
-  ok("卡片：重连按钮不出现在 unknown（别的 profile）状态下",
-    reconnectButtonLine.includes("!== 'unknown'"));
+  ok("卡片：重连按钮不出现在 unknown / disabled / loading 状态下",
+    reconnectButtonLine.includes("=== 'auth' || connectorHealth(item) === 'failed'")
+    && !reconnectButtonLine.includes("'unknown'")
+    && !reconnectButtonLine.includes("'disabled'")
+    && !reconnectButtonLine.includes("'loading'"));
   mustInclude(clientSource, "}, connectorHealth(item) === 'auth' ? t('重新授权') : t('重连'))",
     "卡片：鉴权失败给「重新授权」，其余给「重连」");
 
@@ -316,6 +337,43 @@ const lineWith = (source, needles, label) => {
   ok("令牌与授权弹层使用 dsh-mcp-front 抬到 210",
     clientSource.includes(".dsh-mcp-overlay.dsh-mcp-front{z-index:210}")
     && (clientSource.match(/className: 'dsh-mcp-overlay dsh-mcp-front'/g) || []).length >= 2);
+}
+
+// ── 9. 授权快照的失效与「读不到」的如实表达 ─────────────────────────────
+// hover 预取把 `wbOAuthOverview` 的结果按连接器 id 缓存 60 秒（DETAIL_MEMO_TTL_MS）。
+// 两处真实缺陷都在这里：
+//   1. 完成授权 / 刷新授权 / 安装之后没人清这个缓存 → 60 秒内重开详情仍显示旧答案
+//      （「尚未授权」），看起来像授权没生效；
+//   2. 后端在底层读取失败时回的是 `{ ok: true, connectorId, serverName }`——没有
+//      `authorized` 字段。旧写法把「对象非空」当有效结果缓存并直接进界面，于是读失败被
+//      固化成「未授权」的外观，界面上连一点出错痕迹都没有。
+{
+	const clearAt = clientSource.indexOf("function clearDetailMemo(slot, key)");
+	ok("有专门的快照作废入口（按 key 命中才清）", clearAt >= 0
+		&& /slot\.key !== String\(key \|\| ''\)/.test(clientSource.slice(clearAt, clearAt + 260)));
+	ok("安装 / 重装 / 授权完成都会作废该连接器的授权快照",
+		/clearDetailMemo\(hoverMemo\.connectorAuth, item\?\.id\)/.test(clientSource));
+	const installAt = clientSource.indexOf("const installConnector = async");
+	const installBody = installAt >= 0 ? clientSource.slice(installAt, installAt + 900) : "";
+	ok("作废紧跟在安装 RPC 回包之后、失败分支之前（成功失败都不留旧快照）",
+		installBody.indexOf("wbConnectorInstall") < installBody.indexOf("clearDetailMemo(hoverMemo.connectorAuth")
+		&& installBody.indexOf("clearDetailMemo(hoverMemo.connectorAuth") < installBody.indexOf("if (!res?.ok)"));
+
+	const usableAt = clientSource.indexOf("function usableAuthOverview(res)");
+	ok("只认「真拿到布尔授权态」的回包", usableAt >= 0
+		&& /typeof res\.authorized === 'boolean'/.test(clientSource.slice(usableAt, usableAt + 260)));
+	ok("缓存写入受 usableAuthOverview 把关（失败信封不再被当结果）",
+		/if \(usableAuthOverview\(res\)\) writeDetailMemo\(hoverMemo\.connectorAuth/.test(clientSource)
+		&& /if \(usableAuthOverview\(res\)\) writeDetailMemo\(hoverMemo\.connectorAuth, key, res\)/.test(clientSource));
+	ok("读不到授权态时显示失败原因，而不是伪装成未授权",
+		/setConnectorAuth\(usableAuthOverview\(res\)[\s\S]{0,220}t\('读取授权状态失败'\)/.test(clientSource));
+	// 反向自测：把两处退回旧写法（res 非空即缓存 + 无条件回填界面），断言必须变红。
+	const legacyCache = clientSource.replace("if (usableAuthOverview(res)) writeDetailMemo(hoverMemo.connectorAuth, memoKey, res);", "if (res) writeDetailMemo(hoverMemo.connectorAuth, memoKey, res);");
+	ok("反向自测：旧缓存写法会被本段抓住", legacyCache !== clientSource
+		&& !/if \(usableAuthOverview\(res\)\) writeDetailMemo\(hoverMemo\.connectorAuth, memoKey, res\)/.test(legacyCache));
+	const legacyClear = clientSource.replace("clearDetailMemo(hoverMemo.connectorAuth, item?.id);", "");
+	ok("反向自测：删掉快照作废调用会被本段抓住", legacyClear !== clientSource
+		&& !/clearDetailMemo\(hoverMemo\.connectorAuth, item\?\.id\)/.test(legacyClear));
 }
 
 console.log(failures === 0 ? "\nCONNECTOR-AUTH-HEALTH PASS" : `\n${failures} CONNECTOR-AUTH-HEALTH CHECK(S) FAILED`);

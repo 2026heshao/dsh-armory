@@ -40,6 +40,12 @@ import { dirname, join } from "node:path";
 const here = dirname(fileURLToPath(import.meta.url));
 const LIB = join(here, "..", "lib");
 
+// 第 4 节要在真实连接器目录上投影鉴权态，而那份 ZIP 实测 54 MiB：没有离线口时，
+// 本机每次至少发一次条件 GET，CI（无缓存）更是会真的去下一整包，或者干脆整节 SKIP
+// 得莫名其妙。这里钉死「只用本地缓存」：缓存缺失就 SKIP，绝不为了冒烟断言烧网络。
+// 想恢复真实刷新行为，显式设 DSH_ARMORY_MARKET_OFFLINE=0 跑一次即可。
+process.env.DSH_ARMORY_MARKET_OFFLINE ||= "1";
+
 const {
   probeServerAuthorization,
   probeMcpServersAuthorization,
@@ -302,7 +308,7 @@ try {
 // 返回键是 connectors（不是 rows）：这里曾写成 catalog.rows，于是整节在任何机器上
 // 都直接 SKIP ——一条永不执行的断言比没有断言更糟，它会让人以为这条契约有护栏。
 if (!catalog || !Array.isArray(catalog.connectors) || catalog.connectors.length === 0) {
-  console.log("SKIP  4. 目录不可用（无本地索引缓存），跳过投影断言");
+  console.log("SKIP  4. 本机没有连接器 ZIP 缓存（离线口不会去下 54 MiB 的包），跳过投影断言");
 } else {
   const rows = catalog.connectors;
   ok("4a  total 与 rows 长度一致", catalog.total === rows.length, `total=${catalog.total} rows=${rows.length}`);

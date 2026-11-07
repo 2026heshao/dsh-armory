@@ -5,7 +5,7 @@
 // 「同名条目把整份配置卡死」——这些都不是 jsdom 或手测能稳定发现的。
 //
 // 依赖边界（有意为之）：本套件只 import mcp-config.js 及其零裸依赖的下游
-// （env-expression.js），所以只需要 `yaml`。**TOML 一侧不在本套件**：
+// （env-expression.js、workspace-config.js），所以只需要 `yaml`。**TOML 一侧不在本套件**：
 // mcp-import-sources.js 顶层 import 'smol-toml'，而本仓库的 devDependencies 并不安装它
 // （它是宿主的 peer），装了也只会在 CI 上缺。那一侧由 upgrade-plan / 宿主侧用例覆盖。
 //
@@ -18,6 +18,7 @@ import {
   updateManagedMcpPatch,
 } from "../lib/mcp-config.js";
 import { resetWin32LaunchContext, setWin32LaunchContext } from "../lib/win32-stdio.js";
+import { readWorkspaceConfig } from "../lib/workspace-config.js";
 
 // 本套件测的是**纯归一化**：结果不能因为跑测试的机器 PATH 里有没有 node.exe 而变。
 // `normalizeEntry` 现在会在 win32 上把裸 npx 归一成绝对 node.exe（真实缺陷的修复，见
@@ -372,6 +373,105 @@ console.log("\n── 12. win32 启动器归一在归一化边界上的接线 �
   resetWin32LaunchContext();
   const auto = one({ p: { command: "python", args: ["server.py"] } });
   ok("未注入上下文时按本机真实探测也不误改 python", auto.command === "python");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+console.log("\n── 13. 读盘方向一律不做 win32 归一（项目共享文件不得被单机路径污染）──");
+// ══════════════════════════════════════════════════════════════════════════════
+{
+  const WIN = { applicable: true, platform: "win32", node: { exe: "D:\\nodejs\\node.exe", npxCli: "D:\\nodejs\\node_modules\\npm\\bin\\npx-cli.js", npmCli: "D:\\nodejs\\node_modules\\npm\\bin\\npm-cli.js" }, cacheDir: "C:\\Users\\me\\.dsh\\armory\\mcp-npm-cache" };
+  setWin32LaunchContext(WIN);
+  const input = () => ({ mcpServers: { adeu: { command: "npx", args: ["-y", "p"] } } });
+
+  const readSide = normalizeMcpImport(input(), { applyWin32Launch: false });
+  ok("applyWin32Launch:false 保留裸 npx（命令）", readSide.servers[0].command === "npx", `got ${readSide.servers[0].command}`);
+  ok("applyWin32Launch:false 保留裸 npx（参数顺序不动）",
+    JSON.stringify(readSide.servers[0].args) === JSON.stringify(["-y", "p"]));
+  ok("applyWin32Launch:false 不注入本机 npm 缓存", readSide.servers[0].env === undefined);
+  ok("applyWin32Launch:false 不产生归一提示（没改就不该报）", readSide.warnings.length === 0, JSON.stringify(readSide.warnings));
+
+  const writeSide = normalizeMcpImport(input());
+  ok("默认（写方向）仍然归一，功能没有回退", writeSide.servers[0].command === WIN.node.exe);
+
+  // 真实读盘入口：`readWorkspaceConfig` 曾被拿来当纯解析器用，于是每次读 `.dsh/mcp.json`
+  // 都会把 command 换成作者本机的绝对 node.exe——而 setWorkspaceExclude /
+  // removeWorkspaceServer 这类「只动别的字段」的写回会把整份文件落盘，
+  // 等于把单机路径广播给所有队友（mac/Linux 永不还原）。
+  const fileText = JSON.stringify({
+    mcpServers: { fs: { command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem", "."] } },
+    exclude: [],
+  });
+  const cfg = await readWorkspaceConfig("D:\\proj\\demo", async () => fileText);
+  ok("readWorkspaceConfig 读回的命令仍是裸 npx",
+    cfg.error === "" && cfg.servers[0].command === "npx", `got ${JSON.stringify(cfg.servers[0])}`);
+  ok("readWorkspaceConfig 不因读取而报归一警告", (cfg.warnings || []).length === 0, JSON.stringify(cfg.warnings));
+
+  // 反向自测：让同一条输入走默认（写方向）分支，证明它会真的漂移成绝对路径——
+  // 上面两条断言因此不是空转，改回旧接线必然变红。
+  const regressed = normalizeMcpImport(input());
+  ok("反向自测：读方向一旦重新归一就会漂移成本机绝对路径 + 私有缓存",
+    regressed.servers[0].command === WIN.node.exe && regressed.servers[0].env?.npm_config_cache === WIN.cacheDir);
+
+  setWin32LaunchContext({ applicable: false, platform: "test", node: null, cacheDir: null });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+console.log("\n── 14. 探不到本机 Node 启动器的那条降级必须发话 ──");
+// ══════════════════════════════════════════════════════════════════════════════
+{
+  // volta / scoop / pnpm 托管的 node、以服务模式启动导致 PATH 不含 node、
+  // 或装完 Node 还没重启宿主：这三种形态下归一层「该改而没改」。
+  // 旧实现只在 detect() 抛异常（probeError）时才 warning，于是用户一声不响地拿到
+  // 一条注定连不上的裸 npx，之后只剩一句「Connection closed」。
+  const NO_CLI = { applicable: true, platform: "win32", node: { exe: "D:\\nodejs\\node.exe", npxCli: "", npmCli: "" }, cacheDir: null };
+  setWin32LaunchContext(NO_CLI);
+  const degraded = normalizeMcpImport({ mcpServers: { demo: { command: "npx", args: ["-y", "p"] } } });
+  ok("探测不到 npx-cli.js 时命令原样写入（不拼没验证过的路径）", degraded.servers[0].command === "npx");
+  ok("探测不到启动器必须进 warnings，并给出下一步",
+    degraded.warnings.some((line) => line.includes("demo") && line.includes("没探测到") && line.includes("重新保存")),
+    JSON.stringify(degraded.warnings));
+  const notShell = normalizeMcpImport({ mcpServers: { p: { command: "python", args: ["s.py"] } } });
+  ok("非 .cmd 壳命令不因降级形态被刷提示（不误伤 python）", notShell.warnings.length === 0, JSON.stringify(notShell.warnings));
+
+  // 反向自测：同一上下文退回「非 win32」后，就不该出现这条探测提示（两条降级不是一条）。
+  setWin32LaunchContext({ applicable: false, platform: "test", node: null, cacheDir: null });
+  const posix = normalizeMcpImport({ mcpServers: { demo: { command: "npx", args: ["-y", "p"] } } });
+  ok("反向自测：非 win32 不报「探测不到启动器」", posix.warnings.length === 0, JSON.stringify(posix.warnings));
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+console.log("\n── 15. 外机归一形态被重指/还原时，必须写进 warnings ──");
+// ══════════════════════════════════════════════════════════════════════════════
+{
+  const FOREIGN_WIN = {
+    applicable: true, platform: "win32",
+    node: { exe: "D:\\nodejs\\node.exe", npxCli: "D:\\nodejs\\node_modules\\npm\\bin\\npx-cli.js", npmCli: "D:\\nodejs\\node_modules\\npm\\bin\\npm-cli.js" },
+    cacheDir: "C:\\Users\\me\\.dsh\\armory\\mcp-npm-cache",
+    fileExists: (p) => String(p).startsWith("D:\\nodejs\\"),
+  };
+  const foreign = { demo: { transport: "stdio", command: "C:\\Users\\other\\node.exe", args: ["C:\\Users\\other\\npx-cli.js", "-y", "@x/mcp"] } };
+  setWin32LaunchContext(FOREIGN_WIN);
+  const repointed = normalizeMcpImport({ mcpServers: foreign }, { applyWin32Launch: true });
+  // 默认不传 fileExists（纯上下文）→ 免检；真实探测上下文带存在性判定 → 重指并报出来
+  ok("外机形态带存在性判定时被重指", repointed.servers[0].command === FOREIGN_WIN.node.exe, `got ${repointed.servers[0].command}`);
+  ok("重指必须报「换机器要重新保存」",
+    repointed.warnings.some((line) => line.includes("别台机器的 Node") && line.includes("重新保存")), JSON.stringify(repointed.warnings));
+
+  setWin32LaunchContext({ applicable: false, platform: "linux", node: null, cacheDir: null });
+  const denorm = normalizeMcpImport({ mcpServers: foreign });
+  ok("非 win32 读到外机 Windows 形态时还原成裸 npx", denorm.servers[0].command === "npx", JSON.stringify(denorm.servers[0]));
+  ok("还原同样要报出来（用户的文件被改过形态）",
+    denorm.warnings.some((line) => line.includes("Windows 绝对路径") && line.includes("还原")), JSON.stringify(denorm.warnings));
+  ok("还原时摘掉外机入口 JS、保留包名参数",
+    JSON.stringify(denorm.servers[0].args) === JSON.stringify(["-y", "@x/mcp"]));
+
+  // 反向自测：同一条外机形态若走「只看形态免检」的旧上下文，warnings 必须为空——
+  // 说明上面两条报出来的话确实来自新判定，而不是本来就会响。
+  setWin32LaunchContext({ ...FOREIGN_WIN, fileExists: undefined });
+  const legacy = normalizeMcpImport({ mcpServers: foreign });
+  ok("反向自测：免检上下文下既不重指也不报（旧缺陷的复现形态）",
+    legacy.servers[0].command === foreign.demo.command && legacy.warnings.length === 0, JSON.stringify(legacy.warnings));
+  setWin32LaunchContext({ applicable: false, platform: "test", node: null, cacheDir: null });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

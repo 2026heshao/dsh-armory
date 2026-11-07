@@ -448,5 +448,81 @@ const cellOf = (row, cls) => {
 	ok("自测：旧状态描边确实看不见（<3:1 图形门槛）", legacyBorder < 3, `旧红圈/底 = ${legacyBorder.toFixed(2)}:1`);
 }
 
+// ── 12. 混组归属与截断说明：标题不能说假话，被截掉的条数必须写出来 ──────────
+// 这批防的是三种「用户以为没启动」：
+//   · 标题取「第一条 running」——先点一次 MCP 重连、再批量装 5 个插件时，
+//     `installTasks` 的插入顺序让第一条 running 永远是那条 MCP，标题就说「正在处理 1 个
+//     MCP 任务」，5 个插件里只有 2 个露在行里；
+//   · 行按插入顺序 slice(0,3)——已完成行会把进行中行挤出可视区，且不说还剩几条；
+//   · 全部收尾时不看分组，纯 MCP 批次的标题会错报成「安装任务已结束」。
+{
+	const moreOf = (node) => {
+		const more = node.childNodes.find((child) => child._classes.has("dsh-mcp-install-toast-more"));
+		return more ? more.textContent : "";
+	};
+
+	// 12a 混组：MCP 先入表，插件更多 → 标题必须说插件
+	{
+		const { probe } = boot();
+		const node = probe.ensureInstallToast();
+		probe.progressToastStart("mcp:reconnect:早开的", "早开的", probe.PROGRESS_GROUP_MCP, probe.MCP_RECONNECT_TASK_LABELS);
+		for (const name of ["b1", "b2", "b3", "b4", "b5"]) probe.installToastStart(name);
+		ok("12a 混组时标题归给在跑更多的那一组（不是插入顺序的第一条）",
+			titleOf(node) === "正在安装 5 个插件…", `得到="${titleOf(node)}"`);
+		ok("12a 反向自测：插入顺序反过来（插件先开）结论不变——判据不依赖顺序", (() => {
+			const flip = boot();
+			const fnode = flip.probe.ensureInstallToast();
+			for (const name of ["b1", "b2", "b3", "b4", "b5"]) flip.probe.installToastStart(name);
+			flip.probe.progressToastStart("mcp:reconnect:晚开的", "晚开的", flip.probe.PROGRESS_GROUP_MCP, flip.probe.MCP_RECONNECT_TASK_LABELS);
+			return titleOf(fnode) === "正在安装 5 个插件…";
+		})(), "两种顺序都该是「正在安装 5 个插件…」");
+		ok("12a 计数只数标题那一组，不混进 MCP 的 1 条", titleOf(node).includes("5 个插件"));
+		for (const name of ["b1", "b2", "b3", "b4", "b5"]) probe.installToastFinish(name, "ok");
+		probe.progressToastFinish("mcp:reconnect:早开的", "ok");
+	}
+
+	// 12b 截断：超过 3 行时明确写出还剩几条，且进行中优先占位
+	{
+		const { probe } = boot();
+		const node = probe.ensureInstallToast();
+		for (const name of ["f1", "f2", "f3"]) probe.installToastStart(name);
+		for (const name of ["f1", "f2", "f3"]) probe.installToastFinish(name, "ok");
+		for (const name of ["r1", "r2", "r3", "r4"]) probe.installToastStart(name);
+		ok("12b 行数仍封顶 3（浮层不长成一面墙）", rowsOf(node).length === 3, `rows=${rowsOf(node).length}`);
+		ok("12b 被截掉的条数写进说明行，不静默吞掉", moreOf(node) === "另有 4 项未列出", `得到="${moreOf(node)}"`);
+		ok("12b 说明行的条数 = 任务表总数 − 可见行数（不是凭印象写死的常量）",
+			probe.installTasks.size === 7 && probe.installTasks.size - rowsOf(node).length === 4,
+			`任务表=${probe.installTasks.size} 可见=${rowsOf(node).length}`);
+		const shown = rowsOf(node).map((row) => cellOf(row, "dsh-mcp-install-toast-name"));
+		ok("12b 进行中的行优先可见（已完成的老行不挤掉它们）",
+			shown.every((name) => name.startsWith("r")) && shown.length === 3, `行=${shown.join(",")}`);
+		for (const name of ["r1", "r2", "r3", "r4"]) probe.installToastFinish(name, "ok");
+	}
+
+	// 12c 收尾态分组：纯 MCP 批次结束后标题仍是 MCP 措辞
+	{
+		const { probe } = boot();
+		const node = probe.ensureInstallToast();
+		probe.progressToastStart("mcp:add:adeu", "adeu", probe.PROGRESS_GROUP_MCP, probe.MCP_ADD_TASK_LABELS);
+		probe.progressToastFinish("mcp:add:adeu", "ok");
+		ok("12c 全部收尾后标题按留下的分组走", titleOf(node) === "MCP 任务已结束", `得到="${titleOf(node)}"`);
+		ok("12c 收尾态没有截断说明（只有 1 条任务）", moreOf(node) === "", `得到="${moreOf(node)}"`);
+	}
+
+	// 12d 反向自测：把「更多分组」判据退回「第一条 running」，12a 必须变红
+	{
+		const legacy = boot();
+		const lnode = legacy.probe.ensureInstallToast();
+		// 模拟旧判据用到的事实：插入顺序里第一条 running 是 MCP
+		legacy.probe.progressToastStart("mcp:reconnect:x", "x", legacy.probe.PROGRESS_GROUP_MCP, legacy.probe.MCP_RECONNECT_TASK_LABELS);
+		for (const name of ["a1", "a2", "a3", "a4", "a5"]) legacy.probe.installToastStart(name);
+		const runningList = [...legacy.probe.installTasks.values()].filter((task) => task.phase === "running");
+		const legacyGroup = (runningList[0] || {}).group || "plugin";
+		ok("12d 反向自测：旧判据取到的分组确实是 mcp（新判据才是 plugin）",
+			legacyGroup === "mcp" && titleOf(lnode) === "正在安装 5 个插件…",
+			`旧判据分组=${legacyGroup}，现标题="${titleOf(lnode)}"`);
+	}
+}
+
 console.log(failures === 0 ? "\nINSTALL-TOAST PASS" : `\nINSTALL-TOAST FAIL（${failures} 条断言未通过）`);
 if (failures > 0) process.exitCode = 1;

@@ -124,6 +124,29 @@ function parseFrontmatter(text) {
   );
   const emptyReEnabled = editInvocationFlag('---\ndisable-model-invocation: true\n---\nbody\n', false);
   ok('唯一 frontmatter 行是标志时 enable 得到空 frontmatter', emptyReEnabled === '---\n---\nbody\n');
+
+  // ── 流式（flow）frontmatter：2026-11-06 从真实上游包查实的数据损坏 ──────────
+  // connectors/tencent-omics/skills/* 三份 SKILL.md 的 frontmatter 整块是一个 JSON 对象
+  // （YAML 流式写法，宿主解析得出来）。本层旧实现只看开/闭 `---` 行、盲目按键值行追加，
+  // 产出的块解析必失败 → 技能 name/description 全丢、注册表不再收录、面板「释放」按钮
+  // 因 registered=false 一起消失，而 RPC 当时报的是「已禁用」。这类文件现在一律拒改。
+  const flowBlock = '{\n  "name": "omics-task-skill",\n  "description": "提交与核验任务"\n}\n';
+  const flowDoc = `---\n${flowBlock}---\nbody\n`;
+  ok('流式（JSON）frontmatter：禁用 → null（拒改）', editInvocationFlag(flowDoc, true) === null);
+  ok('流式（JSON）frontmatter：释放 → null（拒改）', editInvocationFlag(flowDoc, false) === null);
+  ok('流式数组形态同样拒改', editInvocationFlag('---\n["name", "x"]\n---\nbody\n', true) === null);
+  ok('键值块里嵌套花括号不受牵连（不误判成流式）',
+    editInvocationFlag('---\nmetadata: {a: 1}\n---\nbody\n', true) === '---\nmetadata: {a: 1}\ndisable-model-invocation: true\n---\nbody\n');
+
+  // 反向自测：按旧写法（不看块形态，直接在闭行前追加）得到的文本必须**确实**解析失败。
+  // 这条不成立就说明上面的拒改是过度保守，而不是在挡一次真实的文件损坏。
+  const naiveAppended = `---\n${flowBlock}disable-model-invocation: true\n---\nbody\n`;
+  let naiveStillParses = true;
+  try { parseFrontmatter(naiveAppended); } catch { naiveStillParses = false; }
+  ok('反向自测：旧追加写法产出的块确实无法解析（护栏挡的是真损坏）', naiveStillParses === false);
+  let originalFlowParses = false;
+  try { originalFlowParses = parseFrontmatter(flowDoc)?.name === 'omics-task-skill'; } catch { originalFlowParses = false; }
+  ok('反向自测：原文（未改写）本来解析得出来，说明损坏确由本次改写引入', originalFlowParses === true);
 }
 
 // ── 2. 落盘：四类白名单来源成功写入 + 幂等 + 复原 ─────────────────────────────
@@ -271,6 +294,18 @@ const cwd = join(base, 'project');
     () => setSkillModelInvocationOnDisk({ source: 'user-dsh', path: bom }, { disabled: true, home, cwd }),
     'BOM',
   );
+  // 流式（JSON）frontmatter：必须拒改，而且磁盘上的字节一个都不动（写坏就是不可逆损坏）。
+  const flowDir = join(root, 'flow-frontmatter');
+  await mkdir(flowDir, { recursive: true });
+  const flowManifest = join(flowDir, 'SKILL.md');
+  const flowSource = '---\n{\n  "name": "omics-run-diagnosis",\n  "description": "诊断任务失败"\n}\n---\n# 正文\n';
+  await writeFile(flowManifest, flowSource);
+  await expectThrow(
+    '流式 frontmatter：落盘前拒绝',
+    () => setSkillModelInvocationOnDisk({ source: 'user-dsh', path: flowDir }, { disabled: true, home, cwd }),
+    '流式形态',
+  );
+  ok('流式 frontmatter：拒绝后文件逐字节未变', (await readFile(flowManifest, 'utf8')) === flowSource);
   await expectThrow(
     '已消失的 skill：可读错误',
     () =>

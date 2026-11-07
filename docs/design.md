@@ -55,7 +55,7 @@
 - **连接在不在** —— 由上面那套判定给出：`已连接` / `连接中…` / `连接失败` / `尚未建立连接（新会话自动挂载）`。连接按空闲策略保留（见「生效时机语义表」），所以"当前没有会话在用"不会显示成"没连上"。
 - **几个会话在用** —— `refs`：`已连接 · N 个会话在用 · M 工具` / `已连接 · 当前无会话使用（连接保留，下次直接用）`。
 
-早先的文案把两者压成一句「待会话挂载」，用户读成"还没连上/排队中"，而事实常常是"连接在、只是当前没会话用"——这正是它被改掉的原因（文案推导现在是模块作用域的纯函数 `wsSub`，由 `test/client-behavior.test.mjs` 直接断言）。**三类**失败分开告知，不混为一谈：
+早先的文案把两者压成一句「待会话挂载」，用户读成"还没连上/排队中"，而事实常常是"连接在、只是当前没会话用"——这正是它被改掉的原因（文案推导现在是模块作用域的纯函数 `wsSub`，`lib/client.js:4118`——**但它没有用例**：原断言它的 `test/client-behavior.test.mjs` 不在仓库，见护栏对账）。**三类**失败分开告知，不混为一谈：
 
 - **挂载失败**（`mountFailed`）：本插件在**会话挂载阶段**（`agent/created` 串行监听器）就挂不上（配置里的 `${VAR}` 求值为空、`failOnStartupError: true` 下启动失败、工具注册被拒等）。
 - **连接失败**（`status === 'failed'`）：mcp-client 那边的事。两者由 Host 分开标记，客户端不再用「lastError 存在」反推挂载失败。
@@ -128,7 +128,7 @@ mcpManager/projectConnections → { connections: [{ wsPath, serverName, state, r
 四个取舍，改它之前先读：
 
 1. **内容真源是 `lib/whats-new.js`，不是 GitHub Releases**。抓远端会让网络、限流、离线决定这条提示出不出得来；而现有的 `updateHint`（「有新版本可用」提示条）已经确立了「纯增值信息、失败静默」的设计，不该再把一条用户点名要的提示压在同一链路上。本地常量还顺带保证同一版本在任何机器上提示的内容完全一致。
-2. **`package.json` 的版本必须是这里的最后一条**（`test/whats-new.test.mjs` 钉住）。这是对根因的治理：bump 了版本却没写「变了什么、在哪找」，本地就红，发不出去。
+2. **`package.json` 的版本必须是这里的最后一条**（`test/upgrade-plan.mjs:141` 钉住，同文件 146 行还钉 release notes 稿存在）。这是对根因的治理：bump 了版本却没写「变了什么、在哪找」，本地就红，发不出去。
 3. **「上次确认过的版本」存客户端**（localStorage，与 `updateHint.dismissed` 同一个惯用法）。它是每台浏览器自己的事实，宿主没有这个视角；所以宿主只给真源与当前版本，判定放客户端的纯函数 `whatsNewFor`。
 4. **分不清「新装」和「从还没有这个提示的版本升上来」时，偏向说一次**。两者在 localStorage 里都没记录，而后者正是要覆盖的人；所以没记录时只报当前这一条（不满屏倒历史，也不漏掉这次的变化），代价只是新装用户看到一条本次更新。反过来，认得出上次那版就报它之后的全部，跨版本升级不漏。
 
@@ -151,8 +151,30 @@ mcpManager/projectConnections → { connections: [{ wsPath, serverName, state, r
 - **插件热重载会清空运行中会话的项目工具**：HMR/卸载时会撤回所有投射并释放连接（否则会留下指向已销毁连接的僵尸工具）。已在运行的会话要重新拿到项目 MCP 工具需新开会话。
 
 ## 兼容性与依赖细节
+> **护栏对账（2026-11-06，按远端 `main` 的完整 tree 逐条核过）**
+> 本节多处把「某条测试钉住了这个决定」当作论据，而下列被点名的文件**在仓库里已经不存在**
+> （远端 main 也没有；`git log --diff-filter=D` 查不到删除记录，说明是随某次重构一起消失的）：
+>
+> - `test/package-contract.test.mjs`、`test/client-lifecycle.test.mjs`、`test/theme-contract.test.mjs`、
+>   `test/typert-manifest.test.mjs`、`test/real-host-integration.test.mjs`、`test/client-behavior.test.mjs`、
+>   `test/scope-chain-inheritance.test.mjs`、`test/whats-new.test.mjs`
+> - `scripts/theme-spec.mjs`、`scripts/dsh-theme-tokens.mjs`、`scripts/sync-theme-tokens.mjs`（本仓库没有 `scripts/` 目录）
+> - `.github/workflows/upstream-drift.yml`（工作流只有 `ci.yml` 与 `release.yml`，**没有每周换宿主渠道跑契约的那条**）
+> - 常量 `COMPAT_WINDOW` / `DEV_BASELINE` / `DEV_BASELINE_VERSION`（全仓 0 命中）
+>
+> 现在真正在跑的对应关系：契约三处一致性 → `test/contract-consistency.mjs`；
+> 「`package.json` 版本必须是 `lib/whats-new.js` 最后一条」与 release notes 稿存在 → `test/upgrade-plan.mjs`
+> （第 141 / 146 行）；README 配图 → `test/readme-images.mjs`；README 宣传数字来源 →
+> `test/audit-market-claims.mjs`（**未登记进 run-all，属于手动跑**）。
+>
+> 因此下文凡是引用上面那些文件的句子，读作**护栏缺口登记**，不是「已经有测试兜着」：
+> 面板样式 `data-plugin` / `data-plugin-css` 两个属性、主题别名宿主 `body`、四条对齐官方 spec 的样式判据、
+> typert strict codec 同时带 `schema` 与 `create()`、宿主真实加载链、项目行文案 `wsSub`（函数仍在
+> `lib/client.js:4118`，只是没有用例调用它）目前都**没有自动护栏**。
+> 补护栏之前，请不要依据本节文字认为这些位置「改坏会变红」。
 
-DSH 宿主 API 通过 `peerDependencies` 以 `>=0.1.5-rc.1 <0.2.0` 声明。
+
+DSH 宿主 API 通过 `peerDependencies` 以 **`>=0.1.5-rc.1`（只有下限，没有上限）** 声明——2026-10 宿主进入 0.2.x 之后上限已经撤掉，`@deepseek-ai/cordis` 单独钉 `~4.0.2`。下文凡是写 `<0.2.0` 的地方都是撤掉之前的旧口径，保留只为说明当初的取舍。
 
 **为什么只支持 0.1.5 起**：插件依赖两个 0.1.5 才具备的官方能力——
 
@@ -165,15 +187,15 @@ DSH 宿主 API 通过 `peerDependencies` 以 `>=0.1.5-rc.1 <0.2.0` 声明。
 
 三条取舍规则，改动范围前先读这里：
 
-1. **下限是硬要求，上限是宿主执行的硬闸门**。`0.1.5` 之前没有上面那两个能力，装上必坏，所以下限不能松。上限 `0.2.0` 只在宿主确实会向后破坏时才有意义——DSH 自称「开发者预览…未来将出现破坏兼容性的变更」，而插件面对宿主升级必然慢一步，所以留一个**粗**上限：它的作用是把「你正跑在一个我们没验证过的大版本上」变成宿主明确的拒绝，而不是静默装上再出怪问题。
+1. **下限是硬要求；上限曾经有、现在没有**（旧口径见本节开头的对账）。`0.1.5` 之前没有上面那两个能力，装上必坏，所以下限不能松。上限 `0.2.0` 只在宿主确实会向后破坏时才有意义——DSH 自称「开发者预览…未来将出现破坏兼容性的变更」，而插件面对宿主升级必然慢一步，所以留一个**粗**上限：它的作用是把「你正跑在一个我们没验证过的大版本上」变成宿主明确的拒绝，而不是静默装上再出怪问题。
 
    **这道闸门由 DSH 自己执行，不是 pnpm/npm**——安装器的 peer 警告（如 pnpm 的 `[WARN] Issues with peer dependencies found`）既不是判定依据，也不与它一致。`dsh-app-boot` 的 `evaluatePluginCompatibility` 拿 `dsh --version` 的实际版本比对本插件的 `peerDependencies`：不兼容的 bundle 会被跳过并打印 `skipping profile bundle …`，插件根本不加载（走 profile 清单的 `preflight` 路径时则是 `disabling profile plugin …`）。用户不想升级时可以授予**精确版本**豁免继续用：`dsh plugin --profile <profile> allow-version <name>@<version> --dsh-version <exact> --accept-risk`（豁免按 `name@version` × 精确宿主版本记账，落在 profile 目录的 `compatibility.json`）。**下限不会挡住任何新版本，只有上限可能「限死」，所以上限宁粗不细。**
-2. **预发布不需要特殊照顾**。按 npm 的 semver 规则，`0.1.6-alpha.1` 会落在 `>=0.1.5-rc.1 <0.2.0` 之外（预发布只在同名 `major.minor.patch` 元组内被承认）。但**上面那道闸门不套用这条规则**：`evaluatePluginCompatibility` 调 `semver.satisfies` 时带的是 `{ includePrerelease: true }`，预发布因此按数值参与比较——`0.1.6-alpha.1`、`0.1.7-rc.2` 乃至 `0.2.0-rc.1` 都落在范围内，只有 `0.2.0` 及以后的正式版（以及 `0.3.0-rc.1` 这种更高元组的预发布）才越界。所以这个范围既不会挡住 0.1.x 的预发布，也不会挡住 0.1.x 的正式版——不必为「覆盖未来预发布」去改范围。
+2. **预发布不需要特殊照顾**。按 npm 的 semver 规则，（旧口径，上限已撤）`0.1.6-alpha.1` 会落在 `>=0.1.5-rc.1 <0.2.0` 之外（预发布只在同名 `major.minor.patch` 元组内被承认）。但**上面那道闸门不套用这条规则**：`evaluatePluginCompatibility` 调 `semver.satisfies` 时带的是 `{ includePrerelease: true }`，预发布因此按数值参与比较——`0.1.6-alpha.1`、`0.1.7-rc.2` 乃至 `0.2.0-rc.1` 都落在范围内，只有 `0.2.0` 及以后的正式版（以及 `0.3.0-rc.1` 这种更高元组的预发布）才越界。所以这个范围既不会挡住 0.1.x 的预发布，也不会挡住 0.1.x 的正式版——不必为「覆盖未来预发布」去改范围。
 
-   注意这条**只对宿主自己的闸门成立**：拿不带 `includePrerelease` 的严格 semver 去判，`0.1.7-rc.2` 会被判为不满足 `>=0.1.5-rc.1 <0.2.0`（下限元组是 `0.1.5`，认不了 `0.1.7-rc.x`）。谁要复核这个范围，必须用宿主自己的 `evaluatePluginCompatibility`，而不是 `semver.satisfies(range)` 或 pnpm 的 peer 检查——那两者会给出相反的结论。实测（用宿主导出的函数跑本插件的真实 `package.json`）：`0.1.5-rc.1` / `0.1.5-rc.3` / `0.1.6` / `0.1.7-rc.1` / `0.1.7-rc.2` / `0.1.7` / `0.1.8-rc.1` / `0.1.8` / `0.2.0-rc.1` 全部无 issue，仅 `0.2.0` 与 `0.3.0-rc.1` 被拒。
-3. **范围回答不了「装上还对不对」，而 CI 也只能盖住一半**。`0.1.6-alpha.2` 把 typert strict codec 从 `schema:`（zod v4 实例）换成 `create()`（进程内 realm 的懒工厂，registry 用 `record.value ??= record.create()` 物化）就是这么一次：它落在 `>=0.1.5-rc.1 <0.2.0` 之内，插件的兼容性声明天生拦不住，2026-09-21 的漂移任务因此变红（那一次 130 项里唯一失败的就是加载期契约那条）。真正的保护分两层：**(a) 运行时契约**由 [`.github/workflows/upstream-drift.yml`](../.github/workflows/upstream-drift.yml) 每周把宿主整套换到 `latest` / `next` / `alpha` 三个渠道跑契约用例（`test/*.test.mjs` 去掉 `package-contract`，因为那份断言的是 pin 本身）；**(b) 宿主侧的加载期契约**（`lib/typert.js` 的形状由宿主 loader 校验，不由我们校验）由 `test/typert-manifest.test.mjs` 覆盖：它直接调宿主自己的 `validateTypertManifest` 验这份产物，形状一变就红；同一文件里还有一条**不依赖 loader 版本**的形状断言，钉住「strict codec 同时带 `schema` 与 `create()`」（下一条理由）——本地 devDependency 的 loader 是开发基线，看不见 alpha 的要求，只靠前者要等一周才知道。这一层原本是缺口——既有用例只保证 `lib/typert.js` 与 `lib/client.js` 两份产物彼此一致（`client-lifecycle.test.mjs`），宿主改了要求也不会变红，而后果是用户升级 DSH 后面板整个不可用。它也是 `@deepseek-ai/dsh-typert-loader` 只进 `devDependencies`、不进 peer 的原因：校验发生在宿主进程里，插件运行时不 import 它。
+   注意这条**只对宿主自己的闸门成立**：拿不带 `includePrerelease` 的严格 semver 去判，（旧口径）`0.1.7-rc.2` 会被判为不满足 `>=0.1.5-rc.1 <0.2.0`（下限元组是 `0.1.5`，认不了 `0.1.7-rc.x`）。谁要复核这个范围，必须用宿主自己的 `evaluatePluginCompatibility`，而不是 `semver.satisfies(range)` 或 pnpm 的 peer 检查——那两者会给出相反的结论。实测（用宿主导出的函数跑本插件的真实 `package.json`）：`0.1.5-rc.1` / `0.1.5-rc.3` / `0.1.6` / `0.1.7-rc.1` / `0.1.7-rc.2` / `0.1.7` / `0.1.8-rc.1` / `0.1.8` / `0.2.0-rc.1` 全部无 issue，仅 `0.2.0` 与 `0.3.0-rc.1` 被拒。
+3. **范围回答不了「装上还对不对」，而 CI 现在连一半都盖不住**。`0.1.6-alpha.2` 把 typert strict codec 从 `schema:`（zod v4 实例）换成 `create()`（进程内 realm 的懒工厂，registry 用 `record.value ??= record.create()` 物化）就是这么一次：它落在 `>=0.1.5-rc.1 <0.2.0` 之内，插件的兼容性声明天生拦不住，2026-09-21 的漂移任务因此变红（那一次 130 项里唯一失败的就是加载期契约那条）。**当前只剩一层，且是本地层**：原 **(a) 运行时契约**由 `.github/workflows/upstream-drift.yml` 每周把宿主整套换到 `latest` / `next` / `alpha` 三个渠道跑契约用例——**这条工作流已不在仓库里**（`.github/workflows/` 只有 `ci.yml` 与 `release.yml`，见护栏对账）（`test/*.test.mjs` 去掉 `package-contract`，因为那份断言的是 pin 本身）；**(b) 宿主侧的加载期契约**（`lib/typert.js` 的形状由宿主 loader 校验，不由我们校验）原由 `test/typert-manifest.test.mjs` 覆盖（**已不在仓库**）：它直接调宿主自己的 `validateTypertManifest` 验这份产物，形状一变就红；同一文件里还有一条**不依赖 loader 版本**的形状断言，钉住「strict codec 同时带 `schema` 与 `create()`」（下一条理由）——本地 devDependency 的 loader 是开发基线，看不见 alpha 的要求，只靠前者要等一周才知道。这一层原本是缺口——既有用例只保证 `lib/typert.js` 与 `lib/client.js` 两份产物彼此一致（`client-lifecycle.test.mjs`），宿主改了要求也不会变红，而后果是用户升级 DSH 后面板整个不可用。它也是 `@deepseek-ai/dsh-typert-loader` 只进 `devDependencies`、不进 peer 的原因：校验发生在宿主进程里，插件运行时不 import 它。
 
-**为什么 strict codec 两个键都写**（`lib/typert.js` 与 `lib/client.js` 各一份，`client-lifecycle.test.mjs` 钉住两者一致）：宿主在两个渠道上查**不同的键**，且都忽略对方的键——`0.1.5-rc.x`（= 当时的 `latest` / `next`，也就是 `npx` 默认装到的那条）查 `codec.schema.parse` 必须是 zod v4 实例；`0.1.6-alpha.2` 起查 `typeof codec.create === 'function'`。少写 `schema` 会在最新 RC 上加载即拒，少写 `create` 会在 alpha 上加载即拒；`mode: 'src-json'` 不是出路（loader 强制 invocation 的 codec 必须是 strict）。拿三个版本的 loader 直接跑自己的产物：
+**为什么 strict codec 两个键都写**（`lib/typert.js` 与 `lib/client.js` 各一份）——**「两份都带 `schema` 与 `create()`」这条今天没有自动护栏**：原断言它的 `test/client-lifecycle.test.mjs` 不在仓库，`test/contract-consistency.mjs` 只核三处方法契约（typert ⊇ client ⊇ index 装饰器），不查这两个键：宿主在两个渠道上查**不同的键**，且都忽略对方的键——`0.1.5-rc.x`（= 当时的 `latest` / `next`，也就是 `npx` 默认装到的那条）查 `codec.schema.parse` 必须是 zod v4 实例；`0.1.6-alpha.2` 起查 `typeof codec.create === 'function'`。少写 `schema` 会在最新 RC 上加载即拒，少写 `create` 会在 alpha 上加载即拒；`mode: 'src-json'` 不是出路（loader 强制 invocation 的 codec 必须是 strict）。拿三个版本的 loader 直接跑自己的产物：
 
 | codec 形状 | loader `0.1.5-rc.2` | loader `0.1.6-alpha.1` | loader `0.1.6-alpha.2` |
 |---|---|---|---|
@@ -182,18 +204,18 @@ DSH 宿主 API 通过 `peerDependencies` 以 `>=0.1.5-rc.1 <0.2.0` 声明。
 | **双写** | PASS | PASS | PASS |
 | `mode: 'src-json'` | 拒 | 拒 | 拒 |
 
-`0.2.0-rc.2`（当前开发基线）的 loader 实测与 `0.1.6-alpha.2` 同列：只有 `create()` 通过、只有 `schema` 被拒。也就是说**基线已经落在「只查 `create()`」那一侧**，而只查 `schema` 的 `0.1.5-rc.x` 是更早的渠道——`latest`/`next` 在 2026-09-24 就一起推进到了 `0.1.7-rc.2`、2026-09-29 又一起推进到 `0.2.0-rc.2`，所以它不再是「npx 默认装到的版本」，但仍有用户停在那一批（peer 范围为 `>=0.1.5-rc.1 <0.2.0` 允许，`COMPAT_WINDOW` 不动的原因见上一条）。两个键都不能删，且本地测试已看不到 `schema` 那半边（由 `test/typert-manifest.test.mjs` 里那条不依赖 loader 版本的形状断言钉住）。
+`0.2.0-rc.2`（**当时**的开发基线；`package.json` 现在写的是 `^0.2.0-rc.2`，按 registry 会解析到 `0.2.2-rc.1`）的 loader 实测与 `0.1.6-alpha.2` 同列：只有 `create()` 通过、只有 `schema` 被拒。也就是说**基线已经落在「只查 `create()`」那一侧**，而只查 `schema` 的 `0.1.5-rc.x` 是更早的渠道——`latest`/`next` 在 2026-09-24 就一起推进到了 `0.1.7-rc.2`、2026-09-29 又一起推进到 `0.2.0-rc.2`，所以它不再是「npx 默认装到的版本」，但仍有用户停在那一批（peer 范围为 `>=0.1.5-rc.1 <0.2.0` 允许，`COMPAT_WINDOW` 不动的原因见上一条）。两个键都不能删，且本地测试已看不到 `schema` 那半边（由 `test/typert-manifest.test.mjs` 里那条不依赖 loader 版本的形状断言钉住）。
 
 浏览器半（`@deepseek-ai/dsh-typert-registry` 的 `lib/client.js`）做同一份校验，所以 `lib/client.js` 里的 codec 必须同步改——只改 host 那份会变成「面板能加载，一调用就炸」。
 
 漂移任务红了怎么读：
 
 - **契约用例（含真机集成）失败** → 上游契约真的变了，按失败点修插件并发补丁（2026-09-21 那次就是这样红的）。
-- **本地 `npm test` 里 `package-contract.test.mjs` 的 pin / lockfile 断言失败** → 宿主可用，去同步 pin：`package.json` 的 devDeps、`DEV_BASELINE`、README / README.en / installation 的「已验证至」，然后 `pnpm install && npm test` 确认全绿。
+- （缺口）原先由 `test/package-contract.test.mjs` 报「pin / lockfile 过期」，该文件已不在仓库；现在只能人工比对 `package.json` 的 devDependencies 与宿主 `latest`：`package.json` 的 devDeps、`DEV_BASELINE`、README / README.en / installation 的「已验证至」，然后 `pnpm install && npm test` 确认全绿。
 
-  这一条**不会**由漂移任务报出来：它的 `files` 是 `grep -v 'package-contract'`，pin 断言按定义就不参与漂移判定。所以「漂移任务绿」不等于 pin 没过期——2026-09-10 到 09-24 之间 pin 停在 `0.1.5-rc.2`，而 `latest` 已经是 `0.1.5-rc.3`、`next` 是 `0.1.7-rc.1`，两周无人发现，就是这条缺口。同步 pin 只有两个触发源：人注意到新 RC，或本地跑完整套件。
+  这一条**不会**由漂移任务报出来（而漂移任务本身已不在仓库，见护栏对账）：它原先的 `files` 是 `grep -v 'package-contract'`，pin 断言按定义就不参与漂移判定。所以「漂移任务绿」不等于 pin 没过期——2026-09-10 到 09-24 之间 pin 停在 `0.1.5-rc.2`，而 `latest` 已经是 `0.1.5-rc.3`、`next` 是 `0.1.7-rc.1`，两周无人发现，就是这条缺口。同步 pin 只有两个触发源：人注意到新 RC，或本地跑完整套件。
 
-  改的时候**别动 `COMPAT_WINDOW`**：它是 peer 窗口（`>=0.1.5-rc.1 <0.2.0`），下限是硬要求、上限是宿主的硬闸门；把它收窄到新版本会挡住仍在 `0.1.5-rc.x` 上的用户（宿主闸门带 `includePrerelease`，所以老版本确实装得上，见上文第 2 条）。要改的常量只有 `package-contract.test.mjs` 的 `DEV_BASELINE`，锁文件里那个具体版本从它推导（原来那里硬编码了一份，是两个真源）。
+  （缺口）`COMPAT_WINDOW` / `DEV_BASELINE` 这两个常量全仓已 0 命中，原话作废；今天改基线只有 `package.json` 的 peer 下限 `>=0.1.5-rc.1` 是硬要求（旧规则「上限宁粗不细、收窄上限会挡住老宿主用户」已随上限撤掉而失效，记录留在这里只说明当初为什么曾经留过上限）。要改的常量只有 `package-contract.test.mjs` 的 `DEV_BASELINE`，锁文件里那个具体版本从它推导（原来那里硬编码了一份，是两个真源）。
 
 已实测（2026-09-24，漂移任务 [run 35943153431](https://github.com/2026heshao/dsh-armory/actions/runs/35943153431)，三个渠道各 190 项全绿、0 跳过）：
 
@@ -203,9 +225,9 @@ DSH 宿主 API 通过 `peerDependencies` 以 `>=0.1.5-rc.1 <0.2.0` 声明。
 | `next` | `0.1.7-rc.1` | 190/190 |
 | `alpha` | `0.1.7-alpha.2` | 190/190 |
 
-2026-09-29 推进基线到 `0.2.0-rc.2`（本地实跑，234 项）：232/234 通过，失败的 2 项都是 pin 断言本身（`DEV_BASELINE` 与锁文件版本仍写着旧基线），同步后 233/234，最后 1 项是文档的「已验证至」——它按 `DEV_BASELINE_VERSION` 推导，同样属于 pin，改文档后全绿。也就是说 **0.2.0-rc.2 上没有任何一条契约用例失败**，含真机集成那组（真 cordis + 真 dsh-tools + 真 dsh-scope + 真 dsh-mcp-client + 真 stdio 子进程）。`0.2.0-rc.2` 落在 peer 窗口内也是必然的：`includePrerelease` 让预发布按数值比较，只有 `0.2.0` 正式版才越界（见上文第 2 条）。
+2026-09-29 推进基线到 `0.2.0-rc.2`（本地实跑，234 项）：232/234 通过，失败的 2 项都是 pin 断言本身（`DEV_BASELINE` 与锁文件版本仍写着旧基线），同步后 233/234，最后 1 项是文档的「已验证至」——它按 `DEV_BASELINE_VERSION` 推导（**以下三段都是当时的记录，所引用的 pin 断言与漂移清单今天都不在仓库里，数字只作历史参照**），同样属于 pin，改文档后全绿。也就是说 **0.2.0-rc.2 上没有任何一条契约用例失败**，含真机集成那组（真 cordis + 真 dsh-tools + 真 dsh-scope + 真 dsh-mcp-client + 真 stdio 子进程）。（旧口径下）`0.2.0-rc.2` 落在 peer 窗口内也是必然的：`includePrerelease` 让预发布按数值比较，只有 `0.2.0` 正式版才越界——上限撤掉后这条判据对本插件已不适用，见上文第 1 条。
 
-更早：`0.1.6-alpha.1` 上契约用例全绿；`0.1.6-alpha.2` 上修复前唯一失败的是 `typert-manifest` 那条，双写后按漂移任务的文件清单 137/137 全绿（复现方式：把宿主整套换到 alpha.2 再跑那份清单）。
+更早（历史）：`0.1.6-alpha.1` 上契约用例全绿；`0.1.6-alpha.2` 上修复前唯一失败的是 `typert-manifest` 那条，双写后按漂移任务的文件清单 137/137 全绿（复现方式：把宿主整套换到 alpha.2 再跑那份清单）。
 
 **alpha 全绿不等于它进了「已验证」**：这次它绿是因为我们的改动恰好是追加式（codec 双写 + 结构探测 cordis 私有字段），不是因为它稳定。所以兼容性表只写 `0.2.0-rc.2`——那是承诺；alpha 交给漂移任务每周探测，不承诺。这与上文第 2 条（预发布不需要特殊照顾）是同一个取舍。
 
@@ -271,7 +293,7 @@ document.head.appendChild(tag)
 - `data-plugin` 是加载器认领样式的依据。`entry-lifecycle.ts` 的 `removeOwnedStyles()` **只删 `data-plugin === 插件 id` 的标签**；`system.ts` 的 `claimStyles()` 只有一条兜底——认领「materialize 期间新出现的未打标 style」。
 - 因此只盖 `data-plugin-css` 时，正常路径靠兜底也能被清掉（所以它长期没暴露），但**在认领窗口之外插入的标签会变成孤儿**，HMR 反复替换时累积泄漏。
 
-`test/client-lifecycle.test.mjs` 钉住了这两个属性，且经变异验证（去掉 `data-plugin` 该测试立刻变红）。
+**当前无自动护栏**：被点名的 `test/client-lifecycle.test.mjs` 不在仓库里（见护栏对账），`grep -l data-plugin test/*.mjs` 为 0 命中。这两个属性目前只靠上面的分析约束，改坏不会变红。
 
 ### 别名层为什么挂在 `body`
 
@@ -280,7 +302,7 @@ document.head.appendChild(tag)
 1. **必须是三个 slot 子树的公共祖先。** 插件同时往 `shell.overlay`（悬浮按钮）、`sidebar.footer.action`（侧栏入口）和面板自己渲染，它们没有公共祖先。最初别名挂在 `.dsh-mcp-wrap` 上——把圆角改走 `--mcp-r-*` 之后，悬浮按钮的圆角与阴影当场解析失败。
 2. **必须与主题令牌同层。** `ui-theme` 把 `--dsw-alias-*` 定义在 **`body`** 上（`design-platform.css` 的 `body{}` 与 `body[data-ds-dark-theme]{}`；`ui-layout` 也是 `body.setAttribute('data-ds-dark-theme','')`）。自定义属性在声明处就完成替换、不参与"向上查找"，所以挂在 `:root`（`body` 的祖先）会取到空值——整片颜色别名失效，卡片与面板背景全部变透明。
 
-`test/theme-contract.test.mjs` 钉住了这条：`aliasHost()` 要求别名宿主是 `body`（真实样式表上断言 `=== 'body'`，违规样本上断言 `:root` 会被照实报出来），`subtreesMissingLabelColor()` 另外要求三个 slot 子树各自都能取到 `--dsw-alias-label-primary`。
+**当前无自动护栏**（`test/theme-contract.test.mjs` 已不在仓库，见护栏对账）：`aliasHost()` 要求别名宿主是 `body`（真实样式表上断言 `=== 'body'`，违规样本上断言 `:root` 会被照实报出来），`subtreesMissingLabelColor()` 另外要求三个 slot 子树各自都能取到 `--dsw-alias-label-primary`。
 
 ### 四条对齐官方 spec 的规则
 
@@ -295,7 +317,7 @@ document.head.appendChild(tag)
 
 `corner-shape` 那条只在支持该特性的引擎上显形（Chromium 实测 `CSS.supports('corner-shape','superellipse(1.5)') === true`），jsdom 渲染不出来，所以只能扫样式表文本——这也是上游 ui-theme 的做法。
 
-`scripts/theme-spec.mjs` 是这套判据的唯一实现，`test/theme-contract.test.mjs` 用它断言。测试刻意分两侧写，缺一不可：
+**当前无自动护栏**（`scripts/` 目录与 `test/theme-contract.test.mjs` 都不在仓库，见护栏对账）。原本这套判据要分两侧写，缺一不可——下面两条就是重补用例时的验收口径：
 
 - **「抓得到错」**——每个扫描器都有一组必须命中的违规样本。否则扫描器退化成"永远通过"时，另一侧全是空的。
 - **「不误报」**——在真实样式表上必须全零。否则一个满屏误报的扫描器会被当成噪声关掉。
@@ -312,7 +334,7 @@ document.head.appendChild(tag)
 - 快照口径是所有**定义**处，不论在哪个选择器下——真机全局扫描只能看到 407 个，少的那个是 `--dsw-focus-ring-color`（定义在 `:focus-visible` 上，只在聚焦元素可见）。存在性检查关心"这个名字有没有人定义"，宽一点才对；收窄会开始误报。
 - 不覆盖 `--dsh-*`：那是各包自己的运行时变量，全仓分散、没有单一所有者，不属于主题契约。将来真要用，先扩生成器的采集范围，**不要退回去放行前缀**。
 
-`test/theme-contract.test.mjs` 两头都钉：违规样本必须被抓到，且快照本身要有规模与关键成员（否则清单退化成空表时，存在性检查会反过来变成"任何令牌都不存在"而让另一侧的断言失去意义）。
+**（护栏缺口，见对账）重补时应两头都钉**：违规样本必须被抓到，且快照本身要有规模与关键成员（否则清单退化成空表时，存在性检查会反过来变成"任何令牌都不存在"而让另一侧的断言失去意义）。
 
 ## 包结构
 
@@ -329,7 +351,7 @@ document.head.appendChild(tag)
 - `lib/mcp-observability.js`：连接状态判定与 mcp-client 日志格式化
 - `lib/client.js`：响应式 Web UI、Remote 客户端和生命周期清理
 - `lib/typert.js`：Remote 契约描述
-- `scripts/theme-spec.mjs`：面板样式对 DSH 主题契约的判据（全圆角配对、圆角刻度、抬升表面、字面色值、等宽字体、别名宿主、别名令牌存在性），由 `test/theme-contract.test.mjs` 断言
+- （缺口）面板样式对 DSH 主题契约的判据（全圆角配对、圆角刻度、抬升表面、字面色值、等宽字体、别名宿主、别名令牌存在性）：原实现 `scripts/theme-spec.mjs` 与断言 `test/theme-contract.test.mjs` 均不在仓库，`scripts/` 目录也没有
 - `scripts/dsh-theme-tokens.mjs`：DSH 主题令牌清单（生成物），存在性判据的数据源
 - `scripts/sync-theme-tokens.mjs`：从宿主源码树重放上面那份清单
 

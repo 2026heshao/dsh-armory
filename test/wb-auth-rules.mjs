@@ -202,5 +202,47 @@ function sampleServers() {
     && mixSlots.some((slot) => slot.container === "header"), JSON.stringify(mixSlots));
 }
 
+// ── 12. url 槽位的凭据必须百分号编码（2026-11-06 复核出的 401 陷阱）──────────
+// 市场里实测有 12 条 auth_mode=token 只把占位符写在 url 上，形如
+// `https://mcp.map.qq.com/sse?key=${TENCENT_MAP_KEY}&format=0`。旧实现对所有容器一律
+// 原样字符串替换，token 含 URL 保留字符时替换结果不是同一个值：`ab&c#d` 会变成
+// `?key=ab&c#d&format=0`（服务器只收到 `ab`，`c` 成为新参数、`d` 掉进 fragment），
+// base64 里常见的 `+` 还会被解成空格。用户侧表现只是一句鉴权失败，联不到编码问题。
+// env / header 容器不能编码——那里原样传值才是对的。
+{
+  const urlOf = (token) => applyTokens(
+    { demo: { transport: "streamableHttp", url: "https://mcp.map.qq.com/sse?key=${MAP_KEY}&format=0" } },
+    { MAP_KEY: token },
+  ).mcpServers.demo.url;
+  ok("url：普通密钥原样拼进去", urlOf("abcdef") === "https://mcp.map.qq.com/sse?key=abcdef&format=0", urlOf("abcdef"));
+  ok("url：含 & 与 # 的密钥被编码（否则凭据被截断）",
+    urlOf("ab&c#d") === "https://mcp.map.qq.com/sse?key=ab%26c%23d&format=0", urlOf("ab&c#d"));
+  ok("url：含 + / 空格的 base64 型密钥不被曲解",
+    urlOf("a+b/c d") === "https://mcp.map.qq.com/sse?key=a%2Bb%2Fc%20d&format=0", urlOf("a+b/c d"));
+  ok("url：含 ? = 的密钥不改变查询串结构",
+    urlOf("x?y=z") === "https://mcp.map.qq.com/sse?key=x%3Fy%3Dz&format=0", urlOf("x?y=z"));
+  ok("url：已经百分号编码的值不二次编码（%2B 不能变成 %252B）",
+    urlOf("a%2Bb") === "https://mcp.map.qq.com/sse?key=a%2Bb&format=0", urlOf("a%2Bb"));
+  ok("url：编码后残留的 &format=0 仍在原位（只动值不动结构）",
+    urlOf("k&v").endsWith("&format=0"), urlOf("k&v"));
+
+  const header = applyTokens(
+    { demo: { transport: "http", url: "https://x.example/mcp", headers: { Authorization: "Bearer ${T}" } } },
+    { T: "ab&c#d" },
+  ).mcpServers.demo.headers.Authorization;
+  ok("header 槽位保持原样（编码会破坏凭据本身）", header === "Bearer ab&c#d", header);
+  const env = applyTokens(
+    { demo: { transport: "stdio", command: "node", env: { API_KEY: "${T}" } } },
+    { T: "ab&c#d" },
+  ).mcpServers.demo.env.API_KEY;
+  ok("env 槽位保持原样", env === "ab&c#d", env);
+
+  // 反向自测：退回「所有容器一律原样替换」，含 & 的密钥就必须被截断成两个参数。
+  const legacyFill = (template, token) => template.split("${MAP_KEY}").join(token);
+  ok("反向自测：旧写法确实会把 ab&c 拼成两个参数",
+    legacyFill("https://mcp.map.qq.com/sse?key=${MAP_KEY}&format=0", "ab&c") === "https://mcp.map.qq.com/sse?key=ab&c&format=0"
+    && urlOf("ab&c") !== legacyFill("https://mcp.map.qq.com/sse?key=${MAP_KEY}&format=0", "ab&c"));
+}
+
 console.log(`\n${failures === 0 ? "WB-AUTH-RULES PASS" : `${failures} CHECK(S) FAILED`}`);
 process.exitCode = failures === 0 ? 0 : 1;
