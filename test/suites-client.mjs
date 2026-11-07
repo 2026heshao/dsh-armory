@@ -55,6 +55,8 @@ const SUITE_HELPERS = sliceBetween("const SUITE_LOCAL_ID_PREFIX = 'local-';", "c
 const QUICK_INSERT = sliceBetween("  const insertRef = async (text) => {", "  // 子菜单排序：");
 // 第 3 段：引用文本格式化器（单技能与套件成员**共用同一个**，这是「格式不会漂移」的前提）。
 const QUICK_MENTION = sliceBetween("const quickMentionText = (kind, item) => {", "const SummonQuickMenu = (");
+// quickMentionText 现在经 textOf 归一名称（issue #11），把同一份真代码一起带进 vm。
+const TEXT_HELPERS = sliceBetween("const TEXT_KEYS_ZH", "const applyI18nLocale");
 
 section("0. 源码抽取");
 ok("能定位套件工具层的起止标记", SUITE_HELPERS.length > 200, `len=${SUITE_HELPERS.length}`);
@@ -176,6 +178,7 @@ const runInsert = ({ actions = {}, draftText = "", clipboardFails = false } = {}
 	};
 	const sandbox = {
 		t: fakeT,
+		usesEnglish: () => false,
 		inputActions,
 		navigator: { clipboard: { writeText: async (text) => { if (clipboardFails) throw new Error("clipboard denied"); clipboard.push(text); } } },
 		setCopied: (text) => { copied.push(text); },
@@ -188,7 +191,7 @@ const runInsert = ({ actions = {}, draftText = "", clipboardFails = false } = {}
 		Promise,
 	};
 	vm.createContext(sandbox);
-	vm.runInContext(QUICK_MENTION + "\n" + QUICK_INSERT + "\n;globalThis.__P = { pickSuite, insertRef, pick };", sandbox);
+	vm.runInContext(TEXT_HELPERS + "\n" + QUICK_MENTION + "\n" + QUICK_INSERT + "\n;globalThis.__P = { pickSuite, insertRef, pick };", sandbox);
 	return { run: sandbox.__P, rpc, clipboard, copied, inserted, drafts };
 };
 

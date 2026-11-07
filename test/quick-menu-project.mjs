@@ -16,6 +16,10 @@ const CLIENT = join(dirname(fileURLToPath(import.meta.url)), "..", "lib", "clien
 
 const START_MARKER = "const PROJECT_SKILL_SOURCES = new Set(";
 const END_MARKER = "// 看板顶层分类：MCP";
+// 项目投影会把清单文本先过 textOf 归一（issue #11）。textOf 定义在文件前部的
+// 显示文本归一区块，这里单独抽出同一份真代码一起跑，避免在 vm 里塞替身。
+const TEXT_START_MARKER = "const TEXT_KEYS_ZH";
+const TEXT_END_MARKER = "const applyI18nLocale";
 
 let failures = 0;
 const ok = (name, condition, extra = "") => {
@@ -27,16 +31,20 @@ const source = await readFile(CLIENT, "utf8");
 const startAt = source.indexOf(START_MARKER);
 const endAt = source.indexOf(END_MARKER, startAt + START_MARKER.length);
 ok("能定位项目子菜单投影一节的起止标记", startAt >= 0 && endAt > startAt, `start=${startAt} end=${endAt}`);
-if (startAt < 0 || endAt <= startAt) {
+const textStartAt = source.indexOf(TEXT_START_MARKER);
+const textEndAt = source.indexOf(TEXT_END_MARKER, textStartAt + TEXT_START_MARKER.length);
+ok("能定位显示文本归一一节（textOf）", textStartAt >= 0 && textEndAt > textStartAt, `start=${textStartAt} end=${textEndAt}`);
+if (startAt < 0 || endAt <= startAt || textStartAt < 0 || textEndAt <= textStartAt) {
 	console.log("\nQUICK-MENU-PROJECT FAIL（标记缺失，无法抽取待测源码）");
 	process.exit(1);
 }
 const slice = source.slice(startAt, endAt);
+const textSlice = source.slice(textStartAt, textEndAt);
 
 const run = (text) => {
-	const context = vm.createContext({ console });
+	const context = vm.createContext({ console, usesEnglish: () => false });
 	vm.runInContext(
-		`${text}\nglobalThis.__probe = { projectQuickSkills, projectQuickMcp, projectQuickCount, isProjectSkillRow };`,
+		`${textSlice}\n${text}\nglobalThis.__probe = { projectQuickSkills, projectQuickMcp, projectQuickCount, isProjectSkillRow };`,
 		context,
 		{ filename: "client-project-quick-slice.js" },
 	);

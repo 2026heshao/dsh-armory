@@ -39,6 +39,10 @@ const SUITES = [
   // 召唤菜单第四行「本项目」：会话 → 项目根解析 + 项目技能/MCP 投影（含反向自测）。
   { name: "session-workspace（会话 → 项目根解析）", file: "session-workspace.mjs" },
   { name: "quick-menu-project（本项目子菜单投影）", file: "quick-menu-project.mjs" },
+  // 召唤菜单两处真机事故（issue #10 / #11）：列表字段非字符串时渲染期抛错会卸载
+  // 整个入口（「点一下就消失」）；主菜单宽度按 128 兜底且只算一次，异步清单到位后
+  // 右缘伸出视口。直测 textOf / quickItemDesc / quickMenuLeft，并含两条反向自测。
+  { name: "quick-menu-guards（召唤菜单文本归一与一级菜单定位）", file: "quick-menu-guards.mjs" },
   { name: "expert-manual（专家市场写链）", file: "run-expert-manual.mjs" },
   { name: "upgrade-plan（一键升级判据）", file: "upgrade-plan.mjs" },
   { name: "session-persona（会话级专家随时挂/换/摘）", file: "session-persona.mjs" },

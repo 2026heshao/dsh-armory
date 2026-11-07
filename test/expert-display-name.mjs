@@ -148,7 +148,8 @@ ok("client.js 匹配用前缀可解析", typeof clientPrefix === "string" && cli
 ok("两处前缀逐字相同（拼名 / 匹配宿主标签不会漂移）", marketPrefix === clientPrefix);
 // 反向自测：客户端那份被改一个空格，断言必须变红。
 ok("反向自测：客户端前缀多一个空格时一致性断言确实变红", marketPrefix !== `${clientPrefix} `);
-ok("客户端仍按宿主语言挑名，标识名只是最后兜底", clientSrc.includes("name: row.nameZh || row.nameEn || row.plugin"));
+ok("客户端仍按宿主语言挑名，标识名只是最后兜底",
+	clientSrc.includes("name: nameZh || nameEn || plugin") && clientSrc.includes("nameEn: nameEn || nameZh || plugin"));
 
 // ═══════════════════════════════════════════════════════════════════════════
 console.log(`\n${failures ? "FAIL" : "PASS"}  expert-display-name：${checks} 项断言，${failures} 项失败`);
