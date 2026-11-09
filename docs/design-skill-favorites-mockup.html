@@ -1,0 +1,907 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dsh-armory · 技能收藏与菜单搜索 · 局部高仿真</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   dsh-armory「技能收藏 + 召唤菜单搜索」局部高仿真（v2.5.0 提案）
+   目标：在不改业务代码的前提下，先对齐三件事——
+     ① 召唤菜单：一级 → 技能二级（216）→ 收藏三级（196）的完整构图；
+     ② 四个局部状态：搜索有结果 / 搜索无结果 / 收藏为空 / 看板星标；
+     ③ 三级右开、左开、两侧不足贴边三种定位。
+   配色用 --mcp-* / --dsw-alias-* 的近似值，真实令牌映射见页尾。
+   ═══════════════════════════════════════════════════════════════════ */
+
+*{box-sizing:border-box}
+html{color-scheme:light}
+body{
+  margin:0;
+  background:#efede7;
+  background-image:
+    linear-gradient(rgba(22,24,28,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(22,24,28,.035) 1px,transparent 1px);
+  background-size:32px 32px;
+  color:#16181c;
+  font:14px/1.62 "Avenir Next","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"Cascadia Code","SFMono-Regular",Consolas,"Liberation Mono",monospace;font-variant-numeric:tabular-nums}
+.wrap{max-width:1900px;margin:0 auto;padding:54px 28px 96px}
+.doc-head{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:36px;align-items:end;
+  padding-bottom:26px;border-bottom:2px solid #16181c;
+}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:10px;margin:0 0 14px;
+  color:#a5462a;font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;
+}
+.eyebrow::before{content:"";width:26px;height:2px;background:#a5462a}
+h1{
+  margin:0;font-family:Georgia,"Songti SC","SimSun",serif;font-weight:500;
+  font-size:clamp(38px,4.4vw,68px);line-height:1.04;letter-spacing:-.025em;
+}
+h1 em{font-style:normal;color:#a5462a}
+.lede{max-width:760px;margin:18px 0 0;color:#555a61;font-size:14.5px;line-height:1.75}
+.head-meta{display:flex;flex-direction:column;gap:8px;align-items:flex-end;text-align:right;font-size:11px;color:#6b7077}
+.head-meta b{color:#16181c;font-weight:650}
+.head-meta .chipline{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.chip{
+  display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border:1px solid #cfcac0;
+  border-radius:999px;background:#f8f6f1;color:#4c514f;font-size:10.5px;letter-spacing:.02em;
+}
+.chip.hot{border-color:#d8a48f;background:#fbeee8;color:#8d3a22}
+.switch{
+  display:inline-flex;align-items:center;gap:8px;margin-top:12px;padding:6px 10px;
+  border:1px solid #cfcac0;background:#f8f6f1;border-radius:4px;font-size:11px;color:#4c514f;cursor:pointer;
+  user-select:none;
+}
+.ann-toggle{position:absolute;left:-9999px;width:1px;height:1px}
+.switch::before{content:"";display:inline-block;width:13px;height:13px;border:1px solid #b9b3a8;border-radius:3px;background:#fff;flex:none;text-align:center;font:9px/12px "Cascadia Code",Consolas,monospace;color:#fff}
+#ann:checked ~ .wrap .switch::before{content:"✓";background:#a5462a;border-color:#a5462a}
+#ann:focus-visible ~ .wrap .switch{outline:2px solid #a5462a;outline-offset:2px}
+#ann:not(:checked) ~ .wrap .annot{display:none}
+
+/* ── 章节框架 ─────────────────────────────────────────────────────── */
+section{margin-top:64px}
+.sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding-bottom:14px;border-bottom:1px solid #c9c4b9;margin-bottom:26px}
+.sec-head h2{margin:0;font-family:Georgia,"Songti SC","SimSun",serif;font-weight:500;font-size:26px;letter-spacing:-.01em}
+.sec-head h2 span{color:#8b8f95;font-family:"Cascadia Code",Consolas,monospace;font-size:11px;letter-spacing:.12em;margin-right:12px;vertical-align:3px}
+.sec-head p{margin:0;max-width:720px;color:#62676e;font-size:12px;line-height:1.65;text-align:right}
+.note-strip{
+  display:flex;gap:14px;align-items:flex-start;padding:12px 16px;margin:0 0 22px;
+  border-left:3px solid #a5462a;background:#faf7f1;color:#565b61;font-size:12px;line-height:1.7;
+}
+.note-strip b{color:#16181c}
+.note-strip code{font-family:"Cascadia Code",Consolas,monospace;font-size:11px;color:#8d3a22}
+
+/* ── 891×737 舞台 ─────────────────────────────────────────────────── */
+.stages{display:flex;gap:28px;align-items:flex-start;overflow-x:auto;padding:4px 4px 26px;scrollbar-width:thin}
+@media (max-width:1860px){.stages{flex-wrap:wrap;overflow-x:visible}}
+.stage{flex:none;margin:0}
+.stage figcaption{display:flex;align-items:baseline;gap:12px;margin:0 0 12px;padding:0 2px}
+.stage figcaption b{font-size:12px;letter-spacing:.04em}
+.stage figcaption span{color:#74797f;font-size:10.5px;font-family:"Cascadia Code",Consolas,monospace}
+.stage figcaption .side{margin-left:auto;color:#a5462a;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+
+/* 宿主令牌的近似值：只在本稿内生效 */
+.frame,.mini{
+  --bg:#17181c;--bg1:#1e2026;--bg2:#24262d;--bg3:#2c2f37;
+  --line:#353841;--line2:#454955;--fg:#e9eaee;--fg2:#a7abb5;--fg3:#777c87;
+  --accent:#5b8cff;--accent-soft:rgba(91,140,255,.16);--hover:rgba(255,255,255,.065);
+  --star:#e9a545;--shadow:0 18px 46px rgba(0,0,0,.46);--overlay:rgba(0,0,0,.58);
+  --ok:#66c98d;--err:#ff8a8a;
+}
+.frame.light,.mini.light{
+  --bg:#f4f4f6;--bg1:#ffffff;--bg2:#fbfbfc;--bg3:#eef0f4;
+  --line:#e0e2e8;--line2:#cfd3dc;--fg:#1d1f25;--fg2:#5e6370;--fg3:#8b909b;
+  --accent:#3568f0;--accent-soft:#e8eeff;--hover:rgba(22,28,48,.055);
+  --star:#d9902a;--shadow:0 20px 48px rgba(22,26,38,.18);--overlay:rgba(18,22,32,.36);
+  --ok:#2f9d63;--err:#d04545;
+}
+.frame{
+  position:relative;width:891px;height:737px;overflow:hidden;isolation:isolate;
+  border:1px solid var(--line);border-radius:16px;background:var(--bg);color:var(--fg);
+  box-shadow:0 28px 70px rgba(32,30,26,.22),0 2px 0 rgba(255,255,255,.35) inset;
+  font-size:13px;
+}
+.frame.light{box-shadow:0 28px 70px rgba(32,30,26,.16),0 1px 0 #fff inset}
+
+/* 窗口壳 */
+.titlebar{display:flex;align-items:center;gap:10px;height:36px;padding:0 14px;border-bottom:1px solid var(--line);background:var(--bg2);color:var(--fg2);font-size:11px}
+.traffic{display:flex;gap:6px}
+.traffic i{display:block;width:9px;height:9px;border-radius:50%;background:var(--line2)}
+.frame.light .traffic i:nth-child(1){background:#f0b4a4}
+.frame.light .traffic i:nth-child(2){background:#efd08b}
+.frame.light .traffic i:nth-child(3){background:#abd3ad}
+.titlebar .t{position:absolute;left:50%;transform:translateX(-50%);letter-spacing:.02em}
+.titlebar .r{margin-left:auto;font-family:"Cascadia Code",Consolas,monospace;font-size:10px;color:var(--fg3)}
+.workspace{display:flex;height:calc(100% - 36px);min-height:0}
+.rail{flex:none;width:54px;border-right:1px solid var(--line);background:var(--bg2);display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px 0}
+.rail .logo{display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:var(--accent);color:#fff;font-size:12px;box-shadow:0 4px 12px rgba(53,104,240,.35)}
+.rail .ic{display:block;width:26px;height:26px;border-radius:8px;border:1px solid transparent;color:var(--fg3)}
+.rail .ic::after{content:"";display:block;width:12px;height:12px;margin:6px;border:1.5px solid currentColor;border-radius:3px;opacity:.75}
+.rail .ic.on{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 32%,transparent);color:var(--accent)}
+.rail .sp{flex:1}
+.chat{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)}
+.chat-head{display:flex;align-items:center;gap:10px;height:44px;padding:0 22px;border-bottom:1px solid var(--line);color:var(--fg2);font-size:11px}
+.chat-head b{color:var(--fg);font-size:12.5px;font-weight:600}
+.chat-head .model{margin-left:auto;padding:3px 8px;border:1px solid var(--line);border-radius:999px;font-family:"Cascadia Code",Consolas,monospace;font-size:9.5px;color:var(--fg3)}
+.msgs{flex:1;min-height:0;padding:26px 30px;display:flex;flex-direction:column;gap:16px;overflow:hidden}
+.msg{max-width:560px;font-size:12.5px;line-height:1.75}
+.msg.user{align-self:flex-end;max-width:430px;padding:11px 14px;border:1px solid var(--line);border-radius:12px 12px 3px 12px;background:var(--bg3);color:var(--fg)}
+.msg.ai{align-self:flex-start;color:var(--fg2)}
+.msg.ai .who{display:flex;align-items:center;gap:7px;margin-bottom:6px;color:var(--fg3);font-size:10.5px;letter-spacing:.04em}
+.msg.ai .who i{display:block;width:16px;height:16px;border-radius:5px;background:var(--accent);opacity:.85}
+.msg.ai p{margin:0}
+.msg.ai ul{margin:6px 0 0;padding-left:18px}
+.msg.ai li{margin:2px 0}
+.ghost-line{height:7px;border-radius:4px;background:var(--line);opacity:.55;margin:7px 0}
+.ghost-line.w80{width:80%}.ghost-line.w62{width:62%}.ghost-line.w45{width:45%}
+.composer{padding:0 22px 18px;background:linear-gradient(to top,var(--bg) 70%,transparent)}
+.composer-box{border:1px solid var(--line2);border-radius:13px;background:var(--bg1);box-shadow:0 6px 22px rgba(0,0,0,.12)}
+.frame.light .composer-box{box-shadow:0 8px 24px rgba(25,30,44,.08)}
+.draft{margin:0;padding:13px 14px 8px;color:var(--fg2);font-size:12.5px}
+.composer-row{display:flex;align-items:center;gap:7px;padding:0 8px 8px}
+.tool{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;color:var(--fg3);font-size:14px;border:1px solid transparent}
+.tool:hover{background:var(--hover)}
+.tool.sep{width:1px;height:16px;background:var(--line);margin:0 3px}
+.tool.model{margin-left:2px;width:auto;padding:0 8px;font-size:10px;font-family:"Cascadia Code",Consolas,monospace;border:1px solid var(--line);border-radius:999px;color:var(--fg2)}
+.summon{margin-left:auto;display:inline-flex;align-items:center;justify-content:center;width:29px;height:29px;border:0;border-radius:8px;background:var(--accent-soft);color:var(--accent);position:relative}
+.summon::after{content:"";position:absolute;inset:-4px;border:1px dashed color-mix(in srgb,var(--accent) 55%,transparent);border-radius:11px;opacity:.8}
+
+/* ── 菜单浮层 ─────────────────────────────────────────────────────── */
+.qm-primary{
+  position:absolute;left:210px;bottom:150px;z-index:6;width:144px;padding:5px;
+  border:1px solid var(--line);border-radius:12px;background:var(--bg1);box-shadow:var(--shadow);
+}
+.qm-kind{display:flex;align-items:center;gap:7px;width:100%;height:30px;padding:0 9px;border:0;border-radius:7px;background:transparent;color:var(--fg);font:inherit;font-size:12.5px;text-align:left}
+.qm-kind svg{flex:none;color:var(--fg3)}
+.qm-kind.sel{background:var(--hover)}
+.qm-kind.sel svg{color:var(--accent)}
+.qm-kind .cnt{margin-left:auto;color:var(--accent);font-size:10.5px}
+.qm-kind .arw{margin-left:5px;color:var(--fg3);font-size:11px}
+
+.qm-secondary{
+  position:absolute;left:358px;top:335px;z-index:7;width:216px;padding:5px;
+  display:flex;flex-direction:column;
+  border:1px solid var(--line);border-radius:12px;background:var(--bg1);box-shadow:var(--shadow);
+}
+.qm-search{position:relative;display:flex;align-items:center;height:26px;margin-bottom:2px}
+.qm-search svg{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--fg3);pointer-events:none}
+.qm-search input{
+  width:100%;height:26px;padding:0 26px 0 25px;border:1px solid var(--line);border-radius:7px;
+  background:var(--bg1);color:var(--fg);font:inherit;font-size:11.5px;outline:0;
+}
+.qm-search input::placeholder{color:var(--fg3)}
+.qm-search input:focus{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.qm-search .clear{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:16px;height:16px;border:0;border-radius:4px;background:transparent;color:var(--fg3);display:flex;align-items:center;justify-content:center;font-size:11px}
+.qm-fav{
+  display:flex;align-items:center;gap:7px;width:100%;height:28px;margin-bottom:2px;padding:0 9px;
+  border:0;border-radius:6px;background:transparent;color:var(--fg);font:inherit;font-size:12px;text-align:left;
+}
+.qm-fav:hover,.qm-fav.open{background:var(--hover)}
+.qm-fav .star{color:var(--star);flex:none;display:flex}
+.qm-fav .n{margin-left:auto;padding:0 5px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:9.5px;line-height:15px;font-variant-numeric:tabular-nums}
+.qm-fav .arw{color:var(--fg3);font-size:11px}
+.qm-list{
+  max-height:168px;overflow-y:auto;overflow-x:hidden;border-radius:6px;
+  scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--line2) 90%,transparent) transparent;
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 3px,#000 calc(100% - 10px),transparent 100%);
+  mask-image:linear-gradient(to bottom,transparent 0,#000 3px,#000 calc(100% - 10px),transparent 100%);
+}
+.qm-list::-webkit-scrollbar{width:6px}
+.qm-list::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--line2) 90%,transparent);border-radius:3px}
+.qm-list::-webkit-scrollbar-track{background:transparent}
+.qm-group{display:flex;align-items:center;gap:6px;flex:none;padding:5px 9px 3px;color:var(--fg3);font-size:10px;letter-spacing:.06em}
+.qm-group svg{color:var(--accent)}
+.qm-row{
+  display:flex;align-items:baseline;gap:7px;width:100%;height:28px;padding:6px 9px;
+  border:0;border-radius:6px;background:transparent;color:var(--fg);font:inherit;font-size:11.5px;
+  line-height:16px;text-align:left;
+}
+.qm-row:hover{background:var(--hover)}
+.qm-row .ic{flex:none;align-self:center;display:flex;color:var(--fg3)}
+.qm-row.suite .ic{color:var(--accent)}
+.qm-name{flex:none;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qm-desc{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg3);font-size:10.5px}
+.qm-badge{flex:none;padding:1px 5px;border-radius:4px;background:var(--accent-soft);color:var(--accent);font-size:9.5px;line-height:12px;white-space:nowrap}
+.qm-sep{height:1px;flex:none;margin:4px 6px;background:var(--line)}
+.qm-manage{
+  display:flex;align-items:center;gap:6px;flex:none;width:100%;height:20px;margin-top:2px;padding:0 9px;
+  border:0;border-top:1px solid var(--line);border-radius:0 0 6px 6px;background:transparent;
+  color:var(--accent);font:inherit;font-size:10px;text-align:left;
+}
+.qm-manage+.qm-manage{margin-top:0}
+.qm-manage:hover{background:var(--hover)}
+
+.qm-tertiary{
+  position:absolute;left:578px;top:360px;z-index:8;width:196px;padding:4px;
+  border:1px solid var(--line);border-radius:12px;background:var(--bg1);box-shadow:var(--shadow);
+}
+.qm-tertiary .qm-row{height:28px;padding:6px 8px}
+.qm-tertiary .qm-name{max-width:96px}
+.qm-tertiary .qm-desc{font-size:10px}
+.qm-tertiary .empty{padding:14px 12px 15px;color:var(--fg3);font-size:10.5px;line-height:1.65}
+.qm-tertiary .empty b{display:block;color:var(--fg2);font-weight:550;margin-bottom:3px}
+.qm-tertiary .err{padding:6px 9px 5px;border-top:1px solid var(--line);color:var(--err);font-size:10px;line-height:1.5}
+
+/* 标注 */
+.annot{position:absolute;inset:0;pointer-events:none;z-index:20}
+.pin{
+  position:absolute;display:flex;align-items:center;justify-content:center;width:18px;height:18px;
+  border-radius:50%;background:#f2c14e;color:#241a05;border:1px solid #17181c;
+  font:700 9px/1 "Cascadia Code",Consolas,monospace;box-shadow:0 2px 8px rgba(0,0,0,.35);
+}
+.pin.a{left:358px;top:280px}
+.pin.b{left:578px;top:313px}
+.dim{position:absolute;height:1px;background:#f2c14e;opacity:.9}
+.dim::before,.dim::after{content:"";position:absolute;top:-4px;width:1px;height:9px;background:#f2c14e}
+.dim::before{left:0}.dim::after{right:0}
+.dim span{position:absolute;left:50%;top:-16px;transform:translateX(-50%);padding:1px 4px;background:#17181c;color:#f2c14e;font:9px/1.4 "Cascadia Code",Consolas,monospace;white-space:nowrap}
+.dim.w216{left:358px;top:302px;width:216px}
+.dim.w196{left:578px;top:335px;width:196px}
+.edge-mark{position:absolute;right:8px;top:286px;bottom:40px;border-right:1px dashed #f2c14e;opacity:.7}
+.edge-mark span{position:absolute;right:4px;top:-4px;color:#f2c14e;font:9px/1.4 "Cascadia Code",Consolas,monospace;white-space:nowrap}
+
+/* ── 局部状态卡 ───────────────────────────────────────────────────── */
+.states{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+@media (max-width:1180px){.states{grid-template-columns:1fr}}
+.state-card{border:1px solid #d3cec4;background:#faf8f3;box-shadow:0 10px 30px rgba(35,32,26,.07);display:flex;flex-direction:column}
+.state-card>header{display:flex;align-items:baseline;gap:10px;padding:13px 16px;border-bottom:1px solid #ddd8ce}
+.state-card h3{margin:0;font-size:12.5px;font-weight:650;letter-spacing:.02em}
+.state-card header span{margin-left:auto;color:#83878d;font-size:9.5px;font-family:"Cascadia Code",Consolas,monospace}
+.state-card header i{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#16181c;color:#f2c14e;font:700 9px/1 "Cascadia Code",Consolas,monospace;font-style:normal}
+.state-body{padding:22px;display:flex;justify-content:center;align-items:flex-start;min-height:250px}
+.state-body.dark{background:#121317}
+.state-foot{padding:11px 16px;border-top:1px solid #ddd8ce;color:#62676e;font-size:10.5px;line-height:1.6}
+.state-foot code{font-family:"Cascadia Code",Consolas,monospace;font-size:10px;color:#8d3a22}
+
+.mini{position:relative;color:var(--fg);font-size:12px}
+.mini-panel{width:216px;padding:5px;border:1px solid var(--line);border-radius:12px;background:var(--bg1);box-shadow:0 16px 40px rgba(0,0,0,.35)}
+.mini.light .mini-panel{box-shadow:0 16px 40px rgba(25,30,44,.14)}
+.mini-panel.p196{width:196px;padding:4px}
+.mini .qm-list{max-height:none;mask-image:none;-webkit-mask-image:none}
+.mini .qm-manage{margin-top:2px}
+.mini .nores{padding:17px 10px 18px;color:var(--fg3);font-size:10.5px;text-align:center;line-height:1.7}
+.mini .nores b{color:var(--fg2);font-weight:550}
+.mini-note{position:absolute;left:calc(100% + 12px);top:4px;width:150px;color:#b9bdc6;font-size:9.5px;line-height:1.55}
+.mini.light .mini-note{color:#777c87}
+.mini-note b{display:block;color:#f2c14e;font:700 9px/1.4 "Cascadia Code",Consolas,monospace;letter-spacing:.06em;margin-bottom:4px}
+.mini.light .mini-note b{color:#8d3a22}
+
+/* 看板星标 */
+.board{width:100%;max-width:620px;color:#1d1f25;font-size:12px}
+.board-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.board-search{position:relative;flex:1;height:30px;border:1px solid #e0e2e8;border-radius:8px;background:#fff;color:#8b909b;display:flex;align-items:center;padding:0 10px 0 28px;font-size:11.5px}
+.board-search::before{content:"";position:absolute;left:9px;top:9px;width:10px;height:10px;border:1.5px solid currentColor;border-radius:50%}
+.board-search::after{content:"";position:absolute;left:18px;top:18px;width:5px;height:1.5px;background:currentColor;transform:rotate(45deg)}
+.board-seg{display:flex;gap:2px;padding:2px;border:1px solid #e0e2e8;border-radius:8px;background:#fbfbfc}
+.board-seg span{padding:2px 8px;border-radius:5px;font-size:10px;color:#8b909b}
+.board-seg span.on{background:#fff;color:#1d1f25;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.board-entry{display:flex;align-items:center;gap:5px;padding:4px 9px;border:1px solid #e0e2e8;border-radius:8px;background:#fff;color:#3568f0;font-size:10.5px}
+.board-entry b{padding:0 5px;border-radius:999px;background:#e8eeff;font-size:9px;font-weight:600}
+.board-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bcard{position:relative;min-height:132px}
+.bcard-hit{
+  width:100%;height:100%;display:flex;flex-direction:column;gap:7px;padding:12px 34px 12px 12px;
+  border:.5px solid #e0e2e8;border-radius:12px;background:#fff;text-align:left;color:inherit;font:inherit;
+  box-shadow:0 1px 0 rgba(20,24,34,.02);
+}
+.bcard:hover .bcard-hit{border-color:#cfd3dc;background:#fafbfc}
+.bcard-top{display:flex;align-items:center;gap:8px;min-width:0}
+.bavatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:650;font-size:12px;background:linear-gradient(140deg,#4d7cfe,#8d5cf6);flex:none}
+.bavatar.g2{background:linear-gradient(140deg,#17a17a,#3fbf8e)}
+.bname{font-weight:550;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bdesc{color:#5e6370;font-size:11px;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bfoot{margin-top:auto;display:flex;align-items:center;gap:6px;color:#8b909b;font-size:9.5px}
+.btag{padding:1px 5px;border:1px solid #e0e2e8;border-radius:4px;background:#f0f2f6;color:#5e6370;font-family:"Cascadia Code",Consolas,monospace;font-size:8.5px}
+.bstar{
+  position:absolute;top:7px;right:7px;z-index:2;display:inline-flex;align-items:center;justify-content:center;
+  width:24px;height:24px;padding:0;border:1px solid transparent;border-radius:6px;background:transparent;
+  color:#b3b7c0;opacity:0;transition:opacity .12s,color .12s,background .12s;
+}
+.bcard:hover .bstar,.bcard:focus-within .bstar,.bstar.on{opacity:1}
+.bstar.on{color:#d9902a}
+.bstar:hover{background:#f0f2f6;border-color:#e0e2e8}
+.bstar svg{fill:none;stroke:currentColor}
+.bstar.on svg{fill:currentColor}
+.bstar.demo{opacity:1;color:#d9902a;background:#fff7e8;border-color:#f0dcb2}
+.brow{position:relative;display:flex;align-items:center;gap:8px;margin-top:10px;border:.5px solid #e0e2e8;border-radius:10px;background:#fff}
+.brow-hit{display:flex;align-items:flex-start;gap:9px;flex:1;min-width:0;padding:9px 38px 9px 10px;border:0;border-radius:10px;background:transparent;color:inherit;font:inherit;text-align:left}
+.brow:hover{border-color:#cfd3dc;background:#fafbfc}
+.brow .bstar{top:50%;right:8px;transform:translateY(-50%)}
+.brow .bname{font-size:12px}
+.brow .bdesc{-webkit-line-clamp:1;font-size:10.5px}
+.brow .bavatar{width:22px;height:22px;font-size:10px}
+.brow .bfoot{margin:3px 0 0}
+.board-label{display:flex;align-items:center;gap:8px;margin:14px 0 6px;color:#8b909b;font-size:9.5px;letter-spacing:.06em}
+.board-label::after{content:"";flex:1;height:1px;background:#e0e2e8}
+
+/* ── 方向示意 ─────────────────────────────────────────────────────── */
+.diagrams{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+@media (max-width:1280px){.diagrams{grid-template-columns:1fr}}
+.diagram{border:1px solid #d3cec4;background:#faf8f3;box-shadow:0 10px 30px rgba(35,32,26,.06)}
+.diagram header{display:flex;align-items:baseline;gap:10px;padding:12px 15px;border-bottom:1px solid #ddd8ce}
+.diagram h3{margin:0;font-size:12px;font-weight:650}
+.diagram header span{margin-left:auto;color:#83878d;font-family:"Cascadia Code",Consolas,monospace;font-size:9.5px}
+.diagram .canvas{position:relative;height:206px;margin:18px 18px 10px;background:
+  linear-gradient(rgba(22,24,28,.045) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(22,24,28,.045) 1px,transparent 1px);
+  background-size:20px 20px;border:1px solid #e2ddd2}
+.vp-edge{position:absolute;top:0;bottom:0;right:8px;border-right:1px dashed #a5462a;opacity:.75}
+.vp-edge.narrow{right:auto;left:390px}
+.vp-edge span{position:absolute;right:5px;top:4px;color:#a5462a;font:9px/1.3 "Cascadia Code",Consolas,monospace;white-space:nowrap;writing-mode:vertical-rl}
+.box3{position:absolute;height:46px;display:flex;flex-direction:column;justify-content:center;padding:0 9px;border:1px solid #16181c;background:#fff;box-shadow:4px 4px 0 rgba(22,24,28,.08);font-size:9px;line-height:1.35}
+.box3 b{font:700 8px/1 "Cascadia Code",Consolas,monospace;letter-spacing:.06em;color:#a5462a}
+.box3 span{color:#555a61;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.box3.p{width:144px}.box3.s{width:216px}.box3.t{width:196px;border-color:#a5462a;background:#fbeee8}
+.box3.t b{color:#8d3a22}
+.gap4{position:absolute;top:50%;width:8px;text-align:center;color:#8d3a22;font:8px/1 "Cascadia Code",Consolas,monospace}
+.dg-note{position:absolute;left:8px;bottom:7px;color:#777c87;font-size:9px;line-height:1.5}
+.dg-arrow{position:absolute;top:12px;color:#a5462a;font-size:9px;letter-spacing:.06em}
+.overlap{position:absolute;inset:0;border:1px dashed #a5462a;background:repeating-linear-gradient(45deg,rgba(165,70,42,.08) 0 5px,transparent 5px 10px);pointer-events:none}
+
+/* ── 尺寸表 ───────────────────────────────────────────────────────── */
+.spec-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:28px;align-items:start}
+table.spec{width:100%;border-collapse:collapse;font-size:11.5px}
+table.spec th,table.spec td{padding:8px 10px;border-bottom:1px solid #d9d4ca;text-align:left;vertical-align:top}
+table.spec th{color:#777c87;font-weight:600;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+table.spec td:first-child{font-family:"Cascadia Code",Consolas,monospace;color:#8d3a22;white-space:nowrap}
+table.spec tr:last-child td{border-bottom:0}
+.ledger{padding:16px 18px;border:1px solid #d3cec4;background:#faf8f3}
+.ledger h3{margin:0 0 10px;font-size:12px;letter-spacing:.02em}
+.ledger ol{margin:0;padding-left:18px;color:#5c6168;font-size:11px;line-height:1.85}
+.ledger li::marker{color:#a5462a;font-family:"Cascadia Code",Consolas,monospace;font-size:10px}
+.ledger .total{margin-top:12px;padding-top:10px;border-top:1px dashed #c9c4b9;color:#16181c;font-size:11px}
+.ledger .total code{font-family:"Cascadia Code",Consolas,monospace;font-size:10.5px;color:#8d3a22}
+.token-line{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed #ddd8ce;font-size:10.5px;color:#5c6168}
+.token-line:last-child{border-bottom:0}
+.token-line .sw{width:18px;height:18px;border-radius:4px;border:1px solid rgba(0,0,0,.16);flex:none}
+.token-line code{font-family:"Cascadia Code",Consolas,monospace;font-size:10px;color:#8d3a22;min-width:150px}
+.token-line span:last-child{margin-left:auto;color:#8b909b;font-size:9.5px}
+footer{margin-top:64px;padding-top:18px;border-top:1px solid #c9c4b9;color:#7c8188;font-size:10.5px;display:flex;gap:24px;flex-wrap:wrap}
+footer b{color:#16181c;font-weight:600}
+footer code{font-family:"Cascadia Code",Consolas,monospace;font-size:9.5px}
+@media (max-width:900px){
+  .wrap{padding:32px 18px 64px}
+  .doc-head{grid-template-columns:1fr}
+  .head-meta{align-items:flex-start;text-align:left}
+  .head-meta .chipline{justify-content:flex-start}
+  .sec-head{display:block}
+  .sec-head p{text-align:left;margin-top:8px}
+  .spec-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<input id="ann" type="checkbox" checked class="ann-toggle">
+<div class="wrap">
+
+  <header class="doc-head">
+    <div>
+      <p class="eyebrow">dsh-armory · design spec · 2026-11-08</p>
+      <h1>技能<em>收藏</em>与菜单搜索</h1>
+      <p class="lede">把「常用技能」从一条经常滚走的列表，变成输入框旁随时可点的一层。二级菜单保持「最近优先」的排序，但去掉「最近」徽章；搜索只影响展示，收藏只在三级展开，不参与二级排序。</p>
+    </div>
+    <div class="head-meta">
+      <div class="chipline">
+        <span class="chip hot">891 × 737</span>
+        <span class="chip">二级 216</span>
+        <span class="chip">三级 196</span>
+        <span class="chip">行高 28</span>
+        <span class="chip">搜索 26</span>
+        <span class="chip">列表 168 / 6 行</span>
+      </div>
+      <div><b>提案版本</b> v2.5.0 · 新增 2 个 RPC</div>
+      <div><b>范围</b> Skill 看板 + 召唤菜单「技能」</div>
+      <label class="switch" for="ann">显示尺寸标注</label>
+    </div>
+  </header>
+
+  <!-- ═══════════════ A. 完整构图 ═══════════════ -->
+  <section>
+    <div class="sec-head">
+      <h2><span>A / FULL</span>完整构图：一级 → 二级 → 收藏三级</h2>
+      <p>深色与浅色同构图，按默认方向向右展开：一级在左，二级接在它右侧，三级再接在二级右侧。只有贴到视口右缘、右侧剩余不足 204px 时才整体翻到左侧（见 C ②）。</p>
+    </div>
+    <div class="note-strip">
+      <b>读图顺序</b>
+      <div>一级菜单（技能 / MCP / 专家 / 本项目）→ 技能二级：<code>搜索 26</code> → <code>收藏行 28</code> → <code>列表 168</code>（套件组 → 技能）→ 两个管理按钮。168 是 6 行容量；套件组在列表内占 28px + 分割线 9px，有套件时首屏显示 4 条技能，滚动后其余可达，面板高度不变。收藏三级只显示已收藏技能，描述截 48 字，按最近收藏在前；三级面板上沿比收藏行高 8px，列表 168px 正好 6 行，第 7 条起滚动。</div>
+    </div>
+
+    <div class="stages">
+      <!-- ── 深色舞台 ── -->
+      <figure class="stage">
+        <figcaption><b>深色 · 三级右开（默认）</b><span>DSH dark · 891 × 737</span><span class="side">default · opens right</span></figcaption>
+        <div class="frame">
+          <div class="titlebar">
+            <span class="traffic"><i></i><i></i><i></i></span>
+            <span class="t">DeepSeek Harness</span>
+            <span class="r">dsh-armory 2.5.0</span>
+          </div>
+          <div class="workspace">
+            <aside class="rail">
+              <span class="logo">◆</span>
+              <span class="ic on"></span><span class="ic"></span><span class="ic"></span>
+              <span class="sp"></span><span class="ic"></span>
+            </aside>
+            <main class="chat">
+              <div class="chat-head"><b>新会话</b><span>·</span><span>发布说明整理</span><span class="model">deepseek-chat</span></div>
+              <div class="msgs">
+                <div class="msg user"><p>帮我把今天的发布说明整理成 changelog，按「新增 / 修复 / 兼容」分组。</p></div>
+                <div class="msg ai">
+                  <div class="who"><i></i><span>DeepSeek</span></div>
+                  <p>已按 2.5.0 的改动分好组，先给你一版草稿：</p>
+                  <ul>
+                    <li><b>新增</b>：技能收藏、召唤菜单搜索</li>
+                    <li><b>修复</b>：三级菜单贴边时的方向判定</li>
+                    <li><b>兼容</b>：旧宿主未重启时收藏入口隐藏</li>
+                  </ul>
+                  <div class="ghost-line w80"></div>
+                  <div class="ghost-line w62"></div>
+                  <div class="ghost-line w45"></div>
+                </div>
+              </div>
+              <div class="composer">
+                <div class="composer-box">
+                  <p class="draft">帮我把今天的发布说明整理成 changelog</p>
+                  <div class="composer-row">
+                    <span class="tool">＋</span>
+                    <span class="tool" aria-hidden="true">◇</span>
+                    <span class="tool" aria-hidden="true">⌘</span>
+                    <span class="tool sep"></span>
+                    <span class="tool model">深度思考</span>
+                    <button class="summon" aria-label="打开技能、MCP、专家快速调用菜单" aria-expanded="true">
+                      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2.5" y="3.5" width="11" height="9" rx="1.2"/><path d="M6 3.5v9M10 3.5v9M2.5 7h3.5M10 7h3.5"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+
+          <!-- 一级 -->
+          <div class="qm-primary" role="menu">
+            <button class="qm-kind sel">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M8 1.5 13 6.5 8 14.5 3 6.5zM8 4.6 5 6.9 8 11.6 11 6.9z"/></svg>
+              <span>技能</span><span class="cnt">54</span><span class="arw">›</span>
+            </button>
+            <button class="qm-kind">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M6 2v4M10 2v4M4.5 6h7V8a3.5 3.5 0 0 1-7 0zM8 11.5V14"/></svg>
+              <span>MCP</span><span class="cnt">12</span><span class="arw">›</span>
+            </button>
+            <button class="qm-kind">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="8" cy="5" r="2.2"/><path d="M3.2 13.5c.4-2.7 2.3-4.2 4.8-4.2s4.4 1.5 4.8 4.2"/></svg>
+              <span>专家</span><span class="cnt">8</span><span class="arw">›</span>
+            </button>
+            <button class="qm-kind">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 4.5h4l1.2 1.6h6.3v6.4H2zM2 4.5V4a.9.9 0 0 1 .9-.9H6l1 1.4"/></svg>
+              <span>本项目</span><span class="cnt">3</span><span class="arw">›</span>
+            </button>
+          </div>
+
+          <!-- 二级 -->
+          <div class="qm-secondary" role="menu" aria-label="技能可选项">
+            <div class="qm-search">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M13.5 13.5 11 11"/></svg>
+              <input readonly placeholder="搜索技能…" aria-label="搜索技能">
+            </div>
+            <button class="qm-fav open" aria-haspopup="true" aria-expanded="true">
+              <span class="star"><svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" stroke="currentColor" stroke-width="1"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/></svg></span>
+              <span>收藏</span><span class="n">3</span><span class="arw">›</span>
+            </button>
+            <div class="qm-list">
+              <div class="qm-group"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M8 2l6 3.3-6 3.4-6-3.4zM2.4 8.4 8 11.5l5.6-3.1M2.4 11.1 8 14.2l5.6-3.1"/></svg>套件</div>
+              <button class="qm-row suite"><span class="ic"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M8 2l6 3.3-6 3.4-6-3.4zM2.4 8.4 8 11.5l5.6-3.1M2.4 11.1 8 14.2l5.6-3.1"/></svg></span><span class="qm-name">发布流水线</span><span class="qm-badge">4 技能</span><span class="qm-desc">写稿到出片</span></button>
+              <button class="qm-row suite"><span class="ic"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M8 2l6 3.3-6 3.4-6-3.4zM2.4 8.4 8 11.5l5.6-3.1M2.4 11.1 8 14.2l5.6-3.1"/></svg></span><span class="qm-name">前端验收</span><span class="qm-badge">2 技能</span><span class="qm-desc">还原 + 评审</span></button>
+              <div class="qm-sep"></div>
+              <button class="qm-row"><span class="qm-name">dev-expert</span><span class="qm-desc">编程专家：根因调试与代码审查</span></button>
+              <button class="qm-row"><span class="qm-name">remotion-create</span><span class="qm-desc">创建一个 Remotion 视频项目</span></button>
+              <button class="qm-row"><span class="qm-name">pdf</span><span class="qm-desc">PDF 文本、表格与表单处理</span></button>
+              <button class="qm-row"><span class="qm-name">frontend-design</span><span class="qm-desc">高辨识度的前端界面实现</span></button>
+              <button class="qm-row"><span class="qm-name">image-to-ui</span><span class="qm-desc">把截图还原成可运行的 UI</span></button>
+              <button class="qm-row"><span class="qm-name">skill-creator</span><span class="qm-desc">创建、修改与评测一个技能</span></button>
+            </div>
+            <button class="qm-manage">管理技能…</button>
+            <button class="qm-manage">管理套件…</button>
+          </div>
+
+          <!-- 三级 -->
+          <div class="qm-tertiary" role="menu" aria-label="收藏的技能">
+            <button class="qm-row"><span class="qm-name">dev-expert</span><span class="qm-desc">编程专家：根因调试与代码审查</span></button>
+            <button class="qm-row"><span class="qm-name">frontend-design</span><span class="qm-desc">高辨识度的前端界面实现</span></button>
+            <button class="qm-row"><span class="qm-name">pdf</span><span class="qm-desc">PDF 文本、表格与表单处理</span></button>
+          </div>
+
+          <div class="annot">
+            <div class="dim w216"><span>216</span></div>
+            <div class="dim w196"><span>196</span></div>
+            <span class="pin a">1</span>
+            <span class="pin b">2</span>
+            <span class="edge-mark"><span>视口 8</span></span>
+          </div>
+        </div>
+      </figure>
+
+      <!-- ── 浅色舞台 ── -->
+      <figure class="stage">
+        <figcaption><b>浅色 · 三级右开（默认）</b><span>DSH light · 891 × 737</span><span class="side">default · opens right</span></figcaption>
+        <div class="frame light">
+          <div class="titlebar">
+            <span class="traffic"><i></i><i></i><i></i></span>
+            <span class="t">DeepSeek Harness</span>
+            <span class="r">dsh-armory 2.5.0</span>
+          </div>
+          <div class="workspace">
+            <aside class="rail">
+              <span class="logo">◆</span>
+              <span class="ic on"></span><span class="ic"></span><span class="ic"></span>
+              <span class="sp"></span><span class="ic"></span>
+            </aside>
+            <main class="chat">
+              <div class="chat-head"><b>新会话</b><span>·</span><span>发布说明整理</span><span class="model">deepseek-chat</span></div>
+              <div class="msgs">
+                <div class="msg user"><p>帮我把今天的发布说明整理成 changelog，按「新增 / 修复 / 兼容」分组。</p></div>
+                <div class="msg ai">
+                  <div class="who"><i></i><span>DeepSeek</span></div>
+                  <p>已按 2.5.0 的改动分好组，先给你一版草稿：</p>
+                  <ul>
+                    <li><b>新增</b>：技能收藏、召唤菜单搜索</li>
+                    <li><b>修复</b>：三级菜单贴边时的方向判定</li>
+                    <li><b>兼容</b>：旧宿主未重启时收藏入口隐藏</li>
+                  </ul>
+                  <div class="ghost-line w80"></div>
+                  <div class="ghost-line w62"></div>
+                  <div class="ghost-line w45"></div>
+                </div>
+              </div>
+              <div class="composer">
+                <div class="composer-box">
+                  <p class="draft">帮我把今天的发布说明整理成 changelog</p>
+                  <div class="composer-row">
+                    <span class="tool">＋</span>
+                    <span class="tool" aria-hidden="true">◇</span>
+                    <span class="tool" aria-hidden="true">⌘</span>
+                    <span class="tool sep"></span>
+                    <span class="tool model">深度思考</span>
+                    <button class="summon" aria-label="打开技能、MCP、专家快速调用菜单" aria-expanded="true">
+                      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2.5" y="3.5" width="11" height="9" rx="1.2"/><path d="M6 3.5v9M10 3.5v9M2.5 7h3.5M10 7h3.5"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+
+          <div class="qm-primary" role="menu">
+            <button class="qm-kind sel">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M8 1.5 13 6.5 8 14.5 3 6.5zM8 4.6 5 6.9 8 11.6 11 6.9z"/></svg>
+              <span>技能</span><span class="cnt">54</span><span class="arw">›</span>
+            </button>
+            <button class="qm-kind">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M6 2v4M10 2v4M4.5 6h7V8a3.5 3.5 0 0 1-7 0zM8 11.5V14"/></svg>
+              <span>MCP</span><span class="cnt">12</span><span class="arw">›</span>
+            </button>
+            <button class="qm-kind">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="8" cy="5" r="2.2"/><path d="M3.2 13.5c.4-2.7 2.3-4.2 4.8-4.2s4.4 1.5 4.8 4.2"/></svg>
+              <span>专家</span><span class="cnt">8</span><span class="arw">›</span>
+            </button>
+            <button class="qm-kind">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M2 4.5h4l1.2 1.6h6.3v6.4H2zM2 4.5V4a.9.9 0 0 1 .9-.9H6l1 1.4"/></svg>
+              <span>本项目</span><span class="cnt">3</span><span class="arw">›</span>
+            </button>
+          </div>
+
+          <div class="qm-secondary" role="menu" aria-label="技能可选项">
+            <div class="qm-search">
+              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M13.5 13.5 11 11"/></svg>
+              <input readonly placeholder="搜索技能…" aria-label="搜索技能">
+            </div>
+            <button class="qm-fav open" aria-haspopup="true" aria-expanded="true">
+              <span class="star"><svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" stroke="currentColor" stroke-width="1"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/></svg></span>
+              <span>收藏</span><span class="n">3</span><span class="arw">›</span>
+            </button>
+            <div class="qm-list">
+              <div class="qm-group"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M8 2l6 3.3-6 3.4-6-3.4zM2.4 8.4 8 11.5l5.6-3.1M2.4 11.1 8 14.2l5.6-3.1"/></svg>套件</div>
+              <button class="qm-row suite"><span class="ic"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M8 2l6 3.3-6 3.4-6-3.4zM2.4 8.4 8 11.5l5.6-3.1M2.4 11.1 8 14.2l5.6-3.1"/></svg></span><span class="qm-name">发布流水线</span><span class="qm-badge">4 技能</span><span class="qm-desc">写稿到出片</span></button>
+              <button class="qm-row suite"><span class="ic"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M8 2l6 3.3-6 3.4-6-3.4zM2.4 8.4 8 11.5l5.6-3.1M2.4 11.1 8 14.2l5.6-3.1"/></svg></span><span class="qm-name">前端验收</span><span class="qm-badge">2 技能</span><span class="qm-desc">还原 + 评审</span></button>
+              <div class="qm-sep"></div>
+              <button class="qm-row"><span class="qm-name">dev-expert</span><span class="qm-desc">编程专家：根因调试与代码审查</span></button>
+              <button class="qm-row"><span class="qm-name">remotion-create</span><span class="qm-desc">创建一个 Remotion 视频项目</span></button>
+              <button class="qm-row"><span class="qm-name">pdf</span><span class="qm-desc">PDF 文本、表格与表单处理</span></button>
+              <button class="qm-row"><span class="qm-name">frontend-design</span><span class="qm-desc">高辨识度的前端界面实现</span></button>
+              <button class="qm-row"><span class="qm-name">image-to-ui</span><span class="qm-desc">把截图还原成可运行的 UI</span></button>
+              <button class="qm-row"><span class="qm-name">skill-creator</span><span class="qm-desc">创建、修改与评测一个技能</span></button>
+            </div>
+            <button class="qm-manage">管理技能…</button>
+            <button class="qm-manage">管理套件…</button>
+          </div>
+
+          <div class="qm-tertiary" role="menu" aria-label="收藏的技能">
+            <button class="qm-row"><span class="qm-name">dev-expert</span><span class="qm-desc">编程专家：根因调试与代码审查</span></button>
+            <button class="qm-row"><span class="qm-name">frontend-design</span><span class="qm-desc">高辨识度的前端界面实现</span></button>
+            <button class="qm-row"><span class="qm-name">pdf</span><span class="qm-desc">PDF 文本、表格与表单处理</span></button>
+          </div>
+
+          <div class="annot">
+            <div class="dim w216"><span>216</span></div>
+            <div class="dim w196"><span>196</span></div>
+            <span class="pin a">1</span>
+            <span class="pin b">2</span>
+            <span class="edge-mark"><span>视口 8</span></span>
+          </div>
+        </div>
+      </figure>
+    </div>
+
+    <div class="note-strip" style="border-left-color:#2f5fd0;background:#f4f6fb">
+      <b>标注图例</b>
+      <div>① 二级 216px · ② 三级 196px。搜索框 26px、收藏行 28px、列表可视 168px（6 × 28）、面板间距 4px 见 D 段尺寸账。黄色虚线是视口右缘内 8px 的安全线；真实菜单由 JS 实测，不按这张图硬编码。</div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ B. 四个局部状态 ═══════════════ -->
+  <section>
+    <div class="sec-head">
+      <h2><span>B / STATES</span>四个局部状态</h2>
+      <p>搜索只改展示，不改排序；套件组与收藏行在有 query 时隐藏。收藏为空和读取失败都不阻塞技能、MCP、专家和套件。</p>
+    </div>
+    <div class="states">
+
+      <article class="state-card">
+        <header><i>1</i><h3>搜索有结果</h3><span>query = “git”</span></header>
+        <div class="state-body dark">
+          <div class="mini">
+            <div class="mini-panel">
+              <div class="qm-search">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M13.5 13.5 11 11"/></svg>
+                <input readonly value="git" aria-label="搜索技能">
+                <span class="clear">×</span>
+              </div>
+              <div class="qm-list">
+                <button class="qm-row"><span class="qm-name">git-helper</span><span class="qm-desc">常用 Git 操作与冲突处理</span></button>
+                <button class="qm-row"><span class="qm-name">mcp-git</span><span class="qm-desc">通过 MCP 读取仓库历史</span></button>
+              </div>
+              <button class="qm-manage">管理技能…</button>
+            </div>
+            <div class="mini-note"><b>FILTER</b>不区分大小写；匹配 name + description；套件组与收藏行隐藏；底部「管理技能…」保留。</div>
+          </div>
+        </div>
+        <div class="state-foot">主菜单「技能」计数仍是总数 54，不随搜索结果变化。清空后恢复「最近 → 注册表原序」。</div>
+      </article>
+
+      <article class="state-card">
+        <header><i>2</i><h3>搜索无结果</h3><span>query = “zzz”</span></header>
+        <div class="state-body dark">
+          <div class="mini">
+            <div class="mini-panel">
+              <div class="qm-search">
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="5"/><path d="M13.5 13.5 11 11"/></svg>
+                <input readonly value="zzz" aria-label="搜索技能">
+                <span class="clear">×</span>
+              </div>
+              <div class="nores"><b>没有匹配「zzz」的技能</b></div>
+              <button class="qm-manage">管理技能…</button>
+            </div>
+            <div class="mini-note"><b>EMPTY</b>无结果不是错误态：不显示红字，不清空列表，不关闭菜单。</div>
+          </div>
+        </div>
+        <div class="state-foot">Escape 有词时只清词并阻止冒泡；无词时才走现有的关菜单逻辑。</div>
+      </article>
+
+      <article class="state-card">
+        <header><i>3</i><h3>收藏为空</h3><span>0 favorites</span></header>
+        <div class="state-body dark">
+          <div class="mini">
+            <div class="mini-panel p196">
+              <div class="empty"><b>还没有收藏：</b><br>到 Skill 看板点 ☆ 收藏</div>
+            </div>
+            <div class="mini-note"><b>EMPTY</b>三级面板仍可展开；空态只占 196 × 约 90，不撑高二级菜单。</div>
+          </div>
+        </div>
+        <div class="state-foot">读取失败（含旧宿主 404）时整个收藏入口隐藏；看板星标同样隐藏，避免出现点了必失败的假按钮。</div>
+      </article>
+
+      <article class="state-card">
+        <header><i>4</i><h3>看板星标：网格 + 列表</h3><span>grid / list</span></header>
+        <div class="state-body" style="background:#f4f4f6">
+          <div class="board">
+            <div class="board-toolbar">
+              <div class="board-search">搜索 skill…</div>
+              <div class="board-seg"><span class="on">网格</span><span>列表</span></div>
+              <div class="board-entry">套件 <b>2</b></div>
+            </div>
+            <div class="board-grid">
+              <div class="bcard">
+                <button class="bcard-hit">
+                  <div class="bcard-top"><span class="bavatar">D</span><span class="bname">dev-expert</span></div>
+                  <div class="bdesc">编程专家：根因调试、代码审查与重构，先定位再动手。</div>
+                  <div class="bfoot"><span>开发工具</span><span class="btag">用户可调用</span></div>
+                </button>
+                <button class="bstar on" aria-label="取消收藏 dev-expert" aria-pressed="true">
+                  <svg width="14" height="14" viewBox="0 0 16 16" stroke-width="1.2"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/></svg>
+                </button>
+              </div>
+              <div class="bcard">
+                <button class="bcard-hit">
+                  <div class="bcard-top"><span class="bavatar g2">P</span><span class="bname">pdf</span></div>
+                  <div class="bdesc">PDF 文本、表格与表单处理；合并、拆分、抽取。</div>
+                  <div class="bfoot"><span>办公</span><span class="btag">模型可调用</span></div>
+                </button>
+                <button class="bstar demo" aria-label="收藏 pdf" aria-pressed="false">
+                  <svg width="14" height="14" viewBox="0 0 16 16" stroke-width="1.2"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="board-label">列表视图</div>
+            <div class="brow">
+              <button class="brow-hit">
+                <span class="bavatar">R</span>
+                <span style="min-width:0">
+                  <span class="bname" style="display:block">remotion-create</span>
+                  <span class="bdesc" style="display:block">创建一个 Remotion 视频项目</span>
+                  <span class="bfoot"><span class="btag">用户可调用</span></span>
+                </span>
+              </button>
+              <button class="bstar on" aria-label="取消收藏 remotion-create" aria-pressed="true">
+                <svg width="14" height="14" viewBox="0 0 16 16" stroke-width="1.2"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/></svg>
+              </button>
+            </div>
+            <div class="brow">
+              <button class="brow-hit">
+                <span class="bavatar g2">S</span>
+                <span style="min-width:0">
+                  <span class="bname" style="display:block">skill-creator</span>
+                  <span class="bdesc" style="display:block">创建、修改与评测一个技能</span>
+                  <span class="bfoot"><span class="btag">模型可调用</span></span>
+                </span>
+              </button>
+              <button class="bstar" aria-label="收藏 skill-creator" aria-pressed="false">
+                <svg width="14" height="14" viewBox="0 0 16 16" stroke-width="1.2"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="state-foot">结构改为「外层容器 + 主按钮 + 星标按钮」，禁止 button 嵌套。未收藏悬停/聚焦才出现；已收藏常显；触屏常显。</div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ═══════════════ C. 方向与夹取 ═══════════════ -->
+  <section>
+    <div class="sec-head">
+      <h2><span>C / PLACEMENT</span>三级菜单的方向与夹取</h2>
+      <p>以收藏行 DOMRect 为锚点、以视口为边界。右侧剩余 ≥ 204px 向右；否则左侧 ≥ 204px 向左；两侧都不足时贴视口 8px，允许覆盖二级。纵向始终夹在 8px 内。</p>
+    </div>
+    <div class="diagrams">
+
+      <article class="diagram">
+        <header><h3>① 默认向右展开</h3><span>roomRight ≥ 204</span></header>
+        <div class="canvas">
+          <div class="vp-edge"><span>viewport</span></div>
+          <div class="box3 p" style="left:20px;top:76px"><b>PRIMARY</b><span>144</span></div>
+          <div class="box3 s" style="left:168px;top:76px"><b>SECONDARY</b><span>216 · 搜索 / 收藏行 / 列表</span></div>
+          <div class="box3 t" style="left:388px;top:76px"><b>TERTIARY</b><span>196 · 收藏</span></div>
+          <span class="gap4" style="left:164px;top:96px">4</span>
+          <span class="gap4" style="left:384px;top:96px">4</span>
+          <span class="dg-arrow" style="left:390px">› 箭头朝右</span>
+          <span class="dg-note">三级左缘 = 收藏行右缘 + 4；不覆盖二级。</span>
+        </div>
+      </article>
+
+      <article class="diagram">
+        <header><h3>② 贴右缘：向左展开</h3><span>roomRight &lt; 204 · roomLeft ≥ 204</span></header>
+        <div class="canvas">
+          <div class="vp-edge"><span>viewport</span></div>
+          <div class="box3 t" style="left:24px;top:76px"><b>TERTIARY</b><span>196 · 收藏</span></div>
+          <div class="box3 s" style="left:224px;top:76px"><b>SECONDARY</b><span>216 · 搜索 / 收藏行 / 列表</span></div>
+          <div class="box3 p" style="left:444px;top:76px"><b>PRIMARY</b><span>144</span></div>
+          <span class="gap4" style="left:220px;top:96px">4</span>
+          <span class="gap4" style="left:440px;top:96px">4</span>
+          <span class="dg-arrow" style="left:26px">‹ 箭头朝左</span>
+          <span class="dg-note">真实输入框贴右缘时就是这一种：二级 hflip，三级跟着二级向左。</span>
+        </div>
+      </article>
+
+      <article class="diagram">
+        <header><h3>③ 两侧都不足：贴边 8px</h3><span>roomRight &lt; 204 && roomLeft &lt; 204</span></header>
+        <div class="canvas">
+          <div class="vp-edge"><span>viewport</span></div>
+          <div class="box3 t" style="left:8px;top:76px"><b>TERTIARY</b><span>196 · 贴左 8px</span></div>
+          <div class="box3 s" style="left:120px;top:76px"><b>SECONDARY</b><span>216 · 可被覆盖</span></div>
+          <div class="box3 p" style="left:344px;top:76px"><b>PRIMARY</b><span>144</span></div>
+          <div class="overlap" style="left:120px;top:76px;width:84px;height:46px"></div>
+          <span class="dg-arrow" style="left:10px">‹ 箭头朝左</span>
+          <span class="dg-note">贴边后 z-index 高于二级；面板本体不裁切，列表内部滚动。</span>
+        </div>
+      </article>
+
+      <article class="diagram">
+        <header><h3>④ 390px 窄窗</h3><span>max-width: calc(100vw - 16px)</span></header>
+        <div class="canvas">
+          <div class="vp-edge narrow"><span>390 视口</span></div>
+          <div class="box3 t" style="left:8px;top:76px;width:196px"><b>TERTIARY</b><span>196（min(196, 374))</span></div>
+          <div class="box3 s" style="left:110px;top:76px;width:216px"><b>SECONDARY</b><span>216（max 362）</span></div>
+          <div class="box3 p" style="left:228px;top:76px;width:144px"><b>PRIMARY</b><span>144</span></div>
+          <span class="dg-note">窄窗不可能并排；三级优先贴边并覆盖二级，纵向仍夹 8px。二级自身 max-width 兜底，不出现横向滚动。</span>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- ═══════════════ D. 尺寸与令牌 ═══════════════ -->
+  <section>
+    <div class="sec-head">
+      <h2><span>D / METRICS</span>尺寸账与令牌近似</h2>
+      <p>280px 按 border-box 计（宽高就是面板外框）：搜索 26 + 间距 2 + 收藏 28 + 间距 2 + 列表 168 + 管理按钮区 42 = 268；再加 padding 10 + 边框 2 = 280。两个管理按钮各 20px 是这里唯一的取舍。</p>
+    </div>
+    <div class="spec-grid">
+      <div>
+        <table class="spec">
+          <thead><tr><th>元素</th><th>尺寸</th><th>约束</th></tr></thead>
+          <tbody>
+            <tr><td>二级面板</td><td>216 × min(280, 56vh)</td><td>content-box；max-width: calc(100vw - 28px)</td></tr>
+            <tr><td>三级面板</td><td>196 宽</td><td>max-width: calc(100vw - 16px)；行高 28</td></tr>
+            <tr><td>搜索框</td><td>26 高 · 字号 11.5/12</td><td>放大镜 11；清空 16×16；左 padding 25</td></tr>
+            <tr><td>收藏行</td><td>28 高</td><td>数量徽章 9.5px；箭头随展开侧</td></tr>
+            <tr><td>列表视口</td><td>168（6 × 28）</td><td>overflow-y:auto；6px 细滚动条</td></tr>
+            <tr><td>管理按钮</td><td>20 高 × 2</td><td>border-top 1；始终贴底；第二个无上边距</td></tr>
+            <tr><td>三级列表</td><td>168（6 行）</td><td>超出内部滚动；空态不占满</td></tr>
+            <tr><td>展开间距</td><td>4</td><td>面板之间；视口安全线 8</td></tr>
+            <tr><td>看板星标</td><td>24 × 24</td><td>网格右上 7/7；列表右侧 8 垂直居中</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <aside class="ledger">
+        <h3>高度账（二级，content-box）</h3>
+        <ol>
+          <li>搜索 <code>26</code></li>
+          <li>间距 <code>3</code></li>
+          <li>收藏行 <code>28</code></li>
+          <li>间距 <code>3</code></li>
+          <li>列表视口 <code>168</code>（6 × 28）</li>
+          <li>管理按钮区 <code>42</code>（2 + 20 + 20）</li>
+        </ol>
+        <div class="total">合计 <code>268</code>；加 padding 10 + 边框 2 = 外高 <code>280</code>（border-box 上限）。56vh 在 737 高窗口里约 412，不触发收缩。</div>
+      </aside>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:28px">
+      <div class="ledger">
+        <h3>深色近似令牌</h3>
+        <div class="token-line"><span class="sw" style="background:#1e2026"></span><code>--mcp-bg-1</code><span>≈ layer-1</span></div>
+        <div class="token-line"><span class="sw" style="background:#353841"></span><code>--mcp-line</code><span>≈ border-l2</span></div>
+        <div class="token-line"><span class="sw" style="background:#e9eaee"></span><code>label-primary</code><span>正文</span></div>
+        <div class="token-line"><span class="sw" style="background:#a7abb5"></span><code>label-secondary</code><span>次级</span></div>
+        <div class="token-line"><span class="sw" style="background:#777c87"></span><code>label-tertiary</code><span>描述 / 占位</span></div>
+        <div class="token-line"><span class="sw" style="background:#5b8cff"></span><code>--mcp-accent</code><span>品牌主色</span></div>
+        <div class="token-line"><span class="sw" style="background:#e9a545"></span><code>--mcp-cat-auto</code><span>收藏星标（沿用现有琥珀）</span></div>
+      </div>
+      <div class="ledger">
+        <h3>浅色近似令牌</h3>
+        <div class="token-line"><span class="sw" style="background:#ffffff"></span><code>--mcp-bg-1</code><span>≈ layer-1</span></div>
+        <div class="token-line"><span class="sw" style="background:#e0e2e8"></span><code>--mcp-line</code><span>≈ border-l2</span></div>
+        <div class="token-line"><span class="sw" style="background:#1d1f25"></span><code>label-primary</code><span>正文</span></div>
+        <div class="token-line"><span class="sw" style="background:#5e6370"></span><code>label-secondary</code><span>次级</span></div>
+        <div class="token-line"><span class="sw" style="background:#8b909b"></span><code>label-tertiary</code><span>描述 / 占位</span></div>
+        <div class="token-line"><span class="sw" style="background:#3568f0"></span><code>--mcp-accent</code><span>品牌主色</span></div>
+        <div class="token-line"><span class="sw" style="background:#d9902a"></span><code>--mcp-cat-auto</code><span>收藏星标（沿用现有琥珀）</span></div>
+      </div>
+    </div>
+
+    <div class="note-strip" style="margin-top:24px">
+      <b>近似项说明</b>
+      <div>本稿的色值是截图近似，不新增运行时令牌。实现仍走现有 <code>--mcp-bg-1 / --mcp-line / --mcp-accent / --mcp-cat-auto / --dsw-alias-label-*</code>；星标实心用 <code>--mcp-cat-auto</code>，空心用 <code>--mcp-mut</code>。阴影用 <code>var(--dsw-elevation-overlay, 0 8px 28px rgba(0,0,0,.14))</code>。</div>
+    </div>
+  </section>
+
+  <footer>
+    <div><b>文件</b> docs/design-skill-favorites-mockup.html</div>
+    <div><b>基线</b> dsh-armory 2.4.10 · client.js 9194 / 9649 / 9967 / 15240</div>
+    <div><b>说明</b> 纯静态预览，不接真实 RPC；尺寸以实机截图与代码锚点为准。</div>
+  </footer>
+</div>
+</body>
+</html>

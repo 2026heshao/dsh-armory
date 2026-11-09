@@ -70,6 +70,8 @@ About 185 of the 429 experts have no public persona file. Armory reads your loca
 
 The small icon to the right of the composer opens the summon menu. Click a skill to insert `/skill-name`, click an MCP server to name its `mcp__server__*` tools, click an expert to attach it to the current session. The fourth row, This project, lists only the skills and MCP servers that belong to the current project. Recently used entries float to the top.
 
+The skill submenu now has a search box at the top: typing filters by name and description. The Favorites row below it opens the skills you starred, most recent first, six per page; click one to insert its `/name` and close the menu. When there is not enough room on the right, the panel flips left or clamps to the viewport edge.
+
 Skills you use together can be bundled into a suite. One click inserts all of its `/name` tokens in order, so you do not have to hunt through the list every time.
 
 ### Markets: four shelves, and installs you can find later
@@ -78,7 +80,7 @@ Connectors, skills, experts and plugins live in the same panel. No second websit
 
 **Connectors**: 316 official WorkBuddy connectors. 242 can be installed; 74 CLI or token-based ones are marked display-only with the reason. Armory checks local dependencies before install. After install, the card reports the real state: connected, needs authorization, or not connected. A 401 or 403 gives you a reauthorize action instead of a reconnect loop. Token-based connectors also tell you where to apply for credentials, with public https links only. No guessed URLs, no filling in values for you.
 
-**Skills**: SkillHub's public API, 190,000+ skills. Search, sort, install in one click. Each file is checked against its sha256 and written to `~/.agents/skills/`, so it is live immediately. The card says "installed 3 hours ago" and stays highlighted for 7 days. The filter bar has a recent-installs timeline. If the board name differs from the market name, the card shows the original name. The top of the board switches between Global and each workspace; a workspace shows only the skills under its `.agents/skills` and `.dsh/skills`. Unneeded skills can be removed from the detail pane after a second confirmation; removal is permanent.
+**Skills**: SkillHub's public API, 190,000+ skills. Search, sort, install in one click. Each file is checked against its sha256 and written to `~/.agents/skills/`, so it is live immediately. The card says "installed 3 hours ago" and stays highlighted for 7 days. The filter bar has a recent-installs timeline. If the board name differs from the market name, the card shows the original name. The top of the board switches between Global and each workspace; a workspace shows only the skills under its `.agents/skills` and `.dsh/skills`. Star a skill to favorite it; the same state is shared by the grid, list and detail views, most recent first, up to 20. Uninstalling a skill keeps its favorite. Unneeded skills can be removed from the detail pane after a second confirmation; removal is permanent.
 
 **Experts**: 429, with category filters and search. Summon from the card.
 

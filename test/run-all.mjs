@@ -143,6 +143,12 @@ const SUITES = [
   // 里套件工具层与召唤菜单插入链的**源码原文**抽进 vm 真跑（与 install-toast.mjs 同套路），
   // 顺带钉住「引用套件 = 展开成逐个 /name」与「最近使用按成员而非套件名上报」。
   { name: "suites-client（自定义套件：id 归属契约/展开引用/三级写通道降级）", file: "suites-client.mjs" },
+  // 技能收藏数据层（lib/skill-favorites.js）：name 唯一、重复收藏置顶、20 上限淘汰最旧、
+  // name/description 截断、原子写与「读取永不抛错」两档。mkdtemp + rootDir 注入，零网络。
+  { name: "skill-favorites（技能收藏：归一/上限/原子写/读取永不抛错）", file: "skill-favorites.mjs" },
+  // 收藏的 UI 侧：搜索过滤（name+description、保序）、三级右/左/贴边定位与纵向夹取、
+  // orderSubItems 排序保留但徽章字段消失、看板三处星标结构、RPC 三处契约。含三条反向自测。
+  { name: "skill-favorites-ui（收藏：搜索/三级定位/排序/三处星标接线）", file: "skill-favorites-ui.mjs" },
   // 已安装 skill 的卸载数据层（lib/skill-remove.js）：全仓唯一会永久删文件的函数，
   // 用例重点不是 happy path，而是「不能删什么」——来源白名单（bundled/runtime/custom）、
   // 根目录自身与 `..` 穿越、跨来源根、缺 SKILL.md、符号链接只删链接 / 祖先链接逃逸。
