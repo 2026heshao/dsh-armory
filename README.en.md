@@ -70,7 +70,7 @@ About 185 of the 429 experts have no public persona file. Armory reads your loca
 
 The small icon to the right of the composer opens the summon menu. Click a skill to insert `/skill-name`, click an MCP server to name its `mcp__server__*` tools, click an expert to attach it to the current session. The fourth row, This project, lists only the skills and MCP servers that belong to the current project. Recently used entries float to the top.
 
-The skill submenu now has a search box at the top: typing filters by name and description. The Favorites row below it opens the skills you starred, most recent first, six per page; click one to insert its `/name` and close the menu. When there is not enough room on the right, the panel flips left or clamps to the viewport edge.
+The skill submenu now has a search box at the top: typing filters by name and description. The Favorites row below it opens the skills you starred, most recent first, six per page; click one to insert its `/name` and close the menu. When there is not enough room on the right, the panel flips left or clamps to the viewport edge. To favorite a skill, right-click it right here (right-click again to remove) instead of going back to the board; favorited rows show a filled star at the end.
 
 Skills you use together can be bundled into a suite. One click inserts all of its `/name` tokens in order, so you do not have to hunt through the list every time.
 
