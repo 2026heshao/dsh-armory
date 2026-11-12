@@ -211,6 +211,26 @@ const cwd = join(base, "project");
   ok("符号链接 + SKILL.md 路径：返回 kind=symlink", manifestResult.kind === "symlink");
   ok("符号链接 + SKILL.md 路径：只删链接", !(await exists(link2)));
   ok("符号链接 + SKILL.md 路径：目标目录与清单保留", await exists(join(external2, "SKILL.md")));
+
+  // 宿主注册表真实形态：path 是链接目标的 realpath（落在根外），仍必须只删根内链接。
+  const external3 = await makeSkill(join(base, "external", "realpath-link"));
+  const link3 = join(root, "realpath-link");
+  await symlink(external3, link3, linkType);
+  const realpathResult = await removeSkillFromDisk({ source: "user-agents", path: external3 }, { home });
+  ok("realpath 输入：返回 kind=symlink", realpathResult.kind === "symlink");
+  ok("realpath 输入：只删根内链接", !(await exists(link3)));
+  ok("realpath 输入：目标目录与清单保留", await exists(join(external3, "SKILL.md")));
+
+  const external4 = await makeSkill(join(base, "external", "realpath-manifest"));
+  const link4 = join(root, "realpath-manifest");
+  await symlink(external4, link4, linkType);
+  const realpathManifest = await removeSkillFromDisk(
+    { source: "user-agents", path: join(external4, "SKILL.md") },
+    { home },
+  );
+  ok("realpath 清单输入：返回 kind=symlink", realpathManifest.kind === "symlink");
+  ok("realpath 清单输入：只删根内链接", !(await exists(link4)));
+  ok("realpath 清单输入：目标清单保留", await exists(join(external4, "SKILL.md")));
 }
 
 // ── 7. 祖先符号链接逃逸：路径字符串在根内、真实位置在根外 → 拒绝 ───────────────

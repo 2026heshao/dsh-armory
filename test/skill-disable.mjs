@@ -328,19 +328,49 @@ const cwd = join(base, 'project');
 // ── 6. 符号链接 ──────────────────────────────────────────────────────────────
 const linkType = process.platform === 'win32' ? 'junction' : 'dir';
 {
-  // 指向根外的链接目录：realpath 闸门拒绝，真实内容不被触碰。
+  // 指向根外的链接目录：这是宿主注册表的真实形态——path 是链接目标的 realpath。
+  // 必须允许写到目标文件，链接本体保持不动；这正是 issue 反馈的 GUI 失败场景。
   const realDir = join(base, 'real-skill');
   await mkdir(realDir, { recursive: true });
   await writeFile(join(realDir, 'SKILL.md'), DEMO_FRONTMATTER);
   const linked = join(home, '.dsh', 'skills', 'linked-out');
   await mkdir(join(home, '.dsh', 'skills'), { recursive: true });
   await symlink(realDir, linked, linkType);
+  const byRealPath = await setSkillModelInvocationOnDisk(
+    { name: 'linked-out', source: 'user-dsh', path: realDir },
+    { disabled: true, home, cwd },
+  );
+  ok('链接目录指向根外（realpath 输入）：禁用成功', byRealPath.disabled === true);
+  ok('链接目录指向根外：链接本体仍是链接', (await lstat(linked)).isSymbolicLink());
+  ok(
+    '链接目录指向根外：标志落在真实文件上',
+    parseFrontmatter(await readFile(join(realDir, 'SKILL.md'), 'utf8'))?.[DISABLED_INVOCATION_KEY] === true,
+  );
+
+  // 传链接路径（旧测试形态）同样成功，且是幂等重放。
+  const byLinkPath = await setSkillModelInvocationOnDisk(
+    { name: 'linked-out', source: 'user-dsh', path: linked },
+    { disabled: true, home, cwd },
+  );
+  ok('链接目录指向根外（链接路径输入）：幂等成功', byLinkPath.disabled === true);
+  ok('链接目录指向根外（链接路径输入）：链接仍未被替换', (await lstat(linked)).isSymbolicLink());
+
+  // 祖先链接（根内 link/sub/SKILL.md）仍必须拒绝：不能借目录链接把写入面带出根。
+  const externalRoot = join(base, 'ancestor-external');
+  const crafted = join(externalRoot, 'crafted');
+  await mkdir(crafted, { recursive: true });
+  await writeFile(join(crafted, 'SKILL.md'), DEMO_FRONTMATTER);
+  const bridge = join(home, '.dsh', 'skills', 'bridge');
+  await symlink(externalRoot, bridge, linkType);
   await expectThrow(
-    '链接目录指向根外：拒绝',
-    () => setSkillModelInvocationOnDisk({ source: 'user-dsh', path: linked }, { disabled: true, home, cwd }),
+    '祖先链接指向根外：拒绝',
+    () => setSkillModelInvocationOnDisk(
+      { source: 'user-dsh', path: join(bridge, 'crafted') },
+      { disabled: true, home, cwd },
+    ),
     '指向了 skills 根目录之外',
   );
-  ok('链接目录指向根外：真实文件未被改动', (await readFile(join(realDir, 'SKILL.md'), 'utf8')) === DEMO_FRONTMATTER);
+  ok('祖先链接指向根外：真实文件未被改动', (await readFile(join(crafted, 'SKILL.md'), 'utf8')) === DEMO_FRONTMATTER);
 
   // 指向根内的链接目录：允许，且写的是真实文件、链接本体保持链接。
   const innerTarget = join(home, '.dsh', 'skills', 'inner-target');

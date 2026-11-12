@@ -108,8 +108,8 @@ ok('已禁用空态文案', source.includes("当前没有已禁用的 skill；�
 section('5. 链接警告与后端字段');
 ok('后端导入 describeSkillLink', hostSource.includes('import { describeSkillLink } from "./skill-links.js";'));
 ok('后端只对四类来源探测链接', hostSource.includes('const SKILL_LINK_SOURCES = new Set(["user-agents", "user-dsh", "project-agents", "project-dsh"]);'));
-ok('listSkills 与 skillDetail 都带链接位', count(hostSource, '...(await skillLinkFields(skill))') === 2,
-  `x${count(hostSource, '...(await skillLinkFields(skill))')}`);
+ok('listSkills 与 skillDetail 都带链接位', count(hostSource, '...(await skillLinkFields(skill, options))') === 2,
+  `x${count(hostSource, '...(await skillLinkFields(skill, options))')}`);
 ok('详情只在 linked 时渲染共享源警告', source.includes('summaryDisableReady && summary.linked'));
 ok('警告文案带真实目标', source.includes('共用同一来源的其他 agent 也会受影响。'));
 ok('旧的「没有启用/禁用开关」注释不得复活', !source.includes('没有启用/禁用开关'));
