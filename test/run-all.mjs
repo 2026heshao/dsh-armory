@@ -154,6 +154,13 @@ const SUITES = [
   // 根目录自身与 `..` 穿越、跨来源根、缺 SKILL.md、符号链接只删链接 / 祖先链接逃逸。
   // 全部落在 mkdtemp 下（home / cwd 注入），零网络、绝不碰真实 ~/.agents 或 ~/.dsh。
   { name: "skill-remove（已安装 skill 卸载：来源白名单与路径边界）", file: "skill-remove.mjs" },
+  // 启停开关的链接警告数据层（lib/skill-links.js）：目录 / 清单 / 祖先目录经过链接时
+  // 必须识别为 linked，并给出共享源 realpath；相对 / 空 / 不存在路径一律 false，不报假警告。
+  // Windows 用 junction（无需管理员），mkdtemp 隔离，含一条反向自测。
+  { name: "skill-links（启停开关：符号链接共享源判定）", file: "skill-links.mjs" },
+  // 启停开关的看板接线：卡片 / 列表 / 详情三处入口、四类来源 + 磁盘 path 闸门、
+  // 乐观更新回滚、已禁用筛选、后端 linked 字段与 i18n。含两条反向自测。
+  { name: "skill-disable-ui（启停开关：三处入口/来源闸门/回滚/筛选）", file: "skill-disable-ui.mjs" },
   // 技能禁用数据层（lib/skill-disable.js）：工具裁缝「禁用 / 释放」的落盘点，写的是用户
   // 的 SKILL.md。用例重点同样是「不能写什么」——来源白名单、根目录边界、形态校验
   // （缺 frontmatter / BOM / 非 .md）、符号链接（根外拒绝、根内写 realpath 不动链接），

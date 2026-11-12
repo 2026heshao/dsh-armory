@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dsh-armory · Skill 启停开关 · 看板布局提案</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   dsh-armory「Skill 启停开关」看板布局提案（v1）
+   目的：不改业务代码，先把三件事对齐——
+     ① 开关放在哪三个面（网格卡片 / 列表行 / 详情）；
+     ② 四个状态（启用 / 已禁用 / 写入中 / 只读来源）长什么样；
+     ③ 尺寸与留白，和现有星标、MCP 开关同一套几何。
+   配色为 DSH 面板令牌的近似值，仅用于评审构图。
+   ═══════════════════════════════════════════════════════════════════ */
+*{box-sizing:border-box}
+html{color-scheme:light}
+body{
+  margin:0;
+  background:#efede7;
+  background-image:
+    linear-gradient(rgba(22,24,28,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(22,24,28,.035) 1px,transparent 1px);
+  background-size:32px 32px;
+  color:#16181c;
+  font:14px/1.62 "Avenir Next","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"Cascadia Code","SFMono-Regular",Consolas,"Liberation Mono",monospace;font-variant-numeric:tabular-nums}
+.wrap{max-width:1720px;margin:0 auto;padding:54px 28px 96px}
+.doc-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:36px;align-items:end;padding-bottom:26px;border-bottom:2px solid #16181c}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;margin:0 0 14px;color:#a5462a;font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase}
+.eyebrow::before{content:"";width:26px;height:2px;background:#a5462a}
+h1{margin:0;font-family:Georgia,"Songti SC","SimSun",serif;font-weight:500;font-size:clamp(36px,4vw,62px);line-height:1.05;letter-spacing:-.025em}
+h1 em{font-style:normal;color:#a5462a}
+.lede{max-width:820px;margin:18px 0 0;color:#555a61;font-size:14.5px;line-height:1.75}
+.head-meta{display:flex;flex-direction:column;gap:8px;align-items:flex-end;text-align:right;font-size:11px;color:#6b7077}
+.head-meta b{color:#16181c;font-weight:650}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border:1px solid #cfcac0;border-radius:999px;background:#f8f6f1;color:#4c514f;font-size:10.5px;letter-spacing:.02em}
+.chip.hot{border-color:#d8a48f;background:#fbeee8;color:#8d3a22}
+.chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+
+section{margin-top:62px}
+.sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding-bottom:14px;border-bottom:1px solid #c9c4b9;margin-bottom:24px}
+.sec-head h2{margin:0;font-family:Georgia,"Songti SC","SimSun",serif;font-weight:500;font-size:26px;letter-spacing:-.01em}
+.sec-head h2 span{color:#8b8f95;font-family:"Cascadia Code",Consolas,monospace;font-size:11px;letter-spacing:.12em;margin-right:12px;vertical-align:3px}
+.sec-head p{margin:0;max-width:760px;color:#62676e;font-size:12px;line-height:1.65;text-align:right}
+.note-strip{display:flex;gap:14px;align-items:flex-start;padding:12px 16px;margin:0 0 22px;border-left:3px solid #a5462a;background:#faf7f1;color:#565b61;font-size:12px;line-height:1.7}
+.note-strip b{color:#16181c}
+.note-strip code{font-family:"Cascadia Code",Consolas,monospace;font-size:11px;color:#8d3a22}
+.stages{display:flex;gap:26px;align-items:flex-start;overflow-x:auto;padding:6px 4px 28px;scrollbar-width:thin}
+.stage{flex:none}
+.stage-label{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6b7077}
+.stage-label b{color:#16181c;font-weight:700}
+.stage-label .tag{padding:2px 7px;border:1px solid #d7d2c7;border-radius:3px;background:#f8f6f1;font-size:10px;letter-spacing:0;text-transform:none;color:#7c817f}
+.panel{background:#f7f5f0;border:1px solid #d7d2c7;border-radius:12px;padding:16px;box-shadow:0 10px 30px -22px rgba(22,24,28,.45)}
+.caption{margin:9px 2px 0;color:#6b7077;font-size:11px;line-height:1.62;max-width:560px}
+.caption b{color:#16181c;font-weight:650}
+.caption .num{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:#16181c;color:#f8f6f1;font:9.5px/15px "Cascadia Code",Consolas,monospace;margin-right:4px;vertical-align:1px}
+
+/* ── 通用小件 ─────────────────────────────────────────────────────── */
+.avatar{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;flex:none;font-size:13px;font-weight:650;line-height:1;color:#fff;background:linear-gradient(145deg,#4c7a68,#2f5b4b);border:1px solid rgba(22,24,28,.12);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
+.avatar.sm{width:22px;height:22px;font-size:11px;background:linear-gradient(145deg,#7a5f4c,#5b4334)}
+.avatar.lg{width:42px;height:42px;font-size:17px;background:linear-gradient(145deg,#a5462a,#7c2f1b)}
+.badge{display:inline-flex;align-items:center;padding:1px 6px;border:1px solid #d7d2c7;border-radius:3px;background:#fffdf9;color:#6b7077;font-size:9.5px;line-height:15px;white-space:nowrap}
+.badge.model{border-color:#c9d9cf;background:#f1f7f3;color:#2f6b4f}
+.badge.user{border-color:#d8d2c4;background:#faf7f1;color:#6b6252}
+.badge.warn{border-color:#e2c9a4;background:#fbf0de;color:#8f530f;font-weight:600}
+.badge.readonly{border-color:#d7d2c7;background:#f1efe9;color:#7c817f}
+.cat{font-size:10.5px;line-height:16px;color:#6b7077;white-space:nowrap}
+.time{font-size:10px;line-height:16px;color:#8b8f95;white-space:nowrap;font-variant-numeric:tabular-nums}
+.star{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:1px solid transparent;border-radius:6px;background:transparent;color:#a8a49a;font-size:14px;line-height:1;cursor:pointer}
+.star.on{color:#b26a1f}
+.star:hover{background:#f1efe9;border-color:#d7d2c7}
+.star.static{position:static;opacity:1}
+
+/* 开关：与现有 .dsh-mcp-toggle 同几何（34×19） */
+.sw{position:relative;width:34px;height:19px;flex:none;padding:0;border:1px solid transparent;border-radius:999px;background:#c9c4b9;cursor:pointer;transition:background .18s,border-color .18s;box-shadow:none}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(22,24,28,.18);transition:left .18s}
+.sw[aria-checked="true"]{background:#a5462a}
+.sw[aria-checked="true"]::after{left:17px}
+.sw:focus-visible{outline:2px solid #a5462a;outline-offset:2px}
+.sw[aria-busy="true"]{cursor:progress;opacity:.7}
+.sw[disabled]{cursor:not-allowed}
+
+/* ── 网格卡片 ─────────────────────────────────────────────────────── */
+.grid-demo{display:flex;gap:14px;flex-wrap:wrap}
+.card{position:relative;width:258px;flex:none}
+.card-hit{display:block;width:100%;padding:0;border:0;background:0 0;color:inherit;font:inherit;text-align:left;cursor:pointer;border-radius:12px}
+.card-inner{display:flex;flex-direction:column;gap:8px;height:100%;padding:12px 13px;border:.5px solid #d7d2c7;border-radius:12px;background:#fffdf9;transition:background .12s,border-color .12s}
+.card-hit:hover .card-inner{background:#fdfaf3;border-color:#bdb6a9}
+.card-top{display:flex;align-items:center;gap:8px;min-width:0;padding-right:26px}
+.card-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;font-size:13px;line-height:18px;color:#16181c}
+.card .desc{color:#555a61;font-size:12px;line-height:17px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .note{color:#8b8f95;font-size:11px;line-height:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .foot{display:flex;align-items:center;gap:8px;min-width:0;padding-right:44px}
+.card .foot .badges{display:flex;align-items:center;gap:4px;margin-left:auto;min-width:0}
+.card .star{position:absolute;top:7px;right:7px;z-index:2}
+.card .sw{position:absolute;right:12px;bottom:12px;z-index:2}
+.card.off .card-inner{background:#f7f5f0;border-color:#d7d2c7}
+.card.off .card-name{color:#6b7077}
+.card.readonly .card-inner{border-style:dashed}
+.card.readonly .foot{padding-right:0}
+.card.readonly .foot .badges{margin-left:auto}
+
+/* ── 列表行 ───────────────────────────────────────────────────────── */
+.rows{width:720px;max-width:100%;background:#fffdf9;border:.5px solid #d7d2c7;border-radius:10px;padding:4px}
+.row{position:relative;display:flex;align-items:flex-start;gap:9px;padding:9px 76px 9px 10px;border-radius:8px}
+.row:hover{background:#f7f5f0}
+.row .main{min-width:0;flex:1 1 auto}
+.row .name{font-weight:500;font-size:13px;line-height:18px;color:#16181c;word-break:break-word}
+.row .sub{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:3px}
+.row .src{color:#8b8f95;font-size:10.5px;line-height:16px;font-family:"Cascadia Code",Consolas,monospace}
+.row .desc{color:#555a61;font-size:12px;line-height:17px;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.row .star{position:absolute;top:50%;right:6px;transform:translateY(-50%)}
+.row .sw{position:absolute;top:50%;right:36px;transform:translateY(-50%)}
+.row.off .name{color:#6b7077}
+.row.readonly{padding-right:34px}
+.row.readonly .star{right:6px}
+
+/* ── 详情 ─────────────────────────────────────────────────────────── */
+.detail{width:452px;max-width:100%;background:#fffdf9;border:.5px solid #d7d2c7;border-radius:12px;overflow:hidden}
+.d-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:14px 16px 10px}
+.d-id{display:flex;align-items:flex-start;gap:10px;min-width:0}
+.d-title{font-size:15px;font-weight:500;color:#16181c;line-height:20px;word-break:break-word}
+.d-badges{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:4px}
+.d-src{margin:4px 0 0;color:#8b8f95;font-size:11px;line-height:16px;font-family:"Cascadia Code",Consolas,monospace;word-break:break-all}
+.d-head-actions{display:flex;align-items:center;gap:8px;flex:none}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border:1px solid #d7d2c7;border-radius:7px;background:#fffdf9;color:#3f444a;font:inherit;font-size:11.5px;line-height:17px;cursor:pointer;white-space:nowrap}
+.btn:hover{background:#f7f5f0;border-color:#bdb6a9}
+.btn.ghost{background:transparent}
+.btn.danger{color:#a5462a;border-color:#e0c3b7}
+.d-body{padding:4px 16px 16px;display:flex;flex-direction:column;gap:12px}
+.ctrl-row{display:flex;gap:12px;align-items:flex-start;padding:10px 12px;border:1px solid #e3ded4;border-radius:10px;background:#faf7f1}
+.ctrl-main{display:flex;align-items:center;gap:9px;flex:none;min-width:92px;padding-top:1px}
+.ctrl-label{font-size:12px;font-weight:650;color:#16181c;white-space:nowrap}
+.ctrl-state{font-size:11px;line-height:16px;color:#8f530f;font-weight:600;white-space:nowrap}
+.ctrl-hint{margin:0;color:#62676e;font-size:11.5px;line-height:1.6}
+.ctrl-hint b{color:#16181c;font-weight:650}
+.d-sec{display:flex;flex-direction:column;gap:4px}
+.d-sec>b{font-size:12px;font-weight:650;color:#16181c}
+.d-sec>p{margin:0;color:#555a61;font-size:12px;line-height:17px}
+.meta{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 14px;font-size:12px;word-break:break-all}
+.meta>span{color:#8b8f95}
+.meta>b{font-weight:400;color:#16181c;min-width:0}
+.d-act{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:2px}
+.d-flash{display:none;align-self:flex-start;padding:5px 12px;border-radius:6px;background:#f1f7f3;color:#2f6b4f;font-size:12px;line-height:17px}
+.d-flash.err{display:inline-flex;background:#fbeee8;color:#a5462a}
+
+/* ── 表格 ─────────────────────────────────────────────────────────── */
+.table{width:100%;border-collapse:collapse;background:#fffdf9;border:1px solid #d7d2c7;border-radius:10px;overflow:hidden;font-size:12px}
+.table th,.table td{padding:10px 12px;border-bottom:1px solid #e7e3da;text-align:left;vertical-align:top;line-height:1.65}
+.table th{background:#f7f5f0;color:#6b7077;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.table tr:last-child td{border-bottom:0}
+.table td b{color:#16181c;font-weight:650}
+.table .mono{font-size:11px}
+.table .ok{color:#2f6b4f;font-weight:650}
+.table .warn{color:#8f530f;font-weight:650}
+.table .mut{color:#8b8f95}
+.two-col{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:26px;align-items:start}
+.list{display:flex;flex-direction:column;gap:10px;padding:0;margin:0;list-style:none}
+.list li{padding:10px 12px;border-left:2px solid #d7d2c7;background:#faf7f1;color:#565b61;font-size:12px;line-height:1.7}
+.list li b{color:#16181c}
+.list li.hot{border-left-color:#a5462a;background:#fbeee8}
+.list li.warn{border-left-color:#d8a45f;background:#fbf0de}
+.kbd{display:inline-block;padding:1px 5px;border:1px solid #cfcac0;border-bottom-width:2px;border-radius:4px;background:#fffdf9;font-family:"Cascadia Code",Consolas,monospace;font-size:10.5px;color:#3f444a}
+.footer{margin-top:70px;padding-top:18px;border-top:1px solid #c9c4b9;display:flex;justify-content:space-between;gap:20px;color:#8b8f95;font-size:11px;line-height:1.7}
+@media (max-width:1100px){.two-col{grid-template-columns:1fr}.doc-head{grid-template-columns:1fr}.head-meta{align-items:flex-start;text-align:left}.chips{justify-content:flex-start}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="doc-head">
+    <div>
+      <p class="eyebrow">dsh-armory · 设计提案 v1 · issue #14</p>
+      <h1>Skill 启停开关<br><em>看板布局方案</em></h1>
+      <p class="lede">
+        目标只有一个：让每个技能像 MCP 一样有一个“模型侧启用 / 禁用”的开关，不想用了就关掉，不必卸载。
+        数据层已经存在（写 SKILL.md 的 <span class="mono">disable-model-invocation</span>），这份提案只解决入口放在哪、长什么样、几个状态怎么反馈。
+      </p>
+    </div>
+    <div class="head-meta">
+      <div>提案范围：纯前端 + 文案 + 测试</div>
+      <div>不改：数据层 / RPC / 来源白名单</div>
+      <div class="chips">
+        <span class="chip">开关 34 × 19</span>
+        <span class="chip">卡片最小宽 258</span>
+        <span class="chip">列表右留白 76</span>
+        <span class="chip hot">已实现 · 方案 A</span>
+      </div>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <h2><span>00</span>先看结论</h2>
+      <p>三个落点、一套开关；禁用只影响模型自动加载，手动 <span class="mono">/引用</span> 不受影响。</p>
+    </div>
+    <div class="note-strip">
+      <div>
+        <b>推荐：卡片右下、列表右侧、详情正文顶部三处同源。</b>
+        开关只在四类可写来源出现（用户级 / 项目级的 <code>.agents/skills</code> 与 <code>.dsh/skills</code>）；
+        随 DSH 分发、运行时注册、自定义目录保持只读，不画假控件。禁用态在卡片和列表上保留条目，只加一枚「已禁用」徽标与灰显名字，方便随时释放。
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2><span>01</span>网格卡片（默认视图）</h2>
+      <p>星标留在右上角 24×24；开关放到右下角 34×19，与卡片内边距对齐。底栏给开关让出 44px。</p>
+    </div>
+    <div class="stages">
+      <div class="stage">
+        <div class="stage-label"><b>启用</b><span class="tag">可写来源</span></div>
+        <div class="panel" style="width:290px">
+          <div class="card">
+            <button class="card-hit" type="button">
+              <div class="card-inner">
+                <div class="card-top"><span class="avatar">D</span><span class="card-name">dsh-armory-feature-integration</span></div>
+                <div class="desc">给 dsh-armory 新增或修改市场 / RPC 功能时的端到端清单，含契约同步与回归测试。</div>
+                <div class="note">触发：加 RPC、市场卡片、中文文案、回归测试</div>
+                <div class="foot">
+                  <span class="cat">开发运维</span>
+                  <span class="time">3 天前装</span>
+                  <div class="badges"><span class="badge user">用户可调用</span></div>
+                </div>
+              </div>
+            </button>
+            <button class="star on" type="button" aria-label="取消收藏">★</button>
+            <button class="sw" type="button" role="switch" aria-checked="true" aria-label="模型调用：已启用" title="模型调用已启用；点一下禁用（手动 /引用 不受影响）"></button>
+          </div>
+        </div>
+        <p class="caption">
+          <span class="num">1</span>星标 <b>24×24 @ 右上 7,7</b>，与现有实现不变。<br>
+          <span class="num">2</span>开关 <b>34×19 @ 右下 12,12</b>，颜色沿用 MCP 的 <span class="mono">.dsh-mcp-toggle</span>。<br>
+          <span class="num">3</span>底栏 <b>padding-right: 44px</b>；「模型可调用」徽标撤掉，由开关本身表达状态。
+        </p>
+      </div>
+
+      <div class="stage">
+        <div class="stage-label"><b>已禁用</b><span class="tag">可写来源</span></div>
+        <div class="panel" style="width:290px">
+          <div class="card off">
+            <button class="card-hit" type="button">
+              <div class="card-inner">
+                <div class="card-top"><span class="avatar">D</span><span class="card-name">dsh-armory-feature-integration</span></div>
+                <div class="desc">给 dsh-armory 新增或修改市场 / RPC 功能时的端到端清单，含契约同步与回归测试。</div>
+                <div class="note">触发：加 RPC、市场卡片、中文文案、回归测试</div>
+                <div class="foot">
+                  <span class="cat">开发运维</span>
+                  <span class="time">3 天前装</span>
+                  <div class="badges"><span class="badge warn">已禁用</span></div>
+                </div>
+              </div>
+            </button>
+            <button class="star" type="button" aria-label="收藏">☆</button>
+            <button class="sw" type="button" role="switch" aria-checked="false" aria-label="模型调用：已禁用" title="已禁用；点一下恢复模型调用"></button>
+          </div>
+        </div>
+        <p class="caption">
+          <span class="num">1</span>名字降到次级色，卡片底色略收暗，<b>但不整卡灰掉</b>，仍可点开详情。<br>
+          <span class="num">2</span>「已禁用」徽标用 warn 色，排在底栏徽标组最前；禁用态<b>只留这一枚</b>，避免和右下开关抢位置。<br>
+          <span class="num">3</span>条目<b>不排序、不消失</b>，避免开关一按卡片跳位。
+        </p>
+      </div>
+
+      <div class="stage">
+        <div class="stage-label"><b>只读来源</b><span class="tag">随包 / 运行时 / 自定义</span></div>
+        <div class="panel" style="width:290px">
+          <div class="card readonly">
+            <button class="card-hit" type="button">
+              <div class="card-inner">
+                <div class="card-top"><span class="avatar" style="background:linear-gradient(145deg,#8a8f95,#5f646a)">R</span><span class="card-name">remotion-best-practices</span></div>
+                <div class="desc">Remotion 视频工程的通用规范与最佳实践，随宿主分发。</div>
+                <div class="note">触发：Remotion、视频渲染、合成</div>
+                <div class="foot">
+                  <span class="cat">设计与创作</span>
+                  <span class="time">随包</span>
+                  <div class="badges"><span class="badge readonly">随包分发 · 只读</span></div>
+                </div>
+              </div>
+            </button>
+            <button class="star" type="button" aria-label="收藏">☆</button>
+          </div>
+        </div>
+        <p class="caption">
+          <span class="num">1</span>不渲染开关——没有可信的写入根，画了也只会点了报错。<br>
+          <span class="num">2</span>用「随包分发 · 只读」徽标说明原因；详情里再给一句完整解释。<br>
+          <span class="num">3</span>虚线边框只用于评审识别，正式实现可只保留徽标。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2><span>02</span>列表行</h2>
+      <p>右侧固定两层：星标 24×24 @ 6，开关 34×19 @ 36（垂直居中）。主按钮右留白从 34 加到 76。</p>
+    </div>
+    <div class="panel" style="width:760px;max-width:100%">
+      <div class="rows">
+        <div class="row">
+          <span class="avatar sm">D</span>
+          <div class="main">
+            <div class="name">dsh-armory-feature-integration</div>
+            <div class="sub">
+              <span class="badge model">模型可调用</span>
+              <span class="badge user">用户可调用</span>
+              <span class="src">用户级</span>
+              <span class="time">3 天前装</span>
+            </div>
+            <div class="desc">给 dsh-armory 新增或修改市场 / RPC 功能时的端到端清单，含契约同步与回归测试。</div>
+          </div>
+          <button class="star on" type="button" aria-label="取消收藏">★</button>
+          <button class="sw" type="button" role="switch" aria-checked="true" aria-label="模型调用：已启用"></button>
+        </div>
+        <div class="row off" style="border-top:1px solid #eeeae1">
+          <span class="avatar sm">D</span>
+          <div class="main">
+            <div class="name">dual-axis-skill-reviewer</div>
+            <div class="sub">
+              <span class="badge warn">已禁用</span>
+              <span class="badge user">用户可调用</span>
+              <span class="src">用户级</span>
+              <span class="time">6 天前装</span>
+            </div>
+            <div class="desc">用确定性脚本 + LLM 深审两轴评分，给技能质量把关；当前只想手动引用。</div>
+          </div>
+          <button class="star" type="button" aria-label="收藏">☆</button>
+          <button class="sw" type="button" role="switch" aria-checked="false" aria-label="模型调用：已禁用"></button>
+        </div>
+        <div class="row readonly" style="border-top:1px solid #eeeae1">
+          <span class="avatar sm" style="background:linear-gradient(145deg,#8a8f95,#5f646a)">R</span>
+          <div class="main">
+            <div class="name">remotion-captions</div>
+            <div class="sub">
+              <span class="badge model">模型可调用</span>
+              <span class="badge readonly">随包分发</span>
+              <span class="time">随包</span>
+            </div>
+            <div class="desc">字幕转录、显示与动画的 Remotion 组合规范。</div>
+          </div>
+          <button class="star" type="button" aria-label="收藏">☆</button>
+        </div>
+      </div>
+    </div>
+    <p class="caption" style="max-width:980px">
+      <span class="num">1</span>开关<b>常显</b>，不像星标那样 hover 才出现——它是状态，不是动作；触屏也一致。<br>
+      <span class="num">2</span>点开关<b>不打开详情</b>（<span class="mono">stopPropagation</span>）；点行内其它区域仍进详情。<br>
+      <span class="num">3</span>行高由内容撑开，开关垂直居中；禁用行只改名字颜色与徽标，不压缩行高。
+    </p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2><span>03</span>详情（452px 侧栏 / 760px 弹窗同一行）</h2>
+      <p>正文顶部单独给一条「模型调用」控制行，开关右侧放一句人话解释；头部徽标同步「已禁用」。</p>
+    </div>
+    <div class="stages">
+      <div class="stage">
+        <div class="stage-label"><b>已禁用态</b><span class="tag">列表视图 · 452px</span></div>
+        <div class="detail">
+          <div class="d-head">
+            <div class="d-id">
+              <span class="avatar lg">D</span>
+              <div>
+                <div class="d-title">dsh-armory-feature-integration</div>
+                <div class="d-badges">
+                  <span class="badge user">开发运维</span>
+                  <span class="badge warn">已禁用</span>
+                  <span class="badge user">用户可调用</span>
+                </div>
+                <div class="d-src">用户级 · ~/.dsh/skills/dsh-armory-feature-integration/SKILL.md</div>
+              </div>
+            </div>
+            <div class="d-head-actions">
+              <button class="btn ghost" type="button">打开目录</button>
+              <button class="star static" type="button" aria-label="收藏">☆</button>
+            </div>
+          </div>
+          <div class="d-body">
+            <div class="ctrl-row">
+              <div class="ctrl-main">
+                <span class="ctrl-label">模型调用</span>
+                <button class="sw" type="button" role="switch" aria-checked="false" aria-label="模型调用：已禁用"></button>
+                <span class="ctrl-state">已禁用</span>
+              </div>
+              <p class="ctrl-hint">关闭后模型不再自动加载该技能，也不再占用每轮上下文；手动 <b>/引用</b> 仍可用。不会删除任何文件。</p>
+            </div>
+            <div class="d-sec"><b>描述</b><p>给 dsh-armory 新增或修改市场 / RPC 功能时的端到端清单，含契约同步与回归测试。</p></div>
+            <div class="d-sec"><b>何时使用</b><p>加 RPC、改市场卡片和详情、改用户可见中文文案、补回归测试时。</p></div>
+            <div class="d-sec"><b>详情</b>
+              <div class="meta">
+                <span>所属分类</span><b>开发运维</b>
+                <span>来源目录</span><b>用户级 · .dsh/skills</b>
+                <span>文件位置</span><b class="mono" style="font-size:10.5px">~/.dsh/skills/dsh-armory-feature-integration/SKILL.md</b>
+                <span>安装时间</span><b>2026-11-06 20:37</b>
+              </div>
+            </div>
+            <div class="d-act">
+              <button class="btn" type="button">复制 SKILL.md 路径</button>
+              <button class="btn" type="button">复制 @会话引用</button>
+              <button class="btn danger" type="button">卸载</button>
+            </div>
+            <div class="d-flash err">禁用失败：SKILL.md 没有合法的 YAML frontmatter（已回滚）</div>
+          </div>
+        </div>
+        <p class="caption">
+          <span class="num">1</span>控制行放在描述之前，打开详情第一眼就能看到当前状态。<br>
+          <span class="num">2</span>失败时在动作区下方出一行错误（与现有 toast 同色），开关自动回滚。<br>
+          <span class="num">3</span>「卸载」保持现有二次确认，不与开关共用位置，避免误触。
+        </p>
+      </div>
+
+      <div class="stage">
+        <div class="stage-label"><b>启用态</b><span class="tag">列表视图 · 452px</span></div>
+        <div class="detail">
+          <div class="d-head">
+            <div class="d-id">
+              <span class="avatar lg">B</span>
+              <div>
+                <div class="d-title">brandkit</div>
+                <div class="d-badges">
+                  <span class="badge user">设计与创作</span>
+                  <span class="badge model">模型可调用</span>
+                  <span class="badge user">用户可调用</span>
+                </div>
+                <div class="d-src">用户级 · ~/.dsh/skills/brandkit/SKILL.md</div>
+              </div>
+            </div>
+            <div class="d-head-actions">
+              <button class="btn ghost" type="button">打开目录</button>
+              <button class="star static" type="button" aria-label="收藏">☆</button>
+            </div>
+          </div>
+          <div class="d-body">
+            <div class="ctrl-row" style="background:#f7fbf8;border-color:#d5e5da">
+              <div class="ctrl-main">
+                <span class="ctrl-label">模型调用</span>
+                <button class="sw" type="button" role="switch" aria-checked="true" aria-label="模型调用：已启用"></button>
+                <span class="ctrl-state" style="color:#2f6b4f">已启用</span>
+              </div>
+              <p class="ctrl-hint">模型可以在需要时自动调用；关闭后仍可用 <b>/brandkit</b> 手动触发。</p>
+            </div>
+            <div class="d-sec"><b>描述</b><p>生成品牌规范板、Logo 系统与视觉世界提案的高端品牌套件。</p></div>
+            <div class="d-sec"><b>何时使用</b><p>要做品牌板、身份提案、视觉调性对齐时。</p></div>
+            <div class="d-sec"><b>详情</b>
+              <div class="meta">
+                <span>所属分类</span><b>设计与创作</b>
+                <span>来源目录</span><b>用户级 · .dsh/skills</b>
+                <span>文件位置</span><b class="mono" style="font-size:10.5px">~/.dsh/skills/brandkit/SKILL.md</b>
+              </div>
+            </div>
+            <div class="d-act">
+              <button class="btn" type="button">复制 SKILL.md 路径</button>
+              <button class="btn" type="button">复制 @会话引用</button>
+              <button class="btn danger" type="button">卸载</button>
+            </div>
+          </div>
+        </div>
+        <p class="caption">
+          <span class="num">1</span>启用时控制行用极淡的绿色底，避免和禁用态混淆，但不抢主内容。<br>
+          <span class="num">2</span>状态文字紧跟开关，读屏顺序：标签 → 开关（aria-checked）→ 状态。<br>
+          <span class="num">3</span>项目档时来源显示「项目级 · &lt;cwd&gt;/.agents/skills」，开关请求带 cwd。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2><span>04</span>状态与交互</h2>
+      <p>五个状态一次说清；不做二次确认，因为这是可逆编辑，不是删除。</p>
+    </div>
+    <table class="table">
+      <thead>
+        <tr><th style="width:16%">状态</th><th style="width:14%">开关</th><th style="width:30%">界面反馈</th><th>行为与文案</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>启用</b><br><span class="mut">可写来源</span></td>
+          <td><span class="ok">开</span></td>
+          <td>卡片底栏无「已禁用」徽标；详情状态文字「已启用」</td>
+          <td>悬停提示：<span class="mono">模型调用已启用；点一下禁用（手动 /引用 不受影响）</span></td>
+        </tr>
+        <tr>
+          <td><b>已禁用</b><br><span class="mut">可写来源</span></td>
+          <td><span class="warn">关</span></td>
+          <td>卡片 / 列表加「已禁用」warn 徽标；名字降为次级色</td>
+          <td>悬停提示：<span class="mono">已禁用；点一下恢复模型调用</span>；条目不移位</td>
+        </tr>
+        <tr>
+          <td><b>写入中</b></td>
+          <td><span class="mut">目标态</span></td>
+          <td>开关 <span class="mono">aria-busy="true"</span>，透明度 70%，控件禁用</td>
+          <td>不弹二次确认、不锁整块面板；通常 &lt; 300ms，避免闪烁</td>
+        </tr>
+        <tr>
+          <td><b>写入失败</b></td>
+          <td><span class="warn">回滚</span></td>
+          <td>开关回到原态；看板根级一行提示，约 2.6s 自动收</td>
+          <td>文案：<span class="mono">禁用失败：{宿主返回的原因}</span>，与现有收藏失败提示同一套</td>
+        </tr>
+        <tr>
+          <td><b>只读来源</b><br><span class="mut">随包 / 运行时 / 自定义</span></td>
+          <td><span class="mut">不渲染</span></td>
+          <td>徽标「随包分发 · 只读」；详情控制行改为一句说明</td>
+          <td>文案：<span class="mono">随 DSH 分发 / 运行时注册 / 自定义目录的技能没有可写入的 skills 根，只能查看。</span></td>
+        </tr>
+        <tr>
+          <td><b>项目作用域</b></td>
+          <td>同一条开关</td>
+          <td>来源显示「项目级 · &lt;cwd&gt;/.agents/skills」</td>
+          <td>请求带 <span class="mono">cwd</span>；写的是该项目自己的 SKILL.md，不碰全局技能</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="note-strip" style="margin-top:18px">
+      <div>
+        <b>筛选：</b>在现有「模型可调用 / 用户可调用 / 最近安装」之后加一枚 <code>已禁用</code> chip，
+        计数 = <code>modelInvocable === false</code> 的条目。否则关掉的技能散在列表里很难再找回来。
+        空态文案：<b>没有已禁用的 skill</b>。
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2><span>05</span>三个落点，做几个？</h2>
+      <p>推荐 A：三处同源。卡片是默认视图，只在详情里给开关会让大多数人多点一步。</p>
+    </div>
+    <table class="table">
+      <thead>
+        <tr><th style="width:14%">方案</th><th style="width:30%">落点</th><th style="width:34%">优点 / 代价</th><th>建议</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>A · 三处</b></td>
+          <td>网格卡片右下 + 列表行右侧 + 详情控制行</td>
+          <td>默认网格视图也能一键开关；与 MCP 的列表开关观感一致。代价是卡片多一个绝对定位按钮、底栏让 44px。</td>
+          <td class="ok">推荐</td>
+        </tr>
+        <tr>
+          <td><b>B · 两处</b></td>
+          <td>列表行 + 详情控制行；网格卡片只显示状态徽标</td>
+          <td>卡片零改动，风险最低；但网格是默认视图，用户要先切列表或点详情才能关。</td>
+          <td class="mut">次选</td>
+        </tr>
+        <tr>
+          <td><b>C · 一处</b></td>
+          <td>只在详情控制行</td>
+          <td>最省版面，作为「状态 + 解释」的唯一入口；但不满足“每个技能一个开关”的直觉。</td>
+          <td class="mut">不推荐</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="two-col" style="margin-top:24px">
+      <ul class="list">
+        <li class="hot"><b>建议一起做的两件小事：</b>① 增「已禁用」筛选 chip；② 修 v2.4.9 更新说明里把入口写成「技能看板」的错标（实际在工具裁缝），避免下一个用户照着找不到。</li>
+        <li><b>不建议做的：</b>批量多选 + 批量禁用。第一版先把单个开关做稳，批量等有真实需求再加。</li>
+        <li><b>不建议改的：</b>不改数据层与 RPC；<span class="mono">disableSkill / enableSkill</span> 已经带完整安全闸门，前端只负责入口和状态。</li>
+      </ul>
+      <div>
+        <table class="table">
+          <thead><tr><th>实现面</th><th>改动量</th></tr></thead>
+          <tbody>
+            <tr><td>数据层 / RPC</td><td class="ok">0 行</td></tr>
+            <tr><td>client.js（三处入口 + 状态 + 筛选）</td><td>约 150–220 行</td></tr>
+            <tr><td>中英文案</td><td>8–10 条</td></tr>
+            <tr><td>测试（组件断言 + 反向自测）</td><td>1 个新文件 / 约 40 条</td></tr>
+            <tr><td>README / 更新说明</td><td>各 1 段</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2><span>06</span>边界与风险（必须先说）</h2>
+      <p>开关不是“卸载”，也不是“对全局技能做项目级覆盖”。这三条边界要写进界面与说明。</p>
+    </div>
+    <div class="two-col">
+      <ul class="list">
+        <li class="warn"><b>语义：</b>关掉的是“模型自动加载 / 调用”，手动 <span class="mono">/引用</span> 仍然可用。MCP 禁用是整条服务器下线，两者不能混着讲。</li>
+        <li class="warn"><b>来源：</b>只有四类可写根。随包、运行时、自定义目录没有开关；这不是漏做，是写入面不可信。</li>
+        <li class="warn"><b>符号链接：</b>技能目录若指向共享位置（如本机大量 <span class="mono">.dsh/skills → D:\skilllocker\store</span>），开关会按 realpath 改写源文件，<b>共用同一来源的其他 agent 也会被一起禁用</b>。建议 v1 就在详情里给一行链接警告（需要后端补一个 <span class="mono">lstat</span> 链接位）。</li>
+        <li class="warn"><b>重装：</b>市场重装 / 升级技能会整体覆盖 SKILL.md，开关随之丢失。宿主没有独立禁用配置，做不到真正持久；重装后重新关一次即可，界面上要说明。</li>
+        <li class="warn"><b>作用域：</b>不能“同一个全局技能只在本项目禁用”——标志在文件里，没有作用域覆盖层。要做那种效果得另起一套配置，不在本提案范围。</li>
+      </ul>
+      <div class="note-strip" style="margin:0">
+        <div>
+          <b>真机复测项（实现后必做）：</b><br>
+          ① 关掉技能后，下一轮模型目录里确实不再出现它（上下文税归零）；<br>
+          ② 输入框 <span class="mono">/name</span> 仍能手动触发；<br>
+          ③ 根目录监听器自动拾取，无需重启 DSH；<br>
+          ④ 项目档切换后，开关写进的是项目自己的 SKILL.md；<br>
+          ⑤ 只读来源点不到任何写入口。<br><br>
+          这五条属于宿主行为，前端单测覆盖不了，必须在装好的 DSH 里逐条验。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div>dsh-armory · issue #14 · 布局方案 v1 · 已落地 · 2026-11-12</div>
+    <div>配色 / 尺寸为评审近似值；正式实现复用 <span class="mono">--mcp-*</span> 与 <span class="mono">.dsh-mcp-toggle</span> 现有令牌。</div>
+  </footer>
+</div>
+</body>
+</html>

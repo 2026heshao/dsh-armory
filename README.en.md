@@ -52,7 +52,7 @@ Every MCP tool description travels with the request. A tool nobody calls still t
 
 Tool Tailor reads local session logs. It looks at call events only, not message content. For the last 7, 30 or 90 days it counts calls, errors and last use per tool, then compares two numbers: the token cost of the schema in the registry, and the token cost of the tool list actually sent in each request. When they differ, your config did not take effect, or the live list is not the registry list.
 
-Tools with zero calls in the window go on a dead-tool list. One click disables the server, and one click brings it back. Skills get the same ledger: a registered skill that was never called is listed, and you can disable it from the row. That writes the official `disable-model-invocation` key to `SKILL.md`; manual `/` invocation still works.
+Tools with zero calls in the window go on a dead-tool list. One click disables the server, and one click brings it back. Skills get the same ledger: a registered skill that was never called is listed, and you can disable it from the row. That writes the official `disable-model-invocation` key to `SKILL.md`; manual `/` invocation still works. The same switch is now on the Skill board too: use it from the grid card, the list row, or the detail panel, including project-level skills. Disabling only stops automatic model loading and never deletes files.
 
 ![Tool Tailor ledger](docs/images/tool-ledger.png)
 
