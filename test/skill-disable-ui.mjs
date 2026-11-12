@@ -50,7 +50,7 @@ const DISABLE_HELPERS = grab(
 );
 ok('能定位启停来源白名单与 actionable 判定一节', DISABLE_HELPERS.length > 200, `len=${DISABLE_HELPERS.length}`);
 ok('Toggle 已支持 className', source.includes(
-  "const Toggle = ({ on, disabled, onChange, title, label, className }) =>",
+  "const Toggle = ({ on, disabled, busy, onChange, title, label, className }) =>",
 ) && source.includes("'dsh-mcp-toggle' + (className ? ' ' + className : '')"));
 
 section('1. 三处入口接线');
@@ -61,8 +61,15 @@ ok('详情正文控制行', source.includes("className: 'dsh-mcp-skill-ctrl'"));
 ok('卡片与列表都走同一个 toggleSkillDisabled', count(source, "onChange: (next) => toggleSkillDisabled(s, !next)") === 2,
   `x${count(source, "onChange: (next) => toggleSkillDisabled(s, !next)")}`);
 ok('详情也走同一个 toggleSkillDisabled', count(source, "onChange: (next) => toggleSkillDisabled(summary, !next)") === 1);
-ok('三处按钮共用 disableBusy 防并发', count(source, 'disabled: !!disableBusy') === 3,
-  `x${count(source, 'disabled: !!disableBusy')}`);
+ok('三处开关只锁正在写的那一条', count(source, 'busy: disableBusy.has(') === 3,
+  `x${count(source, 'busy: disableBusy.has(')}`);
+ok('busy 是 Set 而不是单个字符串', source.includes('const [disableBusy, setDisableBusy] = useState(() => new Set());'));
+ok('同一技能用 ref 做同步锁', source.includes('if (!name || disableBusyRef.current.has(name)) return;'));
+ok('Toggle 支持 busy 且写 aria-busy', source.includes('{ on, disabled, busy, onChange, title, label, className }')
+  && source.includes("'aria-busy': busy ? 'true' : undefined"));
+ok('忙碌态只改光标、不改透明度', source.includes(".dsh-mcp-toggle[aria-busy='true']{cursor:progress}"));
+ok('不再有「一个写入锁住全页开关」的旧写法', !source.includes('disabled: !!disableBusy'));
+ok('不再用 disabled 表达单个开关的忙碌态', !source.includes('disabled: disableBusy.has('));
 
 section('2. 可写来源闸门');
 const context = vm.createContext({});
