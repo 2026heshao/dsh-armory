@@ -116,12 +116,22 @@ const marketRoots = [];
 const realFetch = globalThis.fetch;
 const realMarketHome = process.env.DSH_ARMORY_MARKET_HOME;
 const realMarketOffline = process.env.DSH_ARMORY_MARKET_OFFLINE;
+// 自建专家（issue #15）合并进目录后，`wbExpertCatalog()` 会读本机
+// $WORKBUDDY_CONFIG_DIR/plugins/marketplaces/my-experts/plugins。本套件断言的是
+// 「上游清单 + 磁盘缓存」的条数（total === 1），真机上只要用户建过一个本地专家就会
+// 多出一条、把整套打成红色（2026-11-13 实跑撞到）。这里把配置根指到临时目录，
+// 与 DSH_ARMORY_MARKET_HOME 同一隔离纪律：零真实用户目录。
+const realWbConfigDir = process.env.WORKBUDDY_CONFIG_DIR;
 // 本套件自己决定每个场景是否离线（⑨ 节），所以开局先把外部值清掉：
 // `npm test` / CI 里带着 DSH_ARMORY_MARKET_OFFLINE=1 跑整套时，①–⑧ 这些「缓存回落 +
 // 条件 GET」场景会被离线口短路，直接在 loadConnectorZip 抛「离线模式」（2026-11-07 实跑撞到）。
 delete process.env.DSH_ARMORY_MARKET_OFFLINE;
 const realArmoryHome = process.env.DSH_ARMORY_HOME;
 try {
+  // 空的 WorkBuddy 配置根：本机自建专家为空，目录条数只由本套件写下的清单决定。
+  const wbConfigRoot = await mkdtemp(join(tmpdir(), "armory-wb-config-"));
+  marketRoots.push(wbConfigRoot);
+  process.env.WORKBUDDY_CONFIG_DIR = wbConfigRoot;
   let caseNo = 0;
   const freshExpert = async () => import(`../lib/expert-market.js?case=${++caseNo}`);
   const freshWb = async () => import(`../lib/wb-market.js?case=${++caseNo}`);
@@ -360,6 +370,8 @@ try {
   else process.env.DSH_ARMORY_MARKET_HOME = realMarketHome;
   if (realArmoryHome === undefined) delete process.env.DSH_ARMORY_HOME;
   else process.env.DSH_ARMORY_HOME = realArmoryHome;
+  if (realWbConfigDir === undefined) delete process.env.WORKBUDDY_CONFIG_DIR;
+  else process.env.WORKBUDDY_CONFIG_DIR = realWbConfigDir;
   for (const root of marketRoots) rmSync(root, { recursive: true, force: true });
 }
 

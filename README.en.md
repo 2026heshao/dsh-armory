@@ -64,6 +64,8 @@ You can attach one halfway through a conversation. Replace it by summoning anoth
 
 About 185 of the 429 experts have no public persona file. Armory reads your local WorkBuddy cache first, then the public distribution. If neither exists, it writes a stand-in from the public description. The first paragraph says this is not the original and tells you where to put the original file. For team experts, each member's persona is written to disk and the lead is wired to DSH's `subagent` so the original teamwork rules still hold.
 
+Your own experts live in the same list: Armory reads WorkBuddy's `my-experts` directory directly. They come first, carry a "Local ·" tag, and are not merged with marketplace experts that share a name, so both can be summoned separately. If the upstream catalog is unreachable, the local half still works; unreadable packages are reported instead of disappearing silently.
+
 ![Experts panel](docs/images/experts.png)
 
 ### In the session: skills, MCP, experts, this project
@@ -114,7 +116,7 @@ If you only use DSH for occasional chat and have no MCP servers, skills or exper
 
 Upgrade from the banner in the panel, or run `dsh plugin --profile web update dsh-armory`. **Quit DSH completely and start it again**; the host-side modules load once at process start. Uninstall with `dsh plugin --profile web remove dsh-armory`; existing MCP entries stay.
 
-DSH `0.1.5-rc.1` or newer. Tested through `0.2.1-rc.2` (DSH 44.7.0) on Windows; Linux and macOS use the same DSH web contract.
+DSH `0.1.5-rc.1` or newer. Tested through `0.2.1-rc.2` (DSH 44.7.0) on Windows; Linux and macOS use the same DSH web contract. Since `2.5.5`, Armory's service key no longer collides with the official mcp-manager bundled from DSH `0.2.2-rc.2`, so both can be enabled together (verified against the official package source and a real cordis regression, not yet re-run on a real rc.2 host).
 
 The UI follows DSH's language. Chinese shows Chinese; other locales fall back to English. To force English, set `localStorage['dsh-armory.locale'] = 'en-US'` in DevTools and reload.
 

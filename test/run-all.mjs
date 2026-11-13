@@ -18,6 +18,19 @@ const SUITES = [
   // 不碰真实 profile、不联网，放最前面让基础层先过。
   { name: "tool-ledger（工具账本：zstd/缓存/尺寸闸门）", file: "tool-ledger.mjs" },
   { name: "mcp-config（MCP 配置归一化与 patch 往返）", file: "mcp-config.mjs" },
+  // 配置值展示归一（issue #16）：外部 bundle 注入的行，`command: !!js …` 在 loader 里
+  // 是未求值对象 `{ __jsExpr }`，旧 summarize() 直通 → 浏览器把它当 React 子节点 →
+  // React #31，整块 MCP 面板变「这个面板加载失败」。纯函数四形态 + 接线源码针 +
+  // 反向自测（旧写法必须仍然坏），零网络零写盘。
+  { name: "mcp-js-expr-config（!!js 未求值对象不得直通渲染层 / React #31）", file: "mcp-js-expr-config.mjs" },
+  // 服务键冲突（issue #18）：DSH 0.2.2-rc.2 起官方 mcp-manager 占用 cordis 服务
+  // "mcpManager"，armory 继续同名注册会让其中一方整条 fiber 失败。用真 cordis 证明
+  // 「服务键 armoryMcp + namespace mcpManager」可共存，并钉住三处契约与官方方法不撞名。
+  { name: "service-key-conflict（与官方 mcp-manager 的服务键冲突）", file: "service-key-conflict.mjs" },
+  // 技能看板渲染层文本归一（issue #17，与 #11 同类数据）：注册表的 description /
+  // whenToUse 可能是本地化对象，直接当 React 子节点会把整块看板打成「这个面板加载失败」。
+  // 钉住六个渲染点必须过 textOf + 旧写法不得复活（含反向自测）。
+  { name: "skill-board-render-text（技能看板：描述类字段必须归一后渲染）", file: "skill-board-render-text.mjs" },
   // 契约三处一致性（护栏）：面板可调方法必须同时出现在 typert.js 声明、client.js 契约数组、
   // index.js 宿主方法集。历史上 toolTailor、installInfo 各漏一处就是恒 404；运行时解析三份
   // 源码做差集，不硬编码方法名（client.js 在持续演进）。
@@ -43,6 +56,10 @@ const SUITES = [
   // 整个入口（「点一下就消失」）；主菜单宽度按 128 兜底且只算一次，异步清单到位后
   // 右缘伸出视口。直测 textOf / quickItemDesc / quickMenuLeft，并含两条反向自测。
   { name: "quick-menu-guards（召唤菜单文本归一与一级菜单定位）", file: "quick-menu-guards.mjs" },
+  // 召唤菜单首帧快照（issue #17）：新会话第一次点开菜单会先画三条骨架条再换成真实条目。
+  // 用上一次的清单快照当初始值消掉这次闪动；这里直测快照裁剪、结构校验、读写闭环与
+  // localStorage 不可用时的安静失败，并配「不裁剪就超限」的反向自测。
+  { name: "quick-menu-snapshot（召唤菜单首帧快照：裁剪 / 校验 / 读写闭环）", file: "quick-menu-snapshot.mjs" },
   { name: "expert-manual（专家市场写链）", file: "run-expert-manual.mjs" },
   { name: "upgrade-plan（一键升级判据）", file: "upgrade-plan.mjs" },
   { name: "session-persona（会话级专家随时挂/换/摘）", file: "session-persona.mjs" },
@@ -52,6 +69,10 @@ const SUITES = [
   // 专家人设取数链（issue #5）：上游 43% 的专家没有公开分发人设文件（404）。
   // 覆盖优先 → 本机缓存 → CDN → 标注过的兜底人设，任何情况下都不静默产出空人设。
   { name: "expert-persona-source（人设取数链：覆盖 / 本机缓存 / CDN / 兜底）", file: "expert-persona-source.mjs" },
+  // 本机自建专家（issue #15）：WorkBuddy 固定目录 plugins/marketplaces/my-experts/plugins。
+  // 临时目录造四个包（完整 / 缺展示字段 / 清单损坏 / 头像超限+路径穿越），断言能读的读出来、
+  // 读不出的计入 skipped、人设缺失必须抛错、local-- 命名空间让「同名市场专家 + 本地专家」并存。
+  { name: "expert-local（自建专家：目录扫描 / 投影 / 命名空间 / 越界防护）", file: "expert-local.mjs" },
   // 真机验证：读真实 profile manifest，证明判定对真数据成立。profile 不存在时
   // 该文件会自行 SKIP（其它机器 / CI 上跑不出结论，但不会误报失败）。
   { name: "verify-install-info（真 profile 数据）", file: "verify-install-info.mjs" },

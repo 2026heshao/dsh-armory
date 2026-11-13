@@ -3,3 +3,5 @@ node_modules/
 *.log
 # 宣传片制作素材（本地资产，不进仓库）
 promo-*/
+# 本地生成/下载的封面与配图（不属于插件产物）
+vibe_images/

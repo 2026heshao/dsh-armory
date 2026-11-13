@@ -190,13 +190,39 @@ ok("一级菜单监听窗口尺寸变化", component.includes("addEventListener(
 ok("重复测量时五字段全等返回原对象", component.includes("prev.top === style.top && prev.bottom === style.bottom")
 	&& component.includes("prev.visibility === style.visibility"));
 ok("组件定位使用 quickMenuPosition 纯函数", component.includes("const desired = quickMenuPosition(rect, width, viewportW, window.innerHeight);"));
+// 菜单已 portal 到 body：包含块理论上就是视口，换算结果恒为 0，但保留这一层是为了
+// 宿主万一给 body 加 transform 时仍能自校准；「未定位前保持隐藏」的判据改成显式标记
+// （占位样式现在自带 left/top，不能再靠读 style 判）。
 ok("组件把期望视口坐标交给包含块换算", component.includes("const style = quickMenuFixedStyle(desired, menu, window.innerHeight);")
-	&& component.includes("style.visibility = applied ? 'visible' : 'hidden';"));
+	&& component.includes("style.visibility = menuPositioned.current ? 'visible' : 'hidden';"));
 // 反向自测：把包含块换算去掉，接线断言必须变红（这正是菜单右移 279px 的旧行为）。
 {
 	const legacy = component.replace("const style = quickMenuFixedStyle(desired, menu, window.innerHeight);", "const style = desired;");
 	ok("反向自测：去掉包含块换算后接线断言变红", !legacy.includes("quickMenuFixedStyle(desired, menu, window.innerHeight)")
 		&& legacy.includes("const style = desired;"));
+}
+
+// ── 4b. 页面上下的根修：菜单必须 portal 到 body，占位态必须是零尺寸 ──────────
+// 事故（issue #17）：输入区 composerSeat 带 will-change:transform，留在原地的
+// position:fixed 会被它捕获成包含块，菜单盒子因此算进会话滚动容器的可滚动区；
+// 首帧隐藏态（旧实现只写 visibility:hidden，仍按静态位置参与布局）横向溢出，
+// 逼出一条横向滚动条占掉 15px 高度 → 输入框和消息整体被顶起，写完坐标又落回。
+// 这里锁住三件事：菜单走 createPortal、占位样式零尺寸、菜单自身不许 overflow（会裁子菜单）。
+{
+	const rule = (source.match(/\.dsh-mcp-quick-menu\{([^}]*)\}/) || [])[1] || "";
+	ok("菜单通过 createPortal 挂到 body", component.includes("portalize(h(")
+		&& component.includes("ReactDOM.createPortal(node, portalHost)"));
+	ok("占位样式零尺寸且钉在视口左上角", source.includes("const QUICK_MENU_HIDDEN_STYLE")
+		&& /QUICK_MENU_HIDDEN_STYLE = \{[^}]*maxHeight: '0px'[^}]*overflow: 'hidden'[^}]*visibility: 'hidden'/.test(source)
+		&& /QUICK_MENU_HIDDEN_STYLE = \{[^}]*left: '0px', top: '0px'/.test(source)
+		&& component.includes("menuPos || QUICK_MENU_HIDDEN_STYLE"));
+	ok("主菜单自身不再是滚动容器（否则二级/三级被裁）", rule.length > 0 && !/overflow-y\s*:/.test(rule) && !/overscroll-behavior/.test(rule));
+	ok("菜单脱离 root 后仍取消「点外面关闭」", component.includes("portalHost.contains(e.target)"));
+	ok("菜单脱离 root 后 Tab 焦点仍算在菜单内", component.includes("portalHost.contains(next)"));
+	// 反向自测：把 portal 接线去掉，第一条断言必须变红。
+	const naive = component.replace("portalize(h(", "h(");
+	ok("反向自测：去掉 portal 后接线断言变红", !naive.includes("portalize(h(")
+		&& !(naive.includes("portalize(h(") && naive.includes("ReactDOM.createPortal(node, portalHost)")));
 }
 
 // ── 5. 宿主侧入口归一：Skill 看板 / 详情不再拿到对象描述 ────────────────────

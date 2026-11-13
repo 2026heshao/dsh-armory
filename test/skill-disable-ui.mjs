@@ -122,7 +122,12 @@ ok('警告文案带真实目标', source.includes('共用同一来源的其他 a
 ok('旧的「没有启用/禁用开关」注释不得复活', !source.includes('没有启用/禁用开关'));
 
 section('6. i18n 与测试登记');
-ok('英文表有模型调用', source.includes('"模型调用": "Model invocation"'));
+// 措辞按 issue #17 从「模型调用」改为「调用方式：自动 / 仅手动」：开关本身没变，
+// 但要保证详情控制行的标签、状态字与英文表三处同时到位（只改一处会中英混杂）。
+ok('英文表有调用方式', source.includes('"调用方式": "Invocation"'));
+ok('英文表有仅手动 / 自动调用', source.includes('"仅手动": "Manual only"') && source.includes('"自动调用": "Automatic"'));
+ok('详情控制行标签为「调用方式」', source.includes("h('span', { className: 'dsh-mcp-skill-ctrl-label' }, t('调用方式'))"));
+ok('详情状态字为「仅手动 / 自动调用」', source.includes("summaryOff ? t('仅手动') : t('自动调用')"));
 ok('英文表有禁用失败', source.includes('"禁用失败：{0}": "Failed to disable: {0}"'));
 ok('英文表有共享链接警告', source.includes('"该技能目录是指向共享位置的链接；开关会改写源文件（{0}），共用同一来源的其他 agent 也会受影响。"'));
 ok('skill-links 已登记到 run-all', runAllSource.includes('file: "skill-links.mjs"'));
