@@ -23,6 +23,10 @@ const SUITES = [
   // React #31，整块 MCP 面板变「这个面板加载失败」。纯函数四形态 + 接线源码针 +
   // 反向自测（旧写法必须仍然坏），零网络零写盘。
   { name: "mcp-js-expr-config（!!js 未求值对象不得直通渲染层 / React #31）", file: "mcp-js-expr-config.mjs" },
+  // 工具调用超时（issue #19）：大数值超过 Node 定时器 2^31-1 上限会被钳成 1ms，
+  // 每个工具调用立即 REQUEST_TIMEOUT。写入边界封顶 + 0=永不超时（映射为上限），
+  // 服务端真跑 + 表单源码针 + 反向自测，零网络零写盘。
+  { name: "mcp-tool-timeout（工具调用超时封顶与 0=永不超时）", file: "mcp-tool-timeout.mjs" },
   // 服务键冲突（issue #18）：DSH 0.2.2-rc.2 起官方 mcp-manager 占用 cordis 服务
   // "mcpManager"，armory 继续同名注册会让其中一方整条 fiber 失败。用真 cordis 证明
   // 「服务键 armoryMcp + namespace mcpManager」可共存，并钉住三处契约与官方方法不撞名。

@@ -2737,5 +2737,24 @@
         "sha256": "286373C0AA14FF771125A2D9DC3A0386BB9845F32D371EF77025EAE758DF230B"
       }
     ]
+  },
+  {
+    "deployedAt": "2026-11-14T13:38:27.656Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "C1E1B7082DD406A1CDEAD1EBD42F95893D2659F598DA53E200F27190AAFAE4DA"
+      },
+      {
+        "name": "mcp-config.js",
+        "kind": "更新",
+        "sha256": "901128E8AD5DDBBC8FA44D924BC9E09B178A5E81BBCF05E15BB4E12FFA113EE9"
+      }
+    ],
+    "note": "issue #19：工具调用超时封顶 2147483647ms + 0=永不超时（映射为上限）。仅 client.js / mcp-config.js 两文件，基线=远端 v2.5.5（HEAD），未混入并行改动。"
   }
 ]

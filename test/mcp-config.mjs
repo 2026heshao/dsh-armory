@@ -65,7 +65,9 @@ throws("stdio 缺 command 拒绝", () => one({ a: { transport: 'stdio' } }), /�
 throws("HTTP 缺 url 拒绝", () => one({ a: { transport: 'streamable-http' } }), /需要 http\(s\):\/\/ URL/);
 throws("url 不是 http(s) 拒绝", () => one({ a: { url: 'ftp://x.test' } }), /需要有效的 http\(s\):\/\/ URL/);
 throws("args 含非字符串拒绝", () => one({ a: { command: 'x', args: ['ok', 1] } }), /args 必须全部是字符串/);
-throws("toolCallTimeoutMs 非正整数拒绝", () => one({ a: { command: 'x', toolCallTimeoutMs: 0 } }), /toolCallTimeoutMs 必须是正整数/);
+throws("toolCallTimeoutMs 负数拒绝", () => one({ a: { command: 'x', toolCallTimeoutMs: -1 } }), /toolCallTimeoutMs 必须是非负整数/);
+throws("toolCallTimeoutMs 超定时器上限拒绝", () => one({ a: { command: 'x', toolCallTimeoutMs: 2147483648 } }), /toolCallTimeoutMs 不能大于 2147483647/);
+ok("toolCallTimeoutMs 0 映射为定时器上限（0 = 永不超时，issue #19）", one({ a: { command: 'x', toolCallTimeoutMs: 0 } }).toolCallTimeoutMs === 2147483647);
 throws("reconnect.initialDelayMs > maxDelayMs 拒绝", () => one({ a: { command: 'x', reconnect: { initialDelayMs: 10, maxDelayMs: 5 } } }), /不能大于 maxDelayMs/);
 throws("reconnect.maxAttempts 非正整数拒绝", () => one({ a: { command: 'x', reconnect: { maxAttempts: 0 } } }), /maxAttempts 必须是正整数/);
 throws("failOnStartupError 非布尔拒绝", () => one({ a: { command: 'x', failOnStartupError: 'yes' } }), /failOnStartupError 必须是布尔值/);
