@@ -153,6 +153,9 @@ const SUITES = [
   // 的三层回落（目录缓存 → 预设行自带名 → 标识名）。含前缀常量写读同源 + 与 client.js
   // 匹配串逐字一致，另配 2 条反向自测。全程离线，不碰真实 ~/.dsh。
   { name: "expert-display-name（召唤菜单专家显示名三层回落）", file: "expert-display-name.mjs" },
+  // 当前宿主取消 /list-agents 子入口：写链不得复活旧行，主入口和其他工具必须保留。
+  // 临时包真跑 Node exports 解析 + 旧入口反向自测，不将组合树通过冒充完整宿主挂载。
+  { name: "expert-preset-entries（专家预设：失效子入口与主入口保留）", file: "expert-preset-entries.mjs" },
   // ── T01 共享数据层（多市场注册表 / 安装状态 / 认证注入规则）───────────────
   // 三个模块只用本机内置模块、零网络、零真实 ~/.dsh（隔离靠 mkdtemp + rootDir 注入），
   // 注册表还把「内置 connectors 源 URL 与 lib/wb-market.js 现值一致」钉进了用例。
