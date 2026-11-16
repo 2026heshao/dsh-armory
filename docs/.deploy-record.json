@@ -2756,5 +2756,34 @@
       }
     ],
     "note": "issue #19：工具调用超时封顶 2147483647ms + 0=永不超时（映射为上限）。仅 client.js / mcp-config.js 两文件，基线=远端 v2.5.5（HEAD），未混入并行改动。"
+  },
+  {
+    "deployedAt": "2026-11-16T11:50:48.588Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:UsersLENOVO.dshprofilesdesktop\node_modulesdsh-armorylib",
+    "mode": "manual-copy (per-file sha256 verified)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "28F40F18454CEBB0313103F08B6FA62B86D79780368A7C0D64E0849A799C0733"
+      },
+      {
+        "name": "index.js",
+        "kind": "更新",
+        "sha256": "87D83B586D6743A763631EC62179CEC77D04C945594C053FBAAF626979723851"
+      },
+      {
+        "name": "wb-market.js",
+        "kind": "更新",
+        "sha256": "BCCAA277551F36DA04282BE466F175B75188AC756005EDBE864F47143046DC63"
+      },
+      {
+        "name": "skill-manifest.js",
+        "kind": "新增",
+        "sha256": "2E2C90D2150652F9ED32FB40105CA7AF16CD4F788B6693065FED2B5E0F58A2C2"
+      }
+    ],
+    "note": "issue #22：市场安装 SKILL.md frontmatter name 归一（中文/大写/空格/下划线 → slug，原名保留 displayName）；不可救包装前拒绝；装后宿主注册表核对 warn-only。仅 client/index/wb-market/skill-manifest 四文件；whats-new×2 与 package.json（v2.5.6 元数据）未同步，属另议项。部署前核对：运行时 client/mcp-config 与第 123 条记录一致，wb-market/index 差异逐行审过全属本单。"
   }
 ]

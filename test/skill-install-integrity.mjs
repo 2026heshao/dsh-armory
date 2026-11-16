@@ -34,6 +34,23 @@ const verifyAt = wbMarket.indexOf("安装后校验失败");
 const successAt = wbMarket.indexOf("已安装到 ${finalDir}");
 ok("宿主：复核发生在报成功的 note 之前", verifyAt !== -1 && successAt !== -1 && verifyAt < successAt);
 
+// ── issue #22：清单名归一必须发生在 staging 内、rename 换入之前 ──────────────
+// 宿主注册表只收 kebab-case 的 frontmatter name，非法的整条丢弃（面板亮「已安装」、
+// 模型永远看不到）。归一提前到 rename 之前，失败走既有 catch 清 staging，不留哑包。
+ok("宿主：安装链引入清单名归一模块",
+  /import \{ normalizeStagedManifest \} from "\.\/skill-manifest\.js"/.test(wbMarket));
+{
+  const normalizeAt = wbMarket.indexOf("normalizeStagedManifest(stagingDir");
+  const renameAt = wbMarket.indexOf("await rename(stagingDir, finalDir)");
+  ok("宿主：归一发生在 rename 换入之前", normalizeAt !== -1 && renameAt !== -1 && normalizeAt < renameAt,
+    `normalize=${normalizeAt} rename=${renameAt}`);
+}
+ok("宿主：安装结果回传归一后的注册名与原名",
+  /name: manifest\.name/.test(wbMarket) && /originalName: manifest\.originalName/.test(wbMarket) && /renamed: manifest\.renamed/.test(wbMarket));
+ok("宿主：改名信息写进成功 note", /清单名已归一为/.test(wbMarket));
+ok("客户端：安装成功如实提示改名与「落盘但未收录」",
+  client.includes("res.renamed && res.name") && client.includes("res.registered === false"));
+
 // ── 客户端：在飞挡回 + 已装双键 ──────────────────────────────────────────
 ok("客户端：同技能在飞安装挡回（不制造两次成功）", /skillInstallInFlight\.current\.has\(flightKey\)/.test(client));
 ok("客户端：挡回提示有 en-US 词条", /"该技能正在安装中，请等当前任务结束": "/.test(client));

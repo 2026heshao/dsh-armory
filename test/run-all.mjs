@@ -191,6 +191,11 @@ const SUITES = [
   // （缺 frontmatter / BOM / 非 .md）、符号链接（根外拒绝、根内写 realpath 不动链接），
   // 外加纯函数的 frontmatter 手术（插入/收敛/移除、CRLF、幂等）与写入结果的 yaml 复核。
   { name: "skill-disable（技能禁用/释放：frontmatter 标志与写盘闸门）", file: "skill-disable.mjs" },
+  // issue #22：市场安装的 SKILL.md 若 frontmatter name 不是 kebab-case（中文 / 大写 /
+  // 空格 / 下划线），宿主注册表整条丢弃——面板亮「已安装」，模型和 /菜单永远看不到。
+  // 安装落盘前在 staging 内归一为 slug（保留原名到 displayName），不可救的包明确拒绝；
+  // 撞名走 namespace 前缀。-2 后缀。含拒绝码、幂等、CRLF/BOM 与撞名真跑（mkdtemp 隔离）。
+  { name: "skill-manifest-name（市场安装：清单名归一 / 不可救包拒绝 / 撞名）", file: "skill-manifest-name.mjs" },
   // Skill 集合变更的跨组件实时刷新（QA）：市场装/卸后顶部角标与看板列表必须立刻对齐。
   // 缺口来自「角标只在 McpBoardPage 首次挂载读一次」，普通静态断言看不见——这里把变更
   // 总线与角标重取函数抽进 vm 真跑（reason 透传 / 抛错隔离 / 退订 / 乱序守卫），并钉住
