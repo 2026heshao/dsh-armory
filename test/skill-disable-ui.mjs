@@ -110,7 +110,7 @@ ok('筛选计数同口径', source.includes(
   "skills.filter((s) => skillDisableActionableBoard(s) && s.modelInvocable === false).length",
 ));
 ok('清除全部筛选包含已禁用', source.includes("setOnlyModel(false); setOnlyUser(false); setOnlyDisabled(false);"));
-ok('已禁用空态文案', source.includes("当前没有已禁用的 skill；把开关关掉后会出现在这里。"));
+ok('仅手动空态文案', source.includes("当前没有仅手动调用的 skill；关闭自动调用后会出现在这里。"));
 
 section('5. 链接警告与后端字段');
 ok('后端导入 describeSkillLink', hostSource.includes('import { describeSkillLink } from "./skill-links.js";'));
@@ -143,6 +143,59 @@ const readOnlyOff = { source: 'bundled', path: '/tmp/x/SKILL.md', modelInvocable
 ok('只按模型位筛选会混入只读技能（证明 actionable 闸门有用）',
   naiveModelOnly(readOnlyOff) === true
   && (skillDisableActionableBoard(readOnlyOff) && readOnlyOff.modelInvocable === false) === false);
+
+section('8. 共享来源首次确认：执行真实回调');
+const toggleSource = grab(source, '  const toggleSkillDisabled =', '  const copySkillMdPath =');
+const cancelSource = grab(source, '  const cancelSharedConfirm =', '  useEffect(() => { cancelSharedConfirm();');
+const sharedHelpers = grab(source, 'const confirmedSharedSkillTargets =', 'const SharedSkillConfirm =');
+const bootToggle = (mutate = (s) => s) => {
+  const calls = []; const patches = []; const notices = [];
+  const ctx = vm.createContext({
+    useCallback: (fn) => fn, scope: 'global', sharedConfirm: null,
+    sharedConfirmRef: { current: null }, disableBusyRef: { current: new Set() },
+    setDisableBusy: () => {}, setModelInvocable: (...args) => patches.push(args),
+    showNotice: (...args) => notices.push(args),
+    skillScopeArg: (scope) => ({ scope }), t: (s) => s,
+    call: async (...args) => { calls.push(args); return { ok: true }; },
+  });
+  ctx.setSharedConfirm = (request) => { ctx.sharedConfirm = request; };
+  vm.runInContext(sharedHelpers + cancelSource + mutate(toggleSource)
+    + '\nglobalThis.probe = { toggleSkillDisabled, confirmSharedChange, cancelSharedConfirm };', ctx);
+  return { ctx, calls, patches, notices, ...ctx.probe };
+};
+const shared = { name: 'shared', linked: true, realPath: '/shared/demo', path: '/skills/link', modelInvocable: true };
+{
+  const env = bootToggle();
+  await env.toggleSkillDisabled(shared, true);
+  ok('共享技能先提示，确认前零 RPC、零乐观写入', env.ctx.sharedConfirm?.skill === shared && env.calls.length === 0 && env.patches.length === 0);
+  env.cancelSharedConfirm();
+  env.confirmSharedChange();
+  ok('取消后旧确认无效，零写入', env.calls.length === 0 && env.ctx.sharedConfirm === null);
+  await env.toggleSkillDisabled(shared, true);
+  await env.confirmSharedChange();
+  ok('确认后执行原作用域的禁用调用', env.calls.length === 1 && env.calls[0][0] === 'disableSkill' && env.calls[0][1].scope === 'global');
+  await env.toggleSkillDisabled({ ...shared, modelInvocable: false }, false);
+  ok('本次运行同共享目标第二次不再询问', env.calls.length === 2 && env.ctx.sharedConfirm === null && env.calls[1][0] === 'enableSkill');
+  await env.toggleSkillDisabled({ ...shared, name: 'other', realPath: '/shared/other' }, true);
+  ok('另一共享目标仍需确认', env.calls.length === 2 && env.ctx.sharedConfirm?.skill.name === 'other');
+  env.ctx.scope = 'project-next';
+  env.confirmSharedChange();
+  ok('切换作用域后不能用旧确认写入新作用域', env.calls.length === 2);
+}
+{
+  const env = bootToggle();
+  await env.toggleSkillDisabled({ ...shared, linked: false }, true);
+  ok('普通技能仍一键切换，不弹共享确认', env.calls.length === 1 && env.ctx.sharedConfirm === null);
+  env.ctx.call = async () => ({ ok: false, error: 'denied' });
+  await env.toggleSkillDisabled({ ...shared, linked: false }, true);
+  ok('失败仍回滚原值、解锁并显示原因', env.patches.at(-1)[1] === true && env.notices.length === 1 && env.ctx.disableBusyRef.current.size === 0);
+}
+{
+  const legacy = bootToggle((s) => s.replace('if (target && !confirmedSharedSkillTargets.has(target))', 'if (false)'));
+  await legacy.toggleSkillDisabled(shared, true);
+  ok('反向自测：去掉共享闸门会在确认前写入', legacy.calls.length === 1 && legacy.ctx.sharedConfirm === null);
+}
+ok('技能看板不再显示已禁用（保留 MCP 真停用用词）', !grab(source, 'const SkillBoard =', 'const EXPERT_CATALOG_TTL_MS').includes("t('已禁用')") && source.includes("if (s.status === 'disabled') return t('已禁用');"));
 
 console.log(`\n${failures === 0 ? 'ALL PASS' : 'FAILED'}  ${checks - failures}/${checks}`);
 process.exitCode = failures === 0 ? 0 : 1;

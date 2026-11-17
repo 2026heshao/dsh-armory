@@ -204,15 +204,16 @@ const createDocument = () => {
 };
 
 // ── 2. 在隔开的 vm 里执行这段源码 ─────────────────────────────────────────────
-const boot = () => {
+const boot = (options = {}) => {
 	const document = createDocument();
 	const context = {
 		console,
 		globalThis: null,
 		document,
 		KEY_PREFIX: prefixMatch[1],
-		setTimeout,
-		clearTimeout,
+		setTimeout: options.setTimeout || setTimeout,
+		clearTimeout: options.clearTimeout || clearTimeout,
+		copyText: options.copyText || (async () => true),
 		// 展示文案的插值语义与真实实现一致即可（i18n 骨架本身由 client-i18n.mjs 守护）。
 		t: (text, vars) => (Array.isArray(vars) ? String(text).replace(/\{(\d+)\}/g, (m, i) => (i < vars.length ? vars[i] : m)) : text),
 	};
@@ -222,11 +223,11 @@ const boot = () => {
 		globalThis.__probe = {
 			INSTALL_TOAST_ID, INSTALL_TOAST_CSS_ID, installTasks,
 			ensureInstallToast, renderInstallToast, installToastStart, installToastFinish, isInstallRunning,
-			progressToastStart, progressToastFinish, taskStatusLabel,
+			progressToastStart, progressToastFinish, taskStatusLabel, dismissProgressToast, installTimers,
 			PROGRESS_GROUP_PLUGIN, PROGRESS_GROUP_MCP,
 			PLUGIN_TASK_LABELS, MCP_ADD_TASK_LABELS, MCP_RECONNECT_TASK_LABELS,
 		};`;
-	vm.runInContext(slice + epilogue, proof, { filename: "client-install-toast-slice.js" });
+	vm.runInContext((options.source || slice) + epilogue, proof, { filename: "client-install-toast-slice.js" });
 	return { probe: proof.__probe, document };
 };
 
@@ -305,10 +306,12 @@ const cellOf = (row, cls) => {
 	ok("同一插件重新开装后回到进行中", probe.isInstallRunning("alpha") === true);
 	probe.installToastFinish("alpha", "ok");
 
-	// 结果态留 4.2s 再淡出：等过这个窗口，浮层应自己收起（不需要任何用户操作）。
+	// 成功保留 4.2s，失败必须留到用户手动关闭。
 	await new Promise((resolve) => setTimeout(resolve, 4400));
-	ok("结果态到期后从任务表里移除", probe.installTasks.size === 0, `size=${probe.installTasks.size}`);
-	ok("结果态到期后浮层自动隐藏（不再是 .on）", !node.classList.contains("on"));
+	ok("成功到期移除，失败仍保留", !probe.installTasks.has("alpha") && probe.installTasks.get("beta")?.phase === "fail");
+	ok("有失败时浮层不会自动隐藏", node.classList.contains("on") && rowsOf(node).length === 1);
+	probe.dismissProgressToast("beta");
+	ok("手动关闭最后一条失败后隐藏", probe.installTasks.size === 0 && !node.classList.contains("on"));
 	ok("隐藏后不残留行节点", rowsOf(node).length === 0);
 }
 
@@ -522,6 +525,67 @@ const cellOf = (row, cls) => {
 			legacyGroup === "mcp" && titleOf(lnode) === "正在安装 5 个插件…",
 			`旧判据分组=${legacyGroup}，现标题="${titleOf(lnode)}"`);
 	}
+}
+
+// ── 13. 失败常驻、复制、同 key 重试与旧计时器 ──────────────────────────────
+const manualClock = () => {
+	let id = 0;
+	const jobs = new Map();
+	return {
+		setTimeout: (fn) => { jobs.set(++id, fn); return id; },
+		clearTimeout: (key) => jobs.delete(key),
+		flush: () => { const pending = [...jobs.values()]; jobs.clear(); pending.forEach((fn) => fn()); },
+		jobs,
+	};
+};
+const actionOf = (row, action) => row.children.find((c) => c.className === "dsh-mcp-install-toast-actions")
+	?.children.find((c) => c.getAttribute("data-task-action") === action);
+{
+	const clock = manualClock();
+	const copied = [];
+	let copyOk = true;
+	const { probe } = boot({ ...clock, copyText: async (text) => { copied.push(text); return copyOk; } });
+	const node = probe.ensureInstallToast();
+	probe.installToastStart("x");
+	probe.dismissProgressToast("x");
+	ok("关闭提示不是取消正在进行的任务", probe.isInstallRunning("x"));
+	probe.installToastFinish("x", "ok");
+	const oldTimer = [...clock.jobs.values()][0];
+	const reason = '<img src=x onerror=alert(1)>\n完整错误详情';
+	probe.installToastFinish("x", "fail", reason);
+	oldTimer(); clock.flush();
+	ok("成功后改失败会取消旧计时器，旧回调也不能删失败", probe.installTasks.get("x")?.phase === "fail" && probe.installTimers.size === 0);
+	let row = rowsOf(node)[0];
+	ok("原因按纯文本完整显示，不拼 HTML", cellOf(row, "dsh-mcp-install-toast-reason") === reason && row.children.find((c) => c.className.endsWith("-reason")).children.length === 0);
+	await actionOf(row, "copy").onclick();
+	ok("复制拿到真实完整原因并反馈成功", copied[0] === reason && actionOf(row, "copy").textContent === "已复制");
+	copyOk = false;
+	await actionOf(row, "copy").onclick();
+	ok("复制失败明确给手动出口", actionOf(row, "copy").textContent.includes("复制失败"));
+	probe.installToastStart("x");
+	ok("同 key 重试清掉旧失败原因与操作按钮", probe.isInstallRunning("x") && !probe.installTasks.get("x").reason && !actionOf(rowsOf(node)[0], "close"));
+	probe.installToastFinish("x", "fail", "second");
+	for (const name of ["a", "b", "c", "d"]) { probe.installToastStart(name); probe.installToastFinish(name, "fail", name); }
+	clock.flush();
+	ok("五条失败全部保留，首屏仍最多三行", probe.installTasks.size === 5 && rowsOf(node).length === 3);
+	const dismissed = [];
+	while (rowsOf(node).length) {
+		row = rowsOf(node)[0];
+		dismissed.push(cellOf(row, "dsh-mcp-install-toast-name"));
+		actionOf(row, "close").onclick();
+	}
+	ok("关闭可见行后依次露出隐藏行，全部失败可处理", dismissed.length === 5 && new Set(dismissed).size === 5 && !node.classList.contains("on"));
+}
+{
+	const clock = manualClock();
+	const legacy = slice.replace("if (phase !== 'ok') return;", "")
+		.replace("current === task && current.phase === 'ok'", "current === task && current.phase !== 'running'");
+	ok("反向自测确实改变失败自动淡出规则", legacy !== slice);
+	const { probe } = boot({ ...clock, source: legacy });
+	probe.installToastStart("legacy");
+	probe.installToastFinish("legacy", "fail", "error");
+	clock.flush();
+	ok("旧失败自动消失规则确实丢失原因（新断言能抓住）", !probe.installTasks.has("legacy"));
 }
 
 console.log(failures === 0 ? "\nINSTALL-TOAST PASS" : `\nINSTALL-TOAST FAIL（${failures} 条断言未通过）`);

@@ -575,7 +575,9 @@ for (const site of CATEGORY_CALLSITES) {
 // 2026-10-22 由 6 → 7：自定义套件功能新增 openSuiteManager()（召唤菜单底部「管理套件…」的落点）。
 // 它必须先切到 skill 看板，因为套件弹窗由 SkillBoard 承载——召唤菜单是输入框旁的临时浮层，
 // 不适合挂模态对话框；切过去之后 SkillBoard 靠 pendingSuiteOpen 自领并弹出（见 client.js）。
-const CATEGORY_CALLSITE_COUNT = 7;
+// 2026-11-17 由 7 → 8：市场「查看全部已装技能」新增 openInstalledSkills()，
+// 先清旧作用域/筛选再强制选中 skill；真实跳转与领取由 market-feedback.mjs 验证。
+const CATEGORY_CALLSITE_COUNT = 8;
 ok(`3.5 openBoardCategory 调用点恰好 ${CATEGORY_CALLSITE_COUNT} 处（不新增、不误删；已排除注释与定义）`, CATEGORY_CALLSITES.length === CATEGORY_CALLSITE_COUNT,
 	`count=${CATEGORY_CALLSITES.length} lines=${JSON.stringify(CATEGORY_CALLSITES.map((s) => s.line))}`);
 const WHITELIST = ["mcp", "skill", "expert", "tailor", "wb"];

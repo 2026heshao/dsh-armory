@@ -426,14 +426,18 @@ try {
   const fab = () => findAll(view.el, hasClass("dsh-mcp-fab"))[0] || null;
   const menu = () => findAll(view.el, hasClass("dsh-mcp-fab-menu"))[0] || null;
 
-  ok("5.1 默认档位 both：悬浮按钮渲染出来", !!fab());
+  // 2026-11-17 起入口固定为左上角面板（面板头部的入口选择器已删）：默认档位不再渲染悬浮按钮。
+  ok("5.1 默认档位 panel：悬浮按钮不渲染（入口固定为左上角面板）", !fab());
+  harness.probe.entryMode.set("both");
+  view.rerender();
+  ok("5.2 显式切到 both 后按钮渲染（订阅生效）", !!fab());
+
   harness.probe.entryMode.set("panel");
   view.rerender();
-  ok("5.2 切到「仅全局面板」后按钮真的消失（订阅生效）", !fab());
+  ok("5.3 切回 panel 后按钮消失", !fab());
 
   harness.probe.entryMode.set("both");
   view.rerender();
-  ok("5.3 切回 both 后按钮复现", !!fab());
 
   harness.panel.setActive(PANEL_ID);
   view.rerender();

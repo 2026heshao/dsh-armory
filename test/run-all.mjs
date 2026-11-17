@@ -27,6 +27,10 @@ const SUITES = [
   // 每个工具调用立即 REQUEST_TIMEOUT。写入边界封顶 + 0=永不超时（映射为上限），
   // 服务端真跑 + 表单源码针 + 反向自测，零网络零写盘。
   { name: "mcp-tool-timeout（工具调用超时封顶与 0=永不超时）", file: "mcp-tool-timeout.mjs" },
+  // 官方 mcp-manager（issue #23）：DSH 0.2.2-rc.2 起 server 由 manager 挂成子实例、不是
+  // loader 条目，旧数据源让面板恒空、工具账本把它们记成内置工具。钉只读投影、状态映射、
+  // 工具归属与写动作报错，含反向自测；全程替身 ctx，不读真实 profile。
+  { name: "mcp-manager-servers（官方 mcp-manager 托管服务器的只读投影）", file: "mcp-manager-servers.mjs" },
   // 服务键冲突（issue #18）：DSH 0.2.2-rc.2 起官方 mcp-manager 占用 cordis 服务
   // "mcpManager"，armory 继续同名注册会让其中一方整条 fiber 失败。用真 cordis 证明
   // 「服务键 armoryMcp + namespace mcpManager」可共存，并钉住三处契约与官方方法不撞名。
@@ -303,11 +307,13 @@ const SUITES = [
   { name: "loadout（装备清单：字段白名单/差异三态/体积与条数上限）", file: "loadout.mjs" },
   // ── 安装浮层（顶部轻提示）──
   // 守两件事：(1) 浮层节点挂在 document.body 的模块级单例上，面板卸载/切标签页后
-  // 进度仍然可见（挂回组件子树就退化成「切窗口就没了」）；(2) 结果态 4.2s 后自己
-  // 收起、行数封顶 3、同一插件不许并发重复装（isInstallRunning 供按钮禁用）。
+  // 进度仍然可见（挂回组件子树就退化成「切窗口就没了」）；(2) 成功 4.2s 后收起，
+  // 失败保留到手动关闭且可复制原因；行数封顶 3，同一插件不许并发重复装。
   // 做法是从 lib/client.js 抽浮层一节的源码放进 node:vm 真跑，配最小 DOM 替身，
   // 起止标记找不到直接失败，避免悄悄测个空。
-  { name: "install-toast（顶部安装浮层：跨卸载可见 + 自动淡出 + 防重复安装）", file: "install-toast.mjs" },
+  { name: "install-toast（顶部安装浮层：成功淡出/失败保留与复制/防重复）", file: "install-toast.mjs" },
+  { name: "market-feedback（市场错误空态互斥/全部已装跳转/逐台重连）", file: "market-feedback.mjs" },
+  { name: "market-action-guards（卸载确认/旧批次守卫/弹层错误/详情按钮）", file: "market-action-guards.mjs" },
   // ── 市场插件 README 预览 ──
   // 守三件事：(1) parseGithubRepo 十种仓库写法口径；(2) wbAwesomeReadme 无来源时零请求快速失败；
   // (3) 客户端 Markdown 渲染器结构 + 安全边界——javascript: 伪链接必须降级成纯文本

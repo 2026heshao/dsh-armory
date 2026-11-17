@@ -1,8 +1,12 @@
 // 入口可见性不变式的直测（`lib/client.js` 的「入口显示偏好」一节）。
 //
-// 为什么需要这个套件：面板只能从三个入口打开（左上角全局面板行 / 右下角悬浮按钮 / 侧栏底部
-// 入口）。「三个都关」是必须**无法表达**的状态——真出现了，用户就再也打不开面板，只能手改
-// localStorage 才救得回来。这条不变式原本只写在代码注释里，没有任何测试守着。
+// 2026-11-17 起面板头部的「入口」选择器已移除，固定只从左上角侧栏面板行进入。本套件因此
+// 钉两件事：① 可见性表仍然不含「三个入口全关」；② 旧版本写进 localStorage 的偏好（fab /
+// all / sidebar…）一律被忽略，读出来恒为默认档 panel——否则用户没有菜单可改，会被困在
+// 「只有悬浮按钮」之类的旧组合里。
+//
+// 为什么还需要不变式：表仍然驱动悬浮按钮 / 侧栏底部入口 / 面板注册三个消费点，任一档位
+// 把三个入口全关掉，用户就再也打不开面板，只能手改 localStorage 才救得回来。
 //
 // 怎么测的：`lib/client.js` 是浏览器 bundle（`window.__ModuleLoader__.load({ factory })`），
 // 不能直接 import。但它这一段是自足的：只依赖 localStorage，React hooks 出现在 `useEntryMode`
@@ -60,7 +64,7 @@ const runSlice = (storage) => {
 	const context = vm.createContext(createContext(storage));
 	const epilogue = `
 		globalThis.__probe = {
-			ENTRY_KEY, ENTRY_VISIBILITY, ENTRY_LABELS, ENTRY_DEFAULT, ENTRY_MODES,
+			ENTRY_KEY, ENTRY_VISIBILITY, ENTRY_DEFAULT, ENTRY_MODES,
 			normalizeEntryMode, readEntryMode, saveEntryMode, createEntryMode, overlaySeats,
 		};`;
 	vm.runInContext(slice + epilogue, context, { filename: "client-entry-slice.js" });
@@ -79,7 +83,7 @@ const memoryStorage = (initial = {}) => {
 const probe = runSlice(memoryStorage());
 ok("片段能在 vm 里独立执行（不依赖 React 运行时）", !!probe && typeof probe.overlaySeats === "function");
 
-const { ENTRY_VISIBILITY, ENTRY_LABELS, ENTRY_DEFAULT, ENTRY_MODES, normalizeEntryMode, overlaySeats, ENTRY_KEY } = probe;
+const { ENTRY_VISIBILITY, ENTRY_DEFAULT, ENTRY_MODES, normalizeEntryMode, readEntryMode, overlaySeats, ENTRY_KEY } = probe;
 
 // ── 2. 核心不变式：没有任何一个模式把三个入口全关掉 ───────────────────────────
 const SEATS = ["panel", "fab", "sidebar"];
@@ -98,10 +102,6 @@ ok("每个模式恰好声明 panel/fab/sidebar 三个席位，无多余字段",
 	}));
 ok("每个模式的席位值都是布尔（没有 undefined/truthy 混淆）",
 	ENTRY_MODES.every((mode) => SEATS.every((seat) => typeof ENTRY_VISIBILITY[mode][seat] === "boolean")));
-ok("每个模式都有非空中文标签（菜单渲染不会出现空白项）",
-	ENTRY_MODES.every((mode) => typeof ENTRY_LABELS[mode] === "string" && ENTRY_LABELS[mode].trim().length > 0));
-ok("标签表与可见性表一一对应（不多不少）",
-	Object.keys(ENTRY_LABELS).sort().join(",") === ENTRY_MODES.slice().sort().join(","));
 ok("ENTRY_MODES 正是 ENTRY_VISIBILITY 的键（派生而非手写，不会漂移）",
 	ENTRY_MODES.slice().sort().join(",") === Object.keys(ENTRY_VISIBILITY).sort().join(","));
 ok("默认模式是表里的合法模式", Object.prototype.hasOwnProperty.call(ENTRY_VISIBILITY, ENTRY_DEFAULT), `default=${ENTRY_DEFAULT}`);
@@ -127,15 +127,21 @@ ok("查不到的模式不会得到 undefined 可见性（否则等于悄悄关�
 		return visibility && SEATS.some((seat) => visibility[seat] === true);
 	}));
 
-// ── 6. readEntryMode：localStorage 是外部输入 ─────────────────────────────────
+// ── 6. readEntryMode：旧偏好一律被忽略 ───────────────────────────────────────
 // 落盘键名取自源码本身（ENTRY_KEY），不在这里重写一遍字面量：否则有人改了键名，
 // 测试仍在测旧键名，会假装通过。
 ok("抽取标记里的键名与源码 ENTRY_KEY 一致", START_MARKER.includes(`'${ENTRY_KEY}'`), `ENTRY_KEY=${ENTRY_KEY}`);
-ok("读回合法值", probe.readEntryMode() === ENTRY_DEFAULT); // 空 storage → 默认
+ok("默认档就是「仅左上角面板」", ENTRY_DEFAULT === "panel", `default=${ENTRY_DEFAULT}`);
+ok("空 storage 读回默认档", probe.readEntryMode() === ENTRY_DEFAULT);
 const poisoned = runSlice(memoryStorage({ [ENTRY_KEY]: "__proto__" }));
-ok("localStorage 被写成 __proto__ 时退回默认（不污染、不锁死）", poisoned.readEntryMode() === ENTRY_DEFAULT, `读到=${poisoned.normalizeEntryMode("__proto__")}`);
-const stored = runSlice(memoryStorage({ [ENTRY_KEY]: "sidebar" }));
-ok("读回已落盘的合法模式", stored.readEntryMode() === "sidebar");
+ok("localStorage 被写成 __proto__ 时仍回到默认（不污染、不锁死）", poisoned.readEntryMode() === ENTRY_DEFAULT);
+// 入口选择器已删：历史偏好必须失效，否则用户没有菜单可以改回来。
+for (const legacyMode of ["both", "fab", "sidebar", "all", "panelSidebar"]) {
+	const stored = runSlice(memoryStorage({ [ENTRY_KEY]: legacyMode }));
+	ok(`旧偏好 "${legacyMode}" 被忽略，仍回到 ${ENTRY_DEFAULT}`, stored.readEntryMode() === ENTRY_DEFAULT, `读到=${stored.readEntryMode()}`);
+}
+ok("默认档不渲染悬浮按钮（只留左上角面板入口）", overlaySeats(readEntryMode())?.fab !== true);
+ok("默认档不渲染侧栏底部入口", ENTRY_VISIBILITY[ENTRY_DEFAULT].sidebar !== true);
 
 // 没有 localStorage 的运行环境（SSR / 测试替身）：不能抛，退回默认。
 const noStorage = runSlice(undefined);
@@ -171,6 +177,9 @@ ok("set 非法值：落盘的也是归一化后的默认值", store.map.get("dsh
 off();
 modeStore.set("fab");
 ok("退订后不再收到通知", seen.length === 2, `seen=${seen.join(",")}`);
+// 工厂仍可被测试/内部调用，但下一次启动读回来必须是默认档（旧值不会复活）。
+const reread = runSlice(store);
+ok("落盘过的旧值在下一次启动被忽略（不会复活稀有入口）", reread.readEntryMode() === ENTRY_DEFAULT, `读到=${reread.readEntryMode()}`);
 
 // ── 8. 存量偏好兼容：凡历史值都要落在表里 ─────────────────────────────────────
 // 早先版本有过 panel/fab/sidebar/both 这些模式；旧用户 localStorage 里可能是任意一个。

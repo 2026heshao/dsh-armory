@@ -83,7 +83,7 @@ ok("M3 成功与失败回包都先比序号", (openDetail.match(/if \(seq !== sk
 ok("M3 closeSkillDetail 递增序号", /skillDetailSeq\.current \+= 1;/.test(closeDetail));
 ok("M3 所有关闭路径统一走 closeSkillDetail（唯一的 setSkillDetail(null) 就在它内部）",
   (client.match(/setSkillDetail\(null\)/g) || []).length === 1
-  && /const closeSkillDetail = \(\) => \{[\s\S]{0,120}setSkillDetail\(null\);/.test(client)
+  && /const closeSkillDetail = \(\) => \{[\s\S]{0,320}setSkillDetail\(null\);/.test(client)
   && (client.match(/closeSkillDetail\(\)/g) || []).length >= 4);
 const noGuard = openDetail.replace(/if \(seq !== skillDetailSeq\.current\) return;/g, "");
 ok("M3 反向：删掉序号守卫后断言必须判红",
@@ -91,14 +91,15 @@ ok("M3 反向：删掉序号守卫后断言必须判红",
 
 // ═══ M4 重连：宿主失败不能显示成功 ══════════════════════════════════════════
 const reconnect = between(client, "const reconnectConnector = async (item) => {", "// ── R8：连接器 OAuth 授权", "reconnectConnector");
-ok("M4 逐条检查 res.ok === false", /if \(res && res\.ok === false\) \{/.test(reconnect)
-  && /failed\.push\(name \+ ': ' \+ \(res\.error \|\| t\('调用失败'\)\)\);/.test(reconnect));
+ok("M4 逐条要求 res.ok === true，缺回包也不得报成功", reconnect.includes("if (!res || res.ok !== true) {")
+  && reconnect.includes("const reason = res?.error || t('调用失败');")
+  && reconnect.includes("failed.push(name + ': ' + reason);"));
 ok("M4 有失败时走 setError，不再落到成功提示",
   /if \(failed\.length\) setError\(t\('\{0\}：\{1\}', \[item\.name, failed\.join\('; '\)\]\)\);/.test(reconnect)
   && /else setNote\(/.test(reconnect));
-const noOkCheck = reconnect.replace("if (res && res.ok === false) {", "if (false) {");
+const noOkCheck = reconnect.replace("if (!res || res.ok !== true) {", "if (false) {");
 ok("M4 反向：去掉 ok 判定后断言必须判红",
-  /if \(res && res\.ok === false\) \{/.test(reconnect) && !/if \(res && res\.ok === false\) \{/.test(noOkCheck));
+  reconnect.includes("if (!res || res.ok !== true) {") && !noOkCheck.includes("if (!res || res.ok !== true) {"));
 
 // ═══ M5 / M6 专家挂载提示：adopted 与替身都要如实说明 ═══════════════════════
 const attach = between(client, "const attachExpert = async (item, { quiet = false } = {}) => {", "const detachExpert = async () => {", "attachExpert");
