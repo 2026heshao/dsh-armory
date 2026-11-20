@@ -2808,5 +2808,277 @@
       "removedLines": 8
     },
     "note": "DSH 0.2.2-rc.3 已取消 subagent-control/list-agents 导出，主入口已注册 list_agents。仅删除模板失效行并加说明；本机四份专家预设仅删除对应两行，人设/名称/ID及其余配置逐字不变。仓库与运行时基线相同且写前复核；42 项入口回归（含真实宿主解析）、86 套全量测试、lint 均通过。界面观察到三张可见专家卡无加载失败；第四张未完整核对，用户开始使用 DSH 后停止界面操作。未重启宿主、未发送专家测试消息；已加载模板模块的进程缓存待用户空闲时完全退出再启动。未改版本号、未发版。"
+  },
+  {
+    "deployedAt": "2026-11-17T01:50:02.868Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:/Users/LENOVO/.dsh/profiles/desktop/node_modules/dsh-armory/lib",
+    "mode": "manual-copy (baseline = HEAD blob, per-file sha256 verified)",
+    "files": [
+      {
+        "name": "mcp-registry.js",
+        "kind": "更新",
+        "sha256": "489CAF8E639708BB58B1749F81D25AB7A122EFAB65C10E0DD45CA26FCADB43C8"
+      },
+      {
+        "name": "index.js",
+        "kind": "更新",
+        "sha256": "F26FFD9763C3F1D371451130A5BBB5ABC1D317646513B1EA6447774E0796FDA2"
+      },
+      {
+        "name": "workspace-runtime.js",
+        "kind": "更新",
+        "sha256": "D59EAEC242FB384AB8FF9BCA4464889397802D9A018E89F7F808B16EFBCB6890"
+      },
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "890347E40642F4F2C62468ED4BE00780194A1D991001DE3480082D0686607178"
+      }
+    ],
+    "backupDirectory": "C:/Users/LENOVO/.dsh/profiles/desktop/node_modules/dsh-armory.bak-deploy-2026-11-17T01-50-02-868Z",
+    "note": "issue #23：官方 @deepseek-ai/dsh-mcp-manager 把 config.servers 的每个键挂成自己的子实例，不是 loader 条目，旧数据源让 MCP 面板恒空、工具账本把它们的调用记成内置工具。修法：新增只读投影 managedServers（config.servers.get() 读配置、list() 读状态），面板/status/工具归属/工具裁缝/导入冲突/项目同名判定统一并入，写动作改为明确指向「设置 → MCP 服务器」；托管行 managed=false 复用现有只读 UI。四个文件部署前逐一与 HEAD blob 比对（全部相等，无并行改动），部署后与仓库 sha256 逐字一致。新增 test/mcp-manager-servers.mjs（48 断言，含 3 条反向自测）；87 套全量测试、lint 0。本机 profile 没有 mcp-manager 配置，未做真机 UI 验收；面板需 Ctrl+R、宿主侧（index/mcp-registry/workspace-runtime）需完全退出 DSH 再启动。未改版本号、未发版。"
+  },
+  {
+    "deployedAt": "2026-11-17T02:13:36.708Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:/Users/LENOVO/.dsh/profiles/desktop/node_modules/dsh-armory/lib",
+    "mode": "manual-copy (baseline = record 126 sha, verified)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "652339EC3EE3E34787AADF8D4F8A149F176DB5A0E9E70B1FB25320EF7C5C2964"
+      }
+    ],
+    "backupDirectory": "C:/Users/LENOVO/.dsh/profiles/desktop/node_modules/dsh-armory.bak-deploy-2026-11-17T02-13-36-708Z",
+    "note": "issue #23 真机验收反馈：托管行已出现在面板（宿主侧生效），但客户端细节不足——头部徽标仍写「全局配置」、编辑/重连/移除没有只读提示、项目 tab 的全局 MCP 列表没有托管徽标。本次仅 client.js：头部改「托管」、三个按钮补「由 DSH 官方 mcp-manager 托管，只读」title、项目 tab 列表加徽标、项目 tab 警告文案指向设置页。基线=第 126 条 890347E4…；87 套全量、lint 0；部署后与仓库逐字一致。面板 Ctrl+R 生效。"
+  },
+  {
+    "deployedAt": "2026-11-17T02:19:56.656Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:/Users/LENOVO/.dsh/profiles/desktop/node_modules/dsh-armory/lib",
+    "mode": "manual-copy (baseline = record 127 sha, verified)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "F8D929DFBFB5BB44C8727FAC941F486A684ED1020F25212F6FAD9146CC3885CC"
+      }
+    ],
+    "backupDirectory": "C:/Users/LENOVO/.dsh/profiles/desktop/node_modules/dsh-armory.bak-deploy-2026-11-17T02-19-56-656Z",
+    "note": "用户要求删除面板头部「入口」按钮及其下拉，入口固定为左上角侧栏面板行。client.js：删除 EntryMenu 组件与调用、删除 8 条入口文案的 en-US 词条、ENTRY_DEFAULT 改 panel、readEntryMode 忽略 localStorage 旧偏好（避免用户被困在无菜单可改的 fab/all 档）、清理 .dsh-mcp-entry 容器 CSS。表与 overlaySeats 保留（悬浮按钮/侧栏底部入口/面板注册三个消费点仍在，默认档均不渲染）。测试同步：client-entry 改为「旧偏好一律回 panel」并加不变式；skillhub-ux-fix 5.1 改为默认档不渲染悬浮按钮。基线=第 127 条 652339EC…；87 套全量、lint 0。面板 Ctrl+R 生效。"
+  },
+  {
+    "deployedAt": "2026-11-17T03:34:31.458Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory",
+    "target": "C:/Users/LENOVO/.dsh/profiles/desktop/node_modules/dsh-armory",
+    "mode": "targeted-copy (ux-five-2026-11-17 + release metadata 2.5.7)",
+    "note": "五项交互细节（共享技能首次确认；市场错误与空态互斥；失败浮层保留/复制/关闭；技能仅手动措辞；本页已安装与全部已装跳转）只改 client.js，部署前与运行时逐 hunk 核对（47 段全部属本单，未混入并行改动）。另将版本元数据追平已发布的 2.5.7：package.json 2.5.5→2.5.7、whats-new 中英补 2.5.6/2.5.7（repo==npm 发布包）。index/mcp-registry/workspace-runtime 运行时已与仓库一致，未重复覆盖。本次无宿主模块改动，面板 Ctrl+R 即可；whats-new 卡片同页面加载。",
+    "files": [
+      {
+        "name": "lib/client.js",
+        "kind": "更新",
+        "before": "F8D929DFBFB5BB44C8727FAC941F486A684ED1020F25212F6FAD9146CC3885CC",
+        "sha256": "6D88A4EBBDBDB9FAA46445906A9CBC7B94925C140EB769B5699C59439CD7EB5C"
+      },
+      {
+        "name": "lib/whats-new.js",
+        "kind": "更新",
+        "before": "35685FD3CA98C6E62C9D75E531F914AA7D9A43A6538ECC3EE8D858357AC5E4C2",
+        "sha256": "DE970064C034DEABA217AAC5517B4705024F33A370981E9EF208A636AA16A547"
+      },
+      {
+        "name": "lib/whats-new-en.js",
+        "kind": "更新",
+        "before": "FA4FC85CCD529F52A82E835244E0EA7E175B3CF5F331A1AE608FC3A81D30FFBA",
+        "sha256": "EE0A1EC70F27E4B6AD7B977339F997697A8981751CE6F1DA0AC7607761DCBD1C"
+      },
+      {
+        "name": "package.json",
+        "kind": "更新",
+        "before": "68635C4D801707781D745E939948AA63D42D778C81E7907641AFCAB7C9C5A844",
+        "sha256": "D4DE7DC42A66F81CF5BCC5B9F4502A30858B2904B154E2F360E1D054DFB7EBE5"
+      }
+    ],
+    "backupDirectory": "C:/Users/LENOVO/.dsh/profiles/desktop/node_modules/dsh-armory.bak-deploy-2026-11-17T03-34-31-234Z"
+  },
+  {
+    "deployedAt": "2026-11-17T04:19:43.358Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory",
+    "target": "C:/Users/LENOVO/.dsh/profiles/desktop/node_modules/dsh-armory",
+    "mode": "targeted-copy (ux-four-2026-11-17)",
+    "note": "四项市场操作修复：卸载二次确认（卡片与详情分开状态）；翻页/搜索失败不再展示上一批卡片；技能安装/卸载与专家召唤/送还的失败原因写入当前弹层；专家详情串行读取时禁用其它详情按钮。只改 client.js，部署前与运行时逐 hunk 核对（24 段全部属本单，未混入并行改动）；89 套件全绿、lint 0，隔离 DOM 复验 17 项/14 图通过。无宿主模块改动，刷新面板即可生效；未做实机点击验收。",
+    "files": [
+      {
+        "name": "lib/client.js",
+        "kind": "更新",
+        "before": "6D88A4EBBDBDB9FAA46445906A9CBC7B94925C140EB769B5699C59439CD7EB5C",
+        "sha256": "5807D7031A639A61335D88A3EB5DBB317AE8F6149F7BF28F4D023E41281E0BF4"
+      }
+    ],
+    "backupDirectory": "C:/Users/LENOVO/.dsh/profiles/desktop/node_modules/dsh-armory.bak-deploy-2026-11-17T04-19-43-358Z"
+  },
+  {
+    "deployedAt": "2026-11-18T14:43:02.667Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "DC24F4009C6CC0DB21019787CD67583E9C72C303D81B5C95176AB5F20A1463A6"
+      },
+      {
+        "name": "index.js",
+        "kind": "更新",
+        "sha256": "FFAC7691943D4984120B2E5A9E380A79FEAD304CF36FA8FFF6401C8D287406CF"
+      },
+      {
+        "name": "mcp-oauth.js",
+        "kind": "更新",
+        "sha256": "F884902864D4DADCD1A65EBFE981B9CBC7F13D1325007BFE3BBE3E967A9292AA"
+      },
+      {
+        "name": "typert.js",
+        "kind": "更新",
+        "sha256": "B60388E1FABA0D78F859B091141020B4973D390FC5C507D9EBED0B2530E21FE8"
+      },
+      {
+        "name": "wb-market.js",
+        "kind": "更新",
+        "sha256": "48D0D6FA3D7696A603F8C0FBAA6B217C14A7ABFAF55132B9810D5005137C832F"
+      },
+      {
+        "name": "whats-new-en.js",
+        "kind": "更新",
+        "sha256": "01BC6FE87A9FEAAA5FC23EB463B393EACD233A9AB8322D9D12055C88BBCE78AF"
+      },
+      {
+        "name": "whats-new.js",
+        "kind": "更新",
+        "sha256": "07D8277DC25048E21A52B9DD7AF24B2E68D61856691E545CBB82FB617B7B53F4"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-11-20T12:50:19.840Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "0A0F97B82FCC31C9BEE04D91DFAC7FDE9B6F3F8B6FC25F419044258F1693B591"
+      },
+      {
+        "name": "index.js",
+        "kind": "更新",
+        "sha256": "0B7B1DBF8F1A918936F0FC2732FA33E05E0A293EF9EE4CF7F77F739319AA68E0"
+      },
+      {
+        "name": "wb-market.js",
+        "kind": "更新",
+        "sha256": "D9B136F62D5F21A7D082C7FFAEE23A98C1420AE75E4B30D933C1B933C0FBA445"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-11-20T13:06:02.291Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "8B081EAC052B4D46AED1839D1E2ACECF311F32329309884773080CC27B1C3417"
+      },
+      {
+        "name": "typert.js",
+        "kind": "更新",
+        "sha256": "CC6C1B6410A75A45BA4552A9ED36EE42D0EA99BA80B8BA8093EDFF6AFD68AFFD"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-11-20T13:14:37.757Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "F8664A2D0F792AF55E30997762698DD6FDABFFC0DE7C89375F8569877E3E3916"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-11-20T13:26:48.507Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "679E11F68C0B251FC41F9654D447885F8AB87934E94BAEF494820B1C62ED31D8"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-11-20T13:31:17.899Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "C58128FB8907C789115186817BBDBE6FBC393C4932BF04EA4468CCA176F1F677"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-11-20T13:37:06.639Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "7416470363CF6F09E52615F853ED6B7C0DCEBC89EBB376462062FCF4A89E25EA"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-11-20T13:48:19.971Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "162D30DB597F9D3EF6409B6E1E9B5D381D083B3F1152B3EF80E670F243925A35"
+      }
+    ]
+  },
+  {
+    "deployedAt": "2026-11-20T13:50:06.730Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "109C324B965BB2349678F7FF42A7B54ABA3FB3F502DCFB8D749F02307F489947"
+      }
+    ]
   }
 ]

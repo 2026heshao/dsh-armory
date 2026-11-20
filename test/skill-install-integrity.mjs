@@ -54,18 +54,19 @@ ok("客户端：安装成功如实提示改名与「落盘但未收录」",
 // ── 客户端：在飞挡回 + 已装双键 ──────────────────────────────────────────
 ok("客户端：同技能在飞安装挡回（不制造两次成功）", /skillInstallInFlight\.current\.has\(flightKey\)/.test(client));
 ok("客户端：挡回提示有 en-US 词条", /"该技能正在安装中，请等当前任务结束": "/.test(client));
-ok("客户端：已装集合按 namespace/slug 双键建（键 → 安装时间）",
-  /setInstalledSkills\(new Map\(\(res\.installed \|\| \[\]\)\.map\(\(row\) => \[skillInstalledKey\(row\), /.test(client));
-ok("客户端：卡片 / 详情 / 本页筛选都走双键",
-  client.includes("installedSkills.has(skillInstalledKey(skill))")
-  && client.includes("installedSkills.has(skillInstalledKey(skillDetail))"));
+ok("客户端：已装集合按「作用域前缀（可选）+ namespace/slug」双键建（键 → 安装时间）",
+  /setInstalledSkills\(new Map\(\(res\.installed \|\| \[\]\)\.map\(\(row\) => \{/.test(client)
+  && /skillInstalledKey\(\{ \.\.\.row, scope \}\)/.test(client));
+ok("客户端：卡片 / 详情 / 本页筛选都按 installedEntryFor 判已装（issue #27 交互三改：任意作用域）",
+  client.includes("installedEntryFor(skill)")
+  && client.includes("detailInstalledEntry"));
 ok("客户端：slug 单键匹配不得复活",
   !client.includes("installedSkills.has(skill.slug)") && !client.includes("installedSkills.has(skillDetail.slug)"));
 
 // ── 客户端：安装时间展示（2026-10-24 用户需求）───────────────────────────
 ok("宿主：wbSkillInstalled 行带 installedAt", /installedAt: ledgerAt\.get\(dir\) \|\| bornAt \|\|/.test(wbMarket));
 ok("客户端：市场卡片标签行有「安装于」徽标", /t\('安装于 \{0\}', \[wbFormatDate\(installedAt\)\]\)/.test(client));
-ok("客户端：市场详情弹层有「安装于」徽标", client.includes("t('安装于 {0}', [wbFormatDate(installedSkills.get(skillInstalledKey(skillDetail)))]))"));
+ok("客户端：市场详情弹层有「安装于」徽标", client.includes("t('安装于 {0}', [wbFormatDate(detailInstalledEntry.at)]))"));
 ok("客户端：看板详情有「安装时间」行", client.includes("t('安装时间')"));
 ok("客户端：「安装于 / 安装时间」有 en-US 词条",
   /"安装于 \{0\}": "/.test(client) && /"安装时间": "/.test(client));

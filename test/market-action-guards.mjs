@@ -182,7 +182,8 @@ ok(
 // ═══════════════════════════════════════════════════════════════════════════
 section('5. 弹层内显示操作失败原因');
 const INSTALL_SLICE = sliceBetween(
-  '  const installSkill = async (skill) => {',
+  // issue #27 交互三改：scope 必填（由「选择安装位置」弹层传入），锚点跟着改。
+  '  const installSkill = async (skill, scope) => {',
   '  const uninstallSkill = async (skill) => {',
   '技能安装函数',
 );

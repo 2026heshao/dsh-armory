@@ -213,6 +213,10 @@ const SUITES = [
   // 切换（listWorkspaces → ScopeTabs → hash skillws）与失效工作区回退，含反向自测。
   { name: "skill-project-scope（项目级 skill 可见：作用域切换与调用链）", file: "skill-project-scope.mjs" },
   { name: "skill-install-integrity（技能假安装：并发串行/落盘复核/已装双键/搜索框焦点）", file: "skill-install-integrity.mjs" },
+  // issue #27：技能市场安装作用域。cwd（已注册工作区）落到 <cwd>/.agents/skills 实现
+  // 项目隔离：宿主白名单、installed 行带 scope、客户端作用域标签（与看板共用 hash 键
+  // skillws）与作用域感知的已装键。fetch 替身真跑安装/卸载/扫描全链路，mkdtemp 隔离。
+  { name: "skill-install-scope（市场安装作用域：项目隔离 / 白名单 / 已装键带 scope）", file: "skill-install-scope.mjs" },
   // ── T02 连接器元数据投影 ─────────────────────────────────────────────────
   // 纯解析层守护：零网络、零真实 ~/.dsh。钉 R1 注入规则标注 / R2 visible_in 标签筛选 /
   // R3 examples 优先。（T03 的 CodeBuddy 插件市场已于 2026-10-24 整体移除，对应套件一并下线。）

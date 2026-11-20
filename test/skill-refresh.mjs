@@ -93,7 +93,7 @@ let BOARD_PAGE;
 try {
 	BUS = sliceBetween("// Skill 集合变更总线", "// ── Skill 看板：列表 + 详情");
 	COUNT_REFRESH = sliceBetween("  const skillCountSeq = useRef(0);", "  useEffect(() => {\n    if (countsLoaded.current) return;");
-	INSTALL = sliceBetween("  const installSkill = async (skill) => {", "  const uninstallSkill = async (skill) => {");
+	INSTALL = sliceBetween("  const installSkill = async (skill, scope) => {", "  const uninstallSkill = async (skill) => {");
 	UNINSTALL = sliceBetween("  const uninstallSkill = async (skill) => {", "  const openSkillDetail = async (skill) => {");
 	REMOVE = sliceBetween("  const removeSelected = useCallback(async () => {", "  // §1.4 空状态四件套");
 	SKILLBOARD = sliceBetween("const SkillBoard = ({ call, timer }) => {", "const WB_MARKET_CONNECTOR_PAGE_SIZE =");

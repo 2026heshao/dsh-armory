@@ -152,7 +152,9 @@ function installGateShape(source) {
   const iWrote = body.indexOf("const wrote =");
   const iGate = body.indexOf("if (!wrote)");
   const iRecord = body.indexOf("recordInstallState({");
-  const iReturn = body.indexOf("return { ...result, missingSlots, localDeps, wrote }");
+  // issue #25 起成功返回还透传 probeWarnings（探测异常清单），锚点随之放宽，
+  // 但「返回必须携带 wrote」这条不变式不变。
+  const iReturn = body.indexOf("return { ...result, missingSlots, localDeps, wrote");
   const gateBlock = iGate >= 0 && iRecord > iGate ? body.slice(iGate, iRecord) : "";
   return {
     found: true,
