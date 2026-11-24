@@ -1,0 +1,24 @@
+# 仓库内一律 LF，与 .editorconfig（end_of_line = lf）和 .prettierrc.json（endOfLine: "lf"）保持一致。
+#
+# 为什么必须显式写：Windows 上 core.autocrlf=true 会把工作区签出成 CRLF，而
+# test/ 里有大量 indexOf("\n}\n") 一类「源码针」断言，CRLF 下必然定位不到，
+# 表现就是本地若干套件假红、CI（Linux）全绿，长期误导排查方向。
+* text=auto eol=lf
+
+# 二进制：禁止行尾转换与文本 diff
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.zip binary
+*.gz binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+
+# Windows 批处理必须是 CRLF，否则 cmd 解析会出错（当前无此类文件，作为新增脚本的守卫）
+*.bat text eol=crlf
+*.cmd text eol=crlf

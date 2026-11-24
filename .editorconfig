@@ -1,6 +1,7 @@
 root = true
 
-# 本仓库没有 .git，编辑器配置是唯一的「统一约定」载体。
+# 行尾与缩进在这里约定；行尾另由 .gitattributes（* text=auto eol=lf）在 git 层强制，
+# 避免 Windows 的 core.autocrlf 把工作区签出成 CRLF。
 # 缩进刻意保持 indent_size = 2 而不是强制重排既有文件：lib/ 里现有 5 个文件用 tab、
 # 4 个用 4 空格（见优化建议.md OPT-10），一次性重排会产生 2 万行差异却零行为收益。
 # 新代码按本文件写；旧文件在下次实际修改时顺带对齐。

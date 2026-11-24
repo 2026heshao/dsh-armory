@@ -116,7 +116,7 @@ WorkBuddy 专家中心有 429 位专家、15 个行业，其中 53 个是团队�
 
 升级：npm 安装的可以在面板提示条上点「升级」，或执行 `dsh plugin --profile web update dsh-armory`。升级后**完全退出 DSH 再启动**，宿主侧模块只在进程启动时加载一次。卸载：`dsh plugin --profile web remove dsh-armory`，已有的 MCP 条目不会被删除。
 
-兼容：DSH `0.1.5-rc.1` 及以上。本机真机验证到 `0.2.1-rc.2`（DSH 44.7.0）；从 `2.5.5` 起，服务键与 DSH `0.2.2-rc.2` 自带的官方 mcp-manager 已隔离，两者可以同时启用（该版本按官方包源码与真 cordis 回归验证，尚未在 rc.2 真机复跑）。Windows 实测；Linux 和 macOS 走同一套 DSH Web 契约。
+兼容：DSH `0.1.5-rc.1` 及以上。`peerDependencies` 里的 cordis 范围覆盖 DSH `0.1.2` 以后各版本用过的全部 cordis（`4.0.2` 到 `4.2.0-alpha.1`，含 `4.0.5` / `4.0.6` 的 alpha 档）。本机真机验证到 `0.2.1-rc.2`（DSH 44.7.0）；从 `2.5.5` 起，服务键与 DSH `0.2.2-rc.2` 自带的官方 mcp-manager 已隔离，两者可以同时启用（该版本按官方包源码与真 cordis 回归验证，尚未在 rc.2 真机复跑）。Windows 实测；Linux 和 macOS 走同一套 DSH Web 契约。
 
 界面语言跟随 DSH。中文环境显示中文，其他语言回落英文。想强制英文，在 DevTools 里设 `localStorage['dsh-armory.locale'] = 'en-US'` 再刷新。
 
