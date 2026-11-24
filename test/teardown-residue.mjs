@@ -23,6 +23,10 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+// appRoot 自 PR #29 起改调 lib/app-root.js 的 rootOf（cordis rc.12 移除了 ctx.root）。
+// 片段是被抽进 vm 沙箱执行的，沙箱里没有该模块的绑定，所以这里注入真实实现，
+// 而不是在沙箱里再复制一份口径（复制会让两处慢慢走偏）。
+import { rootOf } from "../lib/app-root.js";
 import vm from "node:vm";
 
 // 仓库路径含中文，必须走 fileURLToPath —— URL.pathname 会把中文百分号编码。
@@ -102,7 +106,7 @@ function loadModule() {
   class FakeDate extends Date {
     static now() { return fakeNow; }
   }
-  const context = { console, Date: FakeDate };
+  const context = { console, Date: FakeDate, rootOf };
   context.globalThis = context;
   vm.createContext(context);
   vm.runInContext(
@@ -349,7 +353,7 @@ ok("observeTeardown · 畸形 ctx 导致的 TypeError 也被吞掉",
   if (broken !== records) {
     let fakeNow = t0 + 5000;
     class D extends Date { static now() { return fakeNow; } }
-    const c = { console, Date: D };
+    const c = { console, Date: D, rootOf };
     c.globalThis = c;
     vm.createContext(c);
     vm.runInContext(helpers + "\n" + stuckConst + "\n" + broken + "\nglobalThis.__t = teardownLiveView;", c, { filename: "teardown-broken.js" });
@@ -367,7 +371,7 @@ ok("observeTeardown · 畸形 ctx 导致的 TypeError 也被吞掉",
   ok("自测前置：成功删掉超龄判断", broken !== records);
   if (broken !== records) {
     class D extends Date { static now() { return 0; } }
-    const c = { console, Date: D };
+    const c = { console, Date: D, rootOf };
     c.globalThis = c;
     vm.createContext(c);
     vm.runInContext(helpers + "\n" + stuckConst + "\n" + broken + "\nglobalThis.__t = teardownFinalView;", c, { filename: "teardown-broken2.js" });
@@ -381,7 +385,7 @@ ok("observeTeardown · 畸形 ctx 导致的 TypeError 也被吞掉",
   ok("自测前置：成功把裁剪条件从 > 改成 >=", broken !== records);
   if (broken !== records) {
     class D extends Date { static now() { return 0; } }
-    const c = { console, Date: D };
+    const c = { console, Date: D, rootOf };
     c.globalThis = c;
     vm.createContext(c);
     vm.runInContext(helpers + "\n" + stuckConst + "\n" + broken + "\nglobalThis.__b = beginTeardownRecord; globalThis.__r = teardownRecords; globalThis.__ar = appRoot;", c, { filename: "teardown-broken3.js" });

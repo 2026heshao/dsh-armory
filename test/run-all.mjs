@@ -13,6 +13,11 @@ import { dirname, join } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SUITES = [
+  // app root 读取口径（PR #29）：cordis 4.0.0-rc.12 起移除了 `ctx.root`，插件 fiber 内读它
+  // 会抛 `cannot get property "root" without inject`，而 armory 两处读取都在 apply 阶段，
+  // 结果是「启用成功、fiber 立刻 failed」。纯函数五形态 + 反向自测（旧写法必须仍然坏）+
+  // 源码针，零网络零写盘，是最底层依赖，放最前面让基础层先过。
+  { name: "app-root（cordis rc.12 根上下文读取口径）", file: "app-root.mjs" },
   // 账本与 MCP 配置层（OPT-09）：这两个模块以前**零测试引用**，OPT-01（zstd 缺失时
   // 静默全 0）与 OPT-06（日志无尺寸上限）当时没有任何用例能发现。都只用本机模块、
   // 不碰真实 profile、不联网，放最前面让基础层先过。
