@@ -1,6 +1,6 @@
 {
   "name": "dsh-armory",
-  "version": "2.5.11",
+  "version": "2.5.12",
   "description": "Unified Skill + MCP + Expert + Plugin board for DeepSeek Harness (desktop app and Web GUI) — custom skill suites, skill install/uninstall with live refresh, per-skill enable/disable on the Skill board, global panel page, JSON import, WorkBuddy connector & SkillHub & Expert & DSH community plugin market installs, MCP OAuth authorization, tool-usage tailor with wire-tax trends, and profile-backed Host Remote management.",
   "repository": {
     "type": "git",
@@ -48,7 +48,7 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.2 || ^4.0.5-alpha.1 || ^4.0.6-alpha.1 || ^4.2.0-alpha.1",
-    "@deepseek-ai/cordis-plugin-loader": "^1.0.3",
+    "@deepseek-ai/cordis-plugin-loader": "^1.0.3 || ^1.0.6-alpha.1 || ^1.0.7-alpha.1 || ^1.2.0-alpha.1",
     "@deepseek-ai/dsh-agent": ">=0.1.5-rc.1",
     "@deepseek-ai/dsh-agent-loop": ">=0.1.5-rc.1",
     "@deepseek-ai/dsh-atomic-write": ">=0.1.5-rc.1",
