@@ -1,11 +1,17 @@
 // issue #4（2026-10-26）数据层回归：技能详情的 name / description / homepage 映射。
+// issue #30（2026-11-26）修正：公开页形态从 `/<namespace>/<slug>` 改为 `/skills/<namespace>/<slug>`。
 //
 // 用户报的三条里，前两条都源自同一个上游形状变化：
 //   · 列表接口的 homepage 实际是 `https://api.skillhub.cn/<namespace>/<slug>`——JSON 接口，
-//     浏览器打开 405；人可读页面在 `https://skillhub.cn/...`（实测 200 text/html）。
+//     浏览器打开 405；人可读页面在 `https://skillhub.cn/skills/...`（实测 200 且带真内容）。
 //   · 详情接口把技能本体挂在 `skill` 子对象下，字段名是 displayName / summary_zh / summary /
 //     iconUrl；根层没有 name / description / homepage。旧实现只读根层，于是标题退化成 slug、
 //     介绍空白。
+//
+// issue #30 是一处**回归**：第一版把公开页拼成 `https://skillhub.cn/<namespace>/<slug>`，
+// 少了 /skills 这一段。站点是 SPA，这条地址服务端回 200 但只是空壳 HTML，前端渲染成
+// "Page not found"——所以当时"改写成公开页"的修复看起来生效，用户看到的却是 404。
+// 本文件原先的断言把错误形态钉死了（断言对、实现错），现在一并改到真实路由。
 //
 // 手法：真 import lib/wb-market.js，只把 globalThis.fetch 换成按 URL 返回固定 JSON 的替身。
 // 零真实网络、零 ~/.dsh 读写（这两个函数不碰缓存目录）。断言的是**行为**：
@@ -26,14 +32,18 @@ const section = (title) => console.log(`\n── ${title} ───────�
 section("0. skillhubHomepage：只把接口地址换成公开页");
 {
   const api = "https://api.skillhub.cn/user_98035bfb/zlbx-bidding";
-  ok("0.1 api.skillhub.cn 的 JSON 地址 → skillhub.cn 公开页",
-    skillhubHomepage(api, "user_98035bfb", "zlbx-bidding") === "https://skillhub.cn/user_98035bfb/zlbx-bidding",
+  ok("0.1 api.skillhub.cn 的 JSON 地址 → skillhub.cn 公开页（/skills 段不可省）",
+    skillhubHomepage(api, "user_98035bfb", "zlbx-bidding") === "https://skillhub.cn/skills/user_98035bfb/zlbx-bidding",
     skillhubHomepage(api, "user_98035bfb", "zlbx-bidding"));
-  ok("0.2 没有 namespace/slug 时只去掉 api. 前缀（不再把接口地址交出去）",
-    skillhubHomepage(api) === "https://skillhub.cn/user_98035bfb/zlbx-bidding",
+  ok("0.2 没有 namespace/slug 时按接口路径改写，同样补 /skills（不再交 200 空壳出去）",
+    skillhubHomepage(api) === "https://skillhub.cn/skills/user_98035bfb/zlbx-bidding",
     skillhubHomepage(api));
   ok("0.3 homepage 缺失时用 namespace + slug 拼公开页",
-    skillhubHomepage("", "user_98035bfb", "zlbx-bidding") === "https://skillhub.cn/user_98035bfb/zlbx-bidding");
+    skillhubHomepage("", "user_98035bfb", "zlbx-bidding") === "https://skillhub.cn/skills/user_98035bfb/zlbx-bidding");
+  // issue #30 的回归自测：旧形态（缺 /skills）就是用户看到 Page not found 的原因。
+  ok("0.3b 自测：拼出来的地址一定带 /skills（旧形态不再产出）",
+    !/^https:\/\/skillhub\.cn\/[^/]+\/[^/]+$/.test(skillhubHomepage(api, "user_98035bfb", "zlbx-bidding")),
+    skillhubHomepage(api, "user_98035bfb", "zlbx-bidding"));
   ok("0.4 GitHub 等其它可浏览地址原样保留",
     skillhubHomepage("https://github.com/o/r", "user_x", "skill") === "https://github.com/o/r");
   ok("0.5 形似域名（api.skillhub.cn.evil）不被误判",
@@ -104,7 +114,7 @@ try {
   {
     const catalog = await wbSkillCatalog({ page: 1, pageSize: 20 });
     const row = catalog.skills[0];
-    ok("2.1 列表 homepage → 公开页", row.homepage === "https://skillhub.cn/user_98035bfb/zlbx-bidding", row.homepage);
+    ok("2.1 列表 homepage → 公开页", row.homepage === "https://skillhub.cn/skills/user_98035bfb/zlbx-bidding", row.homepage);
     ok("2.2 upstreamUrl 保留真实外部来源", row.upstreamUrl === "https://clawhub.ai/user_98035bfb/zlbx-bidding", row.upstreamUrl);
     ok("2.3 列表其它字段不受影响", row.name === "全国招标中标查询及分析【知了标讯】" && row.description === "列表里的中文介绍");
     // issue #9：中英两套字段都要送出去，UI 才能在英文界面选到英文。
@@ -119,7 +129,7 @@ try {
     const detail = await wbSkillDetail({ slug: "zlbx-bidding", namespace: "user_98035bfb" });
     ok("3.1 name 取 skill.displayName（不是 slug）", detail.name === "全国招标中标查询及分析【知了标讯】", detail.name);
     ok("3.2 description 取 skill.summary_zh（完整介绍）", detail.description === "完整中文介绍（418 字）", detail.description);
-    ok("3.3 homepage 永远是可浏览的公开页", detail.homepage === "https://skillhub.cn/user_98035bfb/zlbx-bidding", detail.homepage);
+    ok("3.3 homepage 永远是可浏览的公开页", detail.homepage === "https://skillhub.cn/skills/user_98035bfb/zlbx-bidding", detail.homepage);
     ok("3.4 iconUrl 透出详情图标", detail.iconUrl === "https://example.com/icon-detail.png");
     ok("3.5 发布方/创建时间/分类等仍可用",
       detail.ownerName === "user_98035bfb" && detail.createdAt === 1775204455588 && detail.category === "business-ops");

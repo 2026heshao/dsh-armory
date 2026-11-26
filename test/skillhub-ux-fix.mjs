@@ -105,7 +105,13 @@ const { mergeSkillDetail, browsableHomepageUrl } = detailProbe;
 {
   ok("1.8 GitHub / 普通站点主页保留",
     browsableHomepageUrl("https://github.com/o/r") === "https://github.com/o/r"
-    && browsableHomepageUrl("https://skillhub.cn/u/s") === "https://skillhub.cn/u/s");
+    && browsableHomepageUrl("https://skillhub.cn/skills/u/s") === "https://skillhub.cn/skills/u/s");
+  // issue #30：`/<ns>/<slug>`（缺 /skills）是 200 空壳，前端渲染成 Page not found。
+  // 它既不是接口域名、也长得像正常网页，只能靠路径形态拦。
+  ok("1.8b 旧形态（缺 /skills）的技能页被拒绝",
+    browsableHomepageUrl("https://skillhub.cn/u/s") === ""
+    && browsableHomepageUrl("https://skillhub.cn/ake/dev-god") === ""
+    && browsableHomepageUrl("https://skillhub.cn/") === "");
   ok("1.9 api.skillhub.cn 的接口地址被拒绝（不渲染「来源主页」）",
     browsableHomepageUrl("https://api.skillhub.cn/u/s") === ""
     && browsableHomepageUrl("http://api.skillhub.cn/u/s?x=1") === "");
@@ -113,6 +119,21 @@ const { mergeSkillDetail, browsableHomepageUrl } = detailProbe;
     browsableHomepageUrl("javascript:alert(1)") === ""
     && browsableHomepageUrl("") === ""
     && browsableHomepageUrl("https://api.skillhub.cn.evil.example/u/s") === "https://api.skillhub.cn.evil.example/u/s");
+  // 反向自测：从当前实现里真摘掉「/skills 形态」那一行，旧形态必须又被放出来。
+  const noSkillsGuard = SLICE_DETAIL_UTILS.replace(
+    "if (host === 'skillhub.cn' && !/^\\/skills(\\/|$)/.test(path)) return '';",
+    "",
+  );
+  ok("1.10a 自测：/skills 形态校验确实是从现实现里摘出来的（改动点命中源码）", noSkillsGuard !== SLICE_DETAIL_UTILS);
+  const noGuardProbe = (() => {
+    const context = vm.createContext({ console });
+    vm.runInContext(`${noSkillsGuard}
+      globalThis.__probe = { browsableHomepageUrl };`, context, { filename: "skillhub-detail-utils-noguard.js" });
+    return context.__probe;
+  })();
+  ok("1.10b 自测：去掉形态校验后旧地址会被放行（证明 1.8b 不是恒真）",
+    noGuardProbe.browsableHomepageUrl("https://skillhub.cn/u/s") === "https://skillhub.cn/u/s"
+    && browsableHomepageUrl("https://skillhub.cn/u/s") === "");
   // 反向自测：从当前实现里真摘掉「拒绝接口地址」那一行（= 旧校验只剩 ^https?://），
   // 在同一个 vm 里重跑必须把 405 接口地址放出来。以前这条写的是
   // `/^https?:\/\//i.test("https://api.skillhub.cn/u/s")`——拿字面量比正则，恒真、空转。
