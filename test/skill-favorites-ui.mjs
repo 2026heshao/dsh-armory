@@ -273,15 +273,18 @@ section('5. 源码接线：看板三处星标 + 菜单搜索/收藏三级');
       source.indexOf('dsh-mcp-quick-fav-row') <
         source.indexOf("className: 'dsh-mcp-quick-list'", source.indexOf('dsh-mcp-quick-fav-row')),
   );
+  // issue #31：打开态不再挂在「指针离开 180ms」上——菜单与图标之间隔 6px，
+  // 指针在这段路上丢一次 enter，用户就再也点不到菜单项。现在离开只收二级。
   ok(
-    '搜索框聚焦时 scheduleClose 直接返回',
-    /const scheduleClose = \(\) => \{[\s\S]{0,300}?if \(searchFocused\.current\) return;/.test(source),
+    '主菜单不再由指针离开关闭（issue #31）',
+    /const scheduleCollapse = \(\) => \{[\s\S]{0,400}?setHoverKind\(null\);/.test(source) &&
+      !/if \(searchFocused\.current\) return;/.test(source),
   );
   ok(
     '搜索框 onFocus 取消关闭计时',
     /onFocus: \(\) => \{ searchFocused\.current = true; cancelClose\(\); \}/.test(source),
   );
-  ok('搜索框 blur 只在焦点离开 root 时排关闭（Tab 到菜单内不误关）', source.includes('rootRef.current.contains(next)'));
+  ok('搜索框失焦不再排关闭（issue #31）', !source.includes('if (!pointerInside.current) scheduleClose();'));
   ok(
     'Escape 有词时只清词并阻止冒泡',
     /if \(e\.key === 'Escape' && skillQuery\) \{\s*e\.stopPropagation\(\);\s*setSkillQuery\(''\);/.test(source),

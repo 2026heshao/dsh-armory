@@ -3080,5 +3080,48 @@
         "sha256": "109C324B965BB2349678F7FF42A7B54ABA3FB3F502DCFB8D749F02307F489947"
       }
     ]
+  },
+  {
+    "deployedAt": "2026-11-28T02:43:38.752Z",
+    "source": "D:/桌面/AI Port/DSH plugins/dsh-armory/lib",
+    "target": "C:\\Users\\LENOVO\\.dsh\\profiles\\desktop\\node_modules\\dsh-armory\\lib",
+    "mode": "manual-copy (.deploy-apply.mjs)",
+    "files": [
+      {
+        "name": "app-root.js",
+        "kind": "新增",
+        "sha256": "0BBF6175849887184A7E25B57226B57896EFFBE5F0605A5086A3AC13D03B8312"
+      },
+      {
+        "name": "client.js",
+        "kind": "更新",
+        "sha256": "4E1B9DE1CEBB0E17DFAB1EBE2F407E4978D75DEE95DCC456FD466BF0C78A2D4B"
+      },
+      {
+        "name": "index.js",
+        "kind": "更新",
+        "sha256": "9C13973062588972084522C2BA5C97A7879E4FDB8DA91D499CBE027DD3213975"
+      },
+      {
+        "name": "wb-market.js",
+        "kind": "更新",
+        "sha256": "71F8B30BC8B81E011FF2BD2FE79B6A1AF079CBE4F691E85A6DC3241570A7BF26"
+      },
+      {
+        "name": "whats-new-en.js",
+        "kind": "更新",
+        "sha256": "EE3D865C5A46AF342AFB18005722D318CE9C7BC361350694F3D8CF8BB67F3FD1"
+      },
+      {
+        "name": "whats-new.js",
+        "kind": "更新",
+        "sha256": "126E76403D963309A55F8EC42B8D26C34A882A17F61A073912A3B9AAE1BC474A"
+      },
+      {
+        "name": "workspace-runtime.js",
+        "kind": "更新",
+        "sha256": "C7C9DBE586D2109170ADEA0B61C2976B21286F7C863A06CF142235634CAAC1C8"
+      }
+    ]
   }
 ]

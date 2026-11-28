@@ -218,7 +218,23 @@ ok("组件把期望视口坐标交给包含块换算", component.includes("const
 		&& component.includes("menuPos || QUICK_MENU_HIDDEN_STYLE"));
 	ok("主菜单自身不再是滚动容器（否则二级/三级被裁）", rule.length > 0 && !/overflow-y\s*:/.test(rule) && !/overscroll-behavior/.test(rule));
 	ok("菜单脱离 root 后仍取消「点外面关闭」", component.includes("portalHost.contains(e.target)"));
-	ok("菜单脱离 root 后 Tab 焦点仍算在菜单内", component.includes("portalHost.contains(next)"));
+	// issue #31 改写了「谁有权关菜单」：旧实现把打开态挂在指针离开图标 180ms 上，
+	// 指针从图标移进菜单的 6px 空隙里只要丢一次 enter，菜单就在用户点到之前自己关掉
+	// （现场：鼠标离开图标就消失、弹窗点不动）。旧断言锁的正是那条 blur 排关闭的规则，
+	// 现在反过来锁三件事：blur 不排关闭、主菜单 leave 只收二级、滚走要退场。
+	ok("搜索框失焦不再关闭菜单（issue #31）", !component.includes("if (!pointerInside.current) scheduleClose()"));
+	ok("指针离开只收二级子菜单，不关主菜单",
+		component.includes("onMouseLeave: () => { pointerInside.current = false; scheduleCollapse(); }")
+		&& !/onMouseLeave:[^\n]*setOpen\(false\)/.test(component));
+	ok("常驻菜单补上滚动退场", component.includes("window.addEventListener('scroll', onScroll, true)"));
+	// 反向自测：把「离开即关」塞回去，上面两条必须变红。
+	const regressed = component.replace(
+		"onMouseLeave: () => { pointerInside.current = false; scheduleCollapse(); }",
+		"onMouseLeave: () => { pointerInside.current = false; scheduleClose(); }",
+	);
+	ok("反向自测：恢复「离开即关」后新不变式变红",
+		regressed.includes("pointerInside.current = false; scheduleClose(); }")
+		&& !regressed.includes("pointerInside.current = false; scheduleCollapse(); }"));
 	// 反向自测：把 portal 接线去掉，第一条断言必须变红。
 	const naive = component.replace("portalize(h(", "h(");
 	ok("反向自测：去掉 portal 后接线断言变红", !naive.includes("portalize(h(")
